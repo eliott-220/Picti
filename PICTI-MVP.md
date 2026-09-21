@@ -1,5 +1,7 @@
 # PICTI — MVP (détail)
 
+(Index du dossier : [PICTI.md](./PICTI.md) · Contexte projet : [CLAUDE.md](./CLAUDE.md))
+
 Artifact publié : https://claude.ai/artifact/RYhVHUuM1awGHaB1h4vkx4
 
 ## Nature technique
