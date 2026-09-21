@@ -1,0 +1,11 @@
+# PICTI — index
+
+Application de partage de photos géolocalisées en réalité augmentée (« géocadrage »).
+
+## Fichiers de ce dossier
+- `CLAUDE.md` — contexte projet (concept, origine, état d'avancement, pistes à faire).
+- `PICTI-MVP.md` — détail du fonctionnement du MVP actuel (parcours utilisateur, fonctionnement technique, limites).
+
+## Liens
+- MVP publié (artifact) : https://claude.ai/artifact/RYhVHUuM1awGHaB1h4vkx4
+- Dossier Drive d'origine : https://drive.google.com/drive/u/1/folders/1Wg2jgN9fkHpWpn5_9rqAO0qRGjMsWQZ8
