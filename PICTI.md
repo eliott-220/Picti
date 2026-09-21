@@ -1,5 +1,7 @@
 # PICTI — index
 
+(Parent : [CLAUDE.md racine](../CLAUDE.md))
+
 Application de partage de photos géolocalisées en réalité augmentée (« géocadrage »).
 
 Ce fichier est le point d'entrée du dossier : commence toujours ici, puis suis les liens ci-dessous.
@@ -7,6 +9,8 @@ Ce fichier est le point d'entrée du dossier : commence toujours ici, puis suis 
 ## Fichiers de ce dossier
 - [CLAUDE.md](./CLAUDE.md) — contexte projet (concept, origine, état d'avancement, pistes à faire). À lire pour comprendre le projet dans son ensemble.
 - [PICTI-MVP.md](./PICTI-MVP.md) — détail du fonctionnement du MVP actuel (parcours utilisateur, fonctionnement technique, limites).
+- [proto/Proto.md](./proto/Proto.md) — prototype du noyau technique de géocadrage (pose GPS + visée, filtrage capteurs, viseur AR, 52 tests).
+- [PICTI-VERCEL-IOS.md](./PICTI-VERCEL-IOS.md) — déploiement Vercel de `proto/` et comportement « Ajouter à l'écran d'accueil » sur iPhone.
 
 ## Liens externes
 - MVP publié (artifact) : https://claude.ai/artifact/RYhVHUuM1awGHaB1h4vkx4

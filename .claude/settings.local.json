@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/bin/python3 -m http.server 8778)",
+      "mcp__8f94b09a-7694-4e1c-b57f-886fa30d457a__list_deployments",
+      "mcp__8f94b09a-7694-4e1c-b57f-886fa30d457a__get_project",
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(cd /Users/eliottdevin/Desktop/Claude/Picti-live && wc -l src/screens/Home.tsx src/components/ArSpotsLayer.tsx src/components/ar.tsx src/screens/Hunt.tsx; grep -n \"video\\\\|Video\\\\|ArSpotsLayer\\\\|CameraView\\\\|filter\" src/screens/Home.tsx src/components/ar.tsx src/screens/Hunt.tsx src/screens/Recaler.tsx | head -60; grep -n \"video\\\\|filter\\\\|grayscale\\\\|\\\\.viewfinder\\\\|\\\\.camera\" src/styles.css | head -40)",
+      "Bash(npm ci *)",
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "mcp__8f94b09a-7694-4e1c-b57f-886fa30d457a__create_deployment",
+      "mcp__8f94b09a-7694-4e1c-b57f-886fa30d457a__get_deployment"
+    ]
+  }
+}

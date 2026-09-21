@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#14110f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PICTI">
+<title>PICTI — proto géocadrage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>PICTI <span>proto géocadrage</span></h1>
+  <button id="modeBadge" class="badge" type="button" title="Basculer capteurs / simulation">capteurs</button>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="pose" class="on">Pose</button>
+  <button role="tab" data-tab="graver">Graver</button>
+  <button role="tab" data-tab="viser">Viser</button>
+</nav>
+
+<main>
+  <!-- ─── Pose : ce que les capteurs racontent ─────────────────────────── -->
+  <section id="tab-pose" class="tab on">
+    <div id="permBox" class="notice">
+      <p>Le géocadrage a besoin de la position <em>et</em> de la boussole.</p>
+      <button id="btnEnable" class="primary" type="button">Activer les capteurs</button>
+      <button id="btnSim" class="ghost" type="button">Pas de capteurs&nbsp;? Simuler</button>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Position</h2>
+        <dl id="posOut">
+          <dt>latitude</dt><dd data-k="lat">—</dd>
+          <dt>longitude</dt><dd data-k="lon">—</dd>
+          <dt>précision</dt><dd data-k="acc">—</dd>
+          <dt>altitude</dt><dd data-k="alt">—</dd>
+          <dt>brut → lissé</dt><dd data-k="smooth">—</dd>
+          <dt>fixes rejetés</dt><dd data-k="rej">0</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>Visée</h2>
+        <dl id="aimOut">
+          <dt>cap (yaw)</dt><dd data-k="yaw">—</dd>
+          <dt>élévation</dt><dd data-k="pitch">—</dd>
+          <dt>roulis</dt><dd data-k="roll">—</dd>
+          <dt>source</dt><dd data-k="src">—</dd>
+          <dt>α / β / γ</dt><dd data-k="euler">—</dd>
+          <dt>écran</dt><dd data-k="screen">0°</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div id="warnAbs" class="warn hidden">
+      Boussole <strong>relative</strong> : ce navigateur ne donne pas le nord.
+      Les caps affichés sont arbitraires — le géocadrage sera faux.
+    </div>
+
+    <div class="card">
+      <h2>Calibration</h2>
+      <label class="range">
+        <span>Champ horizontal <b id="fovVal">66°</b></span>
+        <input id="fov" type="range" min="40" max="110" step="1" value="66">
+        <small>Aucun navigateur n'expose la focale de l'objectif. À régler une fois, à vue.</small>
+      </label>
+      <label class="range">
+        <span>Correction du nord <b id="declVal">0°</b></span>
+        <input id="decl" type="range" min="-30" max="30" step="0.5" value="0">
+        <small>Déclinaison magnétique, ou recalage sur un repère connu.</small>
+      </label>
+    </div>
+
+    <div id="simPanel" class="card hidden">
+      <h2>Simulation</h2>
+      <label class="range"><span>cap <b data-v="yaw">0°</b></span><input data-sim="yaw" type="range" min="0" max="359" step="1" value="0"></label>
+      <label class="range"><span>élévation <b data-v="pitch">0°</b></span><input data-sim="pitch" type="range" min="-80" max="80" step="1" value="0"></label>
+      <label class="range"><span>roulis <b data-v="roll">0°</b></span><input data-sim="roll" type="range" min="-60" max="60" step="1" value="0"></label>
+      <label class="range"><span>est <b data-v="east">0 m</b></span><input data-sim="east" type="range" min="-80" max="80" step="0.5" value="0"></label>
+      <label class="range"><span>nord <b data-v="north">0 m</b></span><input data-sim="north" type="range" min="-80" max="80" step="0.5" value="0"></label>
+      <label class="range"><span>précision GPS <b data-v="accuracy">6 m</b></span><input data-sim="accuracy" type="range" min="1" max="50" step="1" value="6"></label>
+      <p class="hint">Le monde simulé est rendu avec la même projection que l'AR. Déplace-toi, puis grave une plaque et va la retrouver.</p>
+    </div>
+  </section>
+
+  <!-- ─── Graver ───────────────────────────────────────────────────────── -->
+  <section id="tab-graver" class="tab">
+    <div id="slotGraver" class="slot"></div>
+    <div class="row">
+      <input id="title" type="text" placeholder="Titre (optionnel)" maxlength="60">
+      <button id="btnShoot" class="primary shoot" type="button">Graver</button>
+    </div>
+    <p id="shootMsg" class="hint"></p>
+    <div class="card">
+      <h2>Carnet <span id="count" class="pill">0</span></h2>
+      <ul id="list" class="list"></ul>
+    </div>
+  </section>
+
+  <!-- ─── Viser ────────────────────────────────────────────────────────── -->
+  <section id="tab-viser" class="tab">
+    <div id="slotViser" class="slot"></div>
+    <div class="row between">
+      <button id="prev" class="ghost" type="button">‹</button>
+      <span id="viserLabel" class="hint">Aucune plaque</span>
+      <button id="next" class="ghost" type="button">›</button>
+    </div>
+    <div class="card">
+      <h2>Solution</h2>
+      <dl id="solveOut" class="tight">
+        <dt>phase</dt><dd data-k="phase">—</dd>
+        <dt>distance</dt><dd data-k="dist">—</dd>
+        <dt>cap cible</dt><dd data-k="brg">—</dd>
+        <dt>écart lacet</dt><dd data-k="dyaw">—</dd>
+        <dt>écart élévation</dt><dd data-k="dpitch">—</dd>
+        <dt>score</dt><dd data-k="score">—</dd>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<!-- Scène partagée entre « Graver » et « Viser » : un seul flux caméra. -->
+<div id="stage" class="stage">
+  <video id="video" playsinline muted autoplay></video>
+  <canvas id="scene"></canvas>
+  <canvas id="overlay"></canvas>
+  <div id="stageMsg" class="stageMsg"></div>
+</div>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

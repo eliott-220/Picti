@@ -12,12 +12,12 @@ Projet repris à partir d'un dossier Google Drive partagé par Eliott :
 https://drive.google.com/drive/u/1/folders/1Wg2jgN9fkHpWpn5_9rqAO0qRGjMsWQZ8
 
 ## État actuel
-- Un MVP HTML autonome (single-page app, pas de dépendances externes hors polices Google Fonts) a été développé et publié en artifact Claude : https://claude.ai/artifact/RYhVHUuM1awGHaB1h4vkx4
+- Un MVP HTML autonome (single-page app, pas de dépendances externes hors polices Google Fonts) a été développé et publié en artifact Codex : https://Codex.ai/artifact/RYhVHUuM1awGHaB1h4vkx4
 - Voir [PICTI-MVP.md](./PICTI-MVP.md) pour le détail du fonctionnement du MVP.
 - Un **prototype du noyau technique** vit dans [`proto/`](./proto/Proto.md) (2026-09-21) : il isole la « pose » (GPS + visée 3D) qui rend le géocadrage possible, avec filtrage des capteurs, viseur AR et 52 tests sans dépendance. Développé à part du MVP, qu'il n'a pas modifié.
-- Le `proto/` est aussi déployé sur Vercel (projet `picti`), pour le tester en HTTPS sur un vrai iPhone — voir [PICTI-VERCEL-IOS.md](./PICTI-VERCEL-IOS.md) pour le détail et le comportement « Ajouter à l'écran d'accueil ». C'est `proto/` qui est en ligne, pas le MVP complet (qui reste uniquement l'artifact Claude).
+- Le `proto/` est aussi déployé sur Vercel (projet `picti`), pour le tester en HTTPS sur un vrai iPhone — voir [PICTI-VERCEL-IOS.md](./PICTI-VERCEL-IOS.md) pour le détail et le comportement « Ajouter à l'écran d'accueil ». C'est `proto/` qui est en ligne, pas le MVP complet.
 - Stockage 100% local (localStorage du navigateur), aucun backend, aucun compte multi-utilisateur pour l'instant.
-- Ces fichiers de doc (`PICTI.md`, `PICTI-MVP.md`, `CLAUDE.md`) sont gardés en local (dossier `Picti` sur le Mac d'Eliott), pas sur le Drive — préférence explicite d'Eliott.
+- Ces fichiers de doc (`PICTI.md`, `PICTI-MVP.md`, `AGENTS.md`) sont gardés en local (dossier `Picti` sur le Mac d'Eliott), pas sur le Drive — préférence explicite d'Eliott.
 
 ## Vocabulaire technique
 - **Pose** : point GPS *et* direction de visée (yaw/pitch/roll). C'est la pose, pas le point seul, qui permet de rejouer un cadrage.
