@@ -40,8 +40,16 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `nearby_photos`, bucket privé `photos` (dossier par utilisateur, URLs signées). Toutes les
   règles d'accès sont en RLS : voir `supabase/migrations/`. Visibilité par photo :
   `public` (défaut) / `amis` / `prive`. Config client : `src/config.ts`.
-- Modèle économique : géocadrage en direct gratuit ; différé (import) préparé pour devenir
-  payant (`DIFFERE_PREMIUM_REQUIRED` dans `src/config.ts`, colonne `profiles.plan`).
+- Modèle économique : géocadrage en direct gratuit ; **Premium** (colonne `profiles.plan`,
+  non modifiable par l'utilisateur) : enregistrer les photos des autres
+  (`SAVE_OTHERS_PREMIUM_REQUIRED = true`) et, plus tard, le différé
+  (`DIFFERE_PREMIUM_REQUIRED = false` pendant l'essai) — `src/config.ts`.
+- Carte du monde : `src/screens/WorldMap.tsx` (chargée à la demande), MapLibre GL 6 +
+  fond OpenFreeMap (gratuit, sans clé), regroupement Supercluster (vignette = photo la plus
+  récente), RPC `photos_in_bounds`. Le processus de fond MapLibre est assemblé par Vite
+  (`?worker&url` + `setWorkerUrl`).
+- Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : la plus récente devant,
+  frise pour remonter le temps — viseur de l'accueil (`ArSpotsLayer`) et chasse.
 - `src/geo/` = moteur pur, couvert par Vitest : **toute modification de la géométrie doit
   garder `npm test` vert**. Repère monde ENU (x Est, y Nord, z Haut) ; caméra = base
   (f avant, r droite, u haut) ; angles en degrés.
@@ -59,8 +67,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   chasse AR avec capture, profil, chasses, proximité, recherche, mode démo).
 - v0.2 : Supabase (comptes, publication des photos, photos des autres à proximité,
   visibilité publique/amis/privée, amis par code, chasseurs/proies, captures partagées).
-- Prochaines étapes : test terrain à plusieurs ; mot de passe oublié ; notifications de
-  proximité ; paiement du différé ; calibration de la focale ; piste VPS/native.
+- v0.3 : carte du monde, viseur augmenté (photos du lieu empilées), enregistrement Premium.
+- Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
+  notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
 

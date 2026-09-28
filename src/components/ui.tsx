@@ -48,16 +48,19 @@ export function PhotoTile({
   caption,
   badge,
   size = 'grid',
+  label,
 }: {
   id: string
+  /** Nom accessible (sinon la légende). */
+  label?: string
   onClick?: () => void
   caption?: ReactNode
   badge?: ReactNode
-  size?: 'grid' | 'strip'
+  size?: 'grid' | 'strip' | 'mini'
 }) {
   const url = useImageUrl(id, 'thumb')
   return (
-    <button type="button" className={`tile tile-${size}`} onClick={onClick}>
+    <button type="button" className={`tile tile-${size}`} onClick={onClick} aria-label={label}>
       {url ? <img src={url} alt="" loading="lazy" /> : <span className="tile-placeholder" />}
       {badge && <span className="tile-badge">{badge}</span>}
       {caption && <span className="tile-caption">{caption}</span>}

@@ -11,5 +11,8 @@ export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY ?? 'sb_publishable
  */
 export const DIFFERE_PREMIUM_REQUIRED = false
 
+/** Enregistrer sur son téléphone la photo d'un autre utilisateur : réservé à PICTI Premium. */
+export const SAVE_OTHERS_PREMIUM_REQUIRED = true
+
 /** Rayon de recherche des photos à proximité (m). */
 export const NEARBY_RADIUS = 500

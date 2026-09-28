@@ -8,6 +8,7 @@ export type Route =
   | { name: 'profil' }
   | { name: 'chasses' }
   | { name: 'proximite' }
+  | { name: 'carte' }
   | { name: 'recherche'; filters: boolean }
   | { name: 'photo'; id: string }
   | { name: 'chasse'; id: string }
@@ -24,6 +25,8 @@ export function parseHash(hash: string): Route {
       return { name: 'chasses' }
     case 'proximite':
       return { name: 'proximite' }
+    case 'carte':
+      return { name: 'carte' }
     case 'recherche':
       return { name: 'recherche', filters: new URLSearchParams(query).has('filtres') }
     case 'photo':

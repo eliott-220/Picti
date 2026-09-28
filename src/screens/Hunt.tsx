@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { ArPhoto, SpotTimeline } from '../components/ar'
+import { photoTime, projectGeoPhoto, viewportCamera, type GeoframedPhoto } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
-import { useImageUrl } from '../data/imageUrls'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
-import { isGeoframed, photoDate, type GeoPhoto } from '../data/types'
-import { ALIGN_TOLERANCE, computeAlignment, guidance, parallaxEye } from '../geo/alignment'
-import { formatDistance, toENU, type GeoFix } from '../geo/geodesy'
+import { isGeoframed, photoDate } from '../data/types'
+import { ALIGN_TOLERANCE, computeAlignment, guidance } from '../geo/alignment'
+import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
-import { coverViewport, DEFAULT_PHONE_FOCAL35, focalPx, type ViewportCamera } from '../geo/optics'
 import { basisFromAngles, type CameraAngles } from '../geo/orientation'
-import { photoPlaneCorners, projectPhoto, quadTransform } from '../geo/projection'
+import { SAME_SPOT_RADIUS } from '../geo/spots'
 import { goBack } from '../router'
 import { useCamera } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
@@ -19,12 +19,12 @@ import { useOrientation } from '../sensors/useOrientation'
 
 /** Temps d'alignement continu requis pour capturer une photo (ms). */
 const HOLD_MS = 1500
-/** Largeur de rendu de la photo superposée (px CSS, avant transformation). */
-const OVERLAY_W = 1000
 
 export function Hunt({ id }: { id: string }) {
-  const { photo, loading } = usePhoto(id)
-  if (!photo || !isGeoframed(photo)) {
+  const { photos } = useStore()
+  const { photo: base, loading } = usePhoto(id)
+  const [currentId, setCurrentId] = useState(id)
+  if (!base || !isGeoframed(base)) {
     return (
       <main className="screen page missing">
         <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
@@ -32,7 +32,15 @@ export function Hunt({ id }: { id: string }) {
       </main>
     )
   }
-  return <HuntView photo={photo} />
+  // Photos prises au même endroit, de la plus récente à la plus ancienne.
+  const stack = photos
+    .filter(
+      (p): p is GeoframedPhoto =>
+        isGeoframed(p) && distanceMeters(p.geoframe.position, base.geoframe.position) <= SAME_SPOT_RADIUS,
+    )
+    .sort((a, b) => photoTime(b) - photoTime(a))
+  const current = stack.find((p) => p.id === currentId) ?? base
+  return <HuntView photo={current} stack={stack} onSelect={(p) => setCurrentId(p.id)} />
 }
 
 /**
@@ -41,17 +49,32 @@ export function Hunt({ id }: { id: string }) {
  * est loin, puis se confond avec le décor une fois le point de vue exact
  * retrouvé — la photo est alors « capturée ».
  */
-function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhoto['geoframe']> } }) {
+function HuntView({
+  photo,
+  stack,
+  onSelect,
+}: {
+  photo: GeoframedPhoto
+  /** Photos prises au même endroit (dont celle-ci), de la plus récente à la plus ancienne. */
+  stack: GeoframedPhoto[]
+  onSelect: (photo: GeoframedPhoto) => void
+}) {
   const { captures, addCapture, isMine } = useStore()
-  const url = useImageUrl(photo.id, 'full')
   const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
   const geo = useGeolocation()
   const orientation = useOrientation()
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
   const [opacity, setOpacity] = useState(0.8)
-  // chasse → capturée (célébration) → contemplation (photo retrouvée)
-  const [phase, setPhase] = useState<'hunting' | 'captured' | 'contemplating'>('hunting')
-  const [firstCapture, setFirstCapture] = useState(false)
+  // chasse → capturée (célébration) → contemplation, pour la photo affichée.
+  type Phase = 'hunting' | 'captured' | 'contemplating'
+  const [phaseState, setPhaseState] = useState<{ id: string; phase: Phase; first: boolean }>({
+    id: photo.id,
+    phase: 'hunting',
+    first: false,
+  })
+  const phase: Phase = phaseState.id === photo.id ? phaseState.phase : 'hunting'
+  const firstCapture = phaseState.id === photo.id && phaseState.first
+  const setPhase = (next: Phase, first = firstCapture) => setPhaseState({ id: photo.id, phase: next, first })
   const alreadyCaptured = captures.some((c) => c.photoId === photo.id)
 
   const g = photo.geoframe
@@ -59,8 +82,6 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
     () => ({ position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } }),
     [g],
   )
-  const targetBasis = useMemo(() => basisFromAngles(target.angles), [target])
-  const corners = useMemo(() => photoPlaneCorners(targetBasis, photo), [targetBasis, photo])
 
   // Mode démonstration (ordinateur, capteurs refusés) : on se place au point
   // de vue et on regarde autour de soi en faisant glisser l'image.
@@ -91,24 +112,15 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
 
   const al = computeAlignment(target, { position: viewerFix, angles: viewerAngles })
 
-  // Caméra de l'écran : le flux vidéo couvre la scène.
-  const cam: ViewportCamera | null = stage.width
-    ? cameraSize
-      ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, DEFAULT_PHONE_FOCAL35)
-      : { width: stage.width, height: stage.height, focal: focalPx(DEFAULT_PHONE_FOCAL35, stage.width, stage.height) }
-    : null
-
-  const eyeRaw: Vec3 = viewerFix ? toENU(g.position, viewerFix) : [0, 0, 0]
-  const eye = al.distance != null ? parallaxEye(eyeRaw, al.distance, al.radius) : eyeRaw
-  const projection = cam && viewerBasis ? projectPhoto(corners, eye, viewerBasis, cam) : null
-  const overlayH = (OVERLAY_W * photo.height) / photo.width
-  const transform = projection?.inFront ? quadTransform(OVERLAY_W, overlayH, projection.corners) : null
+  const cam = viewportCamera(stage, cameraSize)
+  const ar = cam && viewerBasis ? projectGeoPhoto(photo, viewerFix, viewerBasis, cam) : null
+  const transform = ar?.transform ?? null
 
   // Flèche de bord d'écran : où se trouve la photo quand elle est hors champ.
   let edgeArrow: number | null = null
-  if (viewerBasis && projection && !projection.onScreen) {
-    const center: Vec3 = scale(add(corners[0], corners[2]), 0.5)
-    const d = sub(center, eye)
+  if (viewerBasis && ar && !ar.projection.onScreen) {
+    const center: Vec3 = scale(add(ar.corners[0], ar.corners[2]), 0.5)
+    const d = sub(center, ar.eye)
     edgeArrow = (Math.atan2(dot(d, viewerBasis.r), dot(d, viewerBasis.u)) * 180) / Math.PI
   }
 
@@ -120,8 +132,7 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
   useEffect(() => {
     if (!al.aligned || phase !== 'hunting') return
     const t = setTimeout(() => {
-      setPhase('captured')
-      setFirstCapture(!alreadyCaptured)
+      setPhaseState({ id: photo.id, phase: 'captured', first: !alreadyCaptured })
       navigator.vibrate?.([60, 40, 120])
       if (!alreadyCaptured) void addCapture(photo.id, scoreRef.current).catch(() => undefined)
     }, HOLD_MS)
@@ -145,16 +156,8 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
       <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
-      {url && transform && (
-        <img
-          className="overlay-photo"
-          src={url}
-          alt=""
-          width={OVERLAY_W}
-          height={overlayH}
-          style={{ transform, opacity: al.aligned ? Math.max(opacity, 0.95) : opacity }}
-          draggable={false}
-        />
+      {transform && (
+        <ArPhoto photo={photo} transform={transform} opacity={al.aligned ? Math.max(opacity, 0.95) : opacity} />
       )}
 
       {edgeArrow != null && (
@@ -191,6 +194,14 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
       )}
 
       <footer className="hunt-bottom">
+        {stack.length > 1 && (
+          <SpotTimeline
+            items={stack}
+            index={Math.max(0, stack.findIndex((p) => p.id === photo.id))}
+            onChange={(i) => onSelect(stack[i])}
+            isMine={isMine}
+          />
+        )}
         <div className="gauges">
           <Gauge
             label="Distance"

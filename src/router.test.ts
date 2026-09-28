@@ -12,6 +12,7 @@ describe('parseHash', () => {
     expect(parseHash('#/profil')).toEqual({ name: 'profil' })
     expect(parseHash('#/chasses')).toEqual({ name: 'chasses' })
     expect(parseHash('#/proximite')).toEqual({ name: 'proximite' })
+    expect(parseHash('#/carte')).toEqual({ name: 'carte' })
   })
 
   it('lit les identifiants de photo', () => {

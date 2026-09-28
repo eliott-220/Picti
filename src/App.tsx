@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Logo } from './components/Icon'
 import { useSession } from './data/auth'
 import { StoreProvider } from './data/store'
@@ -13,6 +14,9 @@ import { PhotoDetail } from './screens/PhotoDetail'
 import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
 import { Search } from './screens/Search'
+
+// La carte (MapLibre) est lourde : chargée seulement à l'ouverture.
+const WorldMap = lazy(() => import('./screens/WorldMap'))
 
 export default function App() {
   const session = useSession()
@@ -59,6 +63,12 @@ function Screens() {
       return <Hunts />
     case 'proximite':
       return <Nearby />
+    case 'carte':
+      return (
+        <Suspense fallback={<Splash message="Chargement de la carte…" />}>
+          <WorldMap />
+        </Suspense>
+      )
     case 'recherche':
       return <Search filters={route.filters} />
     case 'photo':

@@ -3,6 +3,8 @@ import { Icon } from '../components/Icon'
 import { Avatar, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
+import { canSaveOthersPhotos } from '../data/premium'
+import { savePhotoToDevice } from '../data/savePhoto'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
 import { isGeoframed, MODE_LABEL, photoDate, VISIBILITY_LABEL, type GeoPhoto, type Visibility } from '../data/types'
@@ -36,20 +38,38 @@ export function PhotoDetail({ id }: { id: string }) {
 
 /** « Une de mes photos géocadrées » ou la photo d'un autre : détail, réglages, chasse. */
 function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
-  const { captures, isMine, updatePhoto, removePhoto } = useStore()
+  const { captures, isMine, profile, updatePhoto, removePhoto } = useStore()
   const url = useImageUrl(photo.id, 'full')
   const { fix } = useGeolocation()
   const toast = useToast()
   const [renaming, setRenaming] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [paywall, setPaywall] = useState(false)
   const mine = isMine(photo)
+  const canSave = mine || canSaveOthersPhotos(profile)
+
+  async function save() {
+    if (!canSave) {
+      setPaywall(true)
+      return
+    }
+    setSaving(true)
+    try {
+      await savePhotoToDevice(photo)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Enregistrement impossible')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const g = photo.geoframe
   const position = g?.position ?? photo.hintPosition
   const distance = fix && position ? distanceMeters(fix, position) : null
   const captured = captures.some((c) => c.photoId === photo.id)
 
-  async function save(changes: Partial<GeoPhoto>) {
+  async function saveChanges(changes: Partial<GeoPhoto>) {
     try {
       await updatePhoto({ ...photo, ...changes })
     } catch (err) {
@@ -59,7 +79,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
 
   async function rename(title: string) {
     setRenaming(false)
-    if (title.trim() && title.trim() !== photo.title) await save({ title: title.trim() })
+    if (title.trim() && title.trim() !== photo.title) await saveChanges({ title: title.trim() })
   }
 
   async function remove() {
@@ -107,6 +127,20 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
           )
         )}
 
+        <button type="button" className="btn ghost" onClick={() => void save()} disabled={saving}>
+          <Icon name="download" /> {saving ? 'Enregistrement…' : 'Enregistrer sur mon téléphone'}
+          {!canSave && <span className="premium-tag">Premium</span>}
+        </button>
+        {paywall && (
+          <div className="paywall">
+            <strong>Enregistrer les photos des autres : PICTI Premium</strong>
+            <span>
+              Vous pouvez chasser et contempler cette photo sur place gratuitement. L’enregistrer sur votre téléphone est
+              réservé aux comptes Premium (bientôt disponible).
+            </span>
+          </div>
+        )}
+
         {!mine && (
           <div className="author">
             <Avatar name={photo.ownerName} size={44} />
@@ -127,7 +161,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
                   role="radio"
                   aria-checked={photo.visibility === v}
                   className={`chip ${photo.visibility === v ? 'selected' : ''}`}
-                  onClick={() => void save({ visibility: v })}
+                  onClick={() => void saveChanges({ visibility: v })}
                 >
                   {VISIBILITY_LABEL[v]}
                 </button>
@@ -180,7 +214,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
         {mine && (
           <label className="field">
             Distance du sujet
-            <select value={photo.depth} onChange={(e) => void save({ depth: Number(e.target.value) })}>
+            <select value={photo.depth} onChange={(e) => void saveChanges({ depth: Number(e.target.value) })}>
               {DEPTHS.map((d) => (
                 <option key={d} value={d}>
                   {d} m

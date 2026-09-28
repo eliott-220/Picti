@@ -17,8 +17,21 @@ const listeners = new Set<() => void>()
 export function registerImagePaths(photos: GeoPhoto[]) {
   let changed = false
   for (const p of photos) {
-    if (!paths.has(p.id)) changed = true
+    const known = paths.get(p.id)
+    if (!known || !known.full) changed = true
     paths.set(p.id, { full: p.imagePath, thumb: p.thumbPath })
+  }
+  if (changed) listeners.forEach((l) => l())
+}
+
+/** Mémorise seulement les vignettes (photos affichées sur la carte). */
+export function registerThumbs(items: { id: string; thumbPath: string }[]) {
+  let changed = false
+  for (const it of items) {
+    if (paths.has(it.id)) continue
+    // Le chemin de l'image complète est inconnu tant que la photo n'est pas chargée.
+    paths.set(it.id, { full: '', thumb: it.thumbPath })
+    changed = true
   }
   if (changed) listeners.forEach((l) => l())
 }
@@ -32,14 +45,34 @@ export function forgetImage(path: string) {
   cache.delete(path)
 }
 
+// Les demandes d'un même instant sont regroupées en une seule requête.
+let pending: { path: string; resolve: (url: string | null) => void }[] = []
+let flushTimer: ReturnType<typeof setTimeout> | null = null
+
+function flush() {
+  const batch = pending
+  pending = []
+  flushTimer = null
+  supabase.storage
+    .from(PHOTO_BUCKET)
+    .createSignedUrls(
+      batch.map((b) => b.path),
+      TTL,
+    )
+    .then(({ data }) => {
+      const byPath = new Map((data ?? []).map((d) => [d.path, d.signedUrl]))
+      batch.forEach((b) => b.resolve(byPath.get(b.path) ?? null))
+    })
+    .catch(() => batch.forEach((b) => b.resolve(null)))
+}
+
 function signedUrl(path: string): Promise<string | null> {
   const hit = cache.get(path)
   if (hit && hit.expires > Date.now()) return hit.url
-  const url = supabase.storage
-    .from(PHOTO_BUCKET)
-    .createSignedUrl(path, TTL)
-    .then(({ data }) => data?.signedUrl ?? null)
-    .catch(() => null)
+  const url = new Promise<string | null>((resolve) => {
+    pending.push({ path, resolve })
+    flushTimer ??= setTimeout(flush, 20)
+  })
   cache.set(path, { url, expires: Date.now() + (TTL - 300) * 1000 })
   return url
 }
@@ -47,7 +80,7 @@ function signedUrl(path: string): Promise<string | null> {
 export function useImageUrl(id: string | null | undefined, kind: ImageKind = 'thumb'): string | null {
   const [, setVersion] = useState(0)
   const [state, setState] = useState<{ path: string; url: string | null } | null>(null)
-  const path = id ? paths.get(id)?.[kind] : undefined
+  const path = (id ? paths.get(id)?.[kind] : undefined) || undefined
 
   // Réagit à l'arrivée tardive des chemins (photo chargée après le rendu).
   useEffect(() => {

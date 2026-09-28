@@ -25,6 +25,10 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
 | À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
 
+| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
+| **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne. |
+| Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
+
 Sur ordinateur (sans boussole), la chasse passe en **mode démo** : on se place au point de
 vue et on regarde autour de soi en faisant glisser l'image.
 
@@ -32,8 +36,10 @@ vue et on regarde autour de soi en faisant glisser l'image.
 publiée — **publique** par défaut, ou réservée aux **amis**, ou **privée** — et quiconque passe
 au même endroit la voit apparaître dans « À proximité » et peut la chasser. Amis ajoutés par
 code, *chasseurs* (ceux qui ont capturé mes photos) et *proies* (ceux dont j'ai capturé les
-photos). Le géocadrage en direct est gratuit ; le géocadrage en différé (import) est prévu
-payant (`DIFFERE_PREMIUM_REQUIRED` dans `src/config.ts`).
+photos). Le géocadrage en direct est gratuit ; sont réservés à **PICTI Premium** :
+l'enregistrement des photos des autres (`SAVE_OTHERS_PREMIUM_REQUIRED`, actif) et, plus tard,
+le géocadrage en différé (`DIFFERE_PREMIUM_REQUIRED`, gratuit pendant l'essai) — voir
+`src/config.ts` ; le plan d'un compte est la colonne `profiles.plan` (`free` / `premium`).
 
 ## Démarrer
 

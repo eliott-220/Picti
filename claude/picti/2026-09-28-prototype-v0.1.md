@@ -88,3 +88,23 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
 - À régler par Eliott dans Supabase : Authentication → URL Configuration → Site URL =
   https://picti.vercel.app (sinon le lien de confirmation renvoie vers localhost).
 
+## Suite : carte du monde, photos empilées, Premium (v0.3)
+
+- Demandes d'Eliott : enregistrer la photo des autres est **payant** ; **carte du monde**
+  navigable (type Google Maps) avec les photos du monde entier, **groupées** de loin (de la
+  plus récente à la plus ancienne) puis à leur **position exacte** en zoomant ; en **mode
+  caméra**, pour des photos prises au même endroit, **la plus récente devant**, avec
+  défilement vers les plus anciennes.
+- Réalisé :
+  - Supabase : RPC `photos_in_bounds` (zone visible, antiméridien géré, RLS appliquée).
+  - Carte : MapLibre + OpenFreeMap, Supercluster (vignette = la plus récente + compteur),
+    fiche du groupe triée, « Zoomer ici », « Chasser », ma position, lien vers la liste.
+  - Caméra : viseur augmenté sur l'accueil (photos à moins de 150 m, regroupées par lieu de
+    10 m) avec frise ‹ › / glissement ; même frise dans l'écran de chasse.
+  - Enregistrer sur le téléphone : gratuit pour ses photos, Premium pour celles des autres
+    (verrou actif) ; différé toujours gratuit pendant l'essai.
+- Vérifié : 56 tests unitaires, requête SQL testée (monde, zone, antiméridien, photo privée
+  exclue) ; parcours complet dans Chromium avec un faux Supabase (frise 1/3→3/3, chasse,
+  carte groupée 7 → 4 → 3 photos, tri, verrou Premium). Fond de carte réel non visible depuis
+  l'environnement cloud (réseau bloqué) : à vérifier sur iPhone.
+

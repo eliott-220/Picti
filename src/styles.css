@@ -1406,3 +1406,277 @@ img {
   width: 100%;
   margin-top: 12px;
 }
+
+/* ---------- Photos d'un même endroit (caméra) ---------- */
+
+.tile-mini {
+  flex: none;
+  width: 42px;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.overlay-photo.clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 28px;
+  background: var(--glass);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  touch-action: pan-y;
+}
+
+.timeline-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timeline-text strong {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-text span {
+  font-size: 12px;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.15);
+  color: #fff;
+}
+
+.timeline-step.next svg {
+  transform: rotate(180deg);
+}
+
+.timeline-step:disabled {
+  opacity: 0.3;
+}
+
+.home-timeline {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + 128px);
+}
+
+/* ---------- Carte du monde ---------- */
+
+.world-map {
+  background: #e8eef1;
+  overflow: hidden;
+}
+
+/* Plus précis que « .maplibregl-map { position: relative } » de MapLibre. */
+.world-map .map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.map-markers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.map-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.map-marker .tile-mini {
+  position: absolute;
+  left: -26px;
+  top: -34px;
+  width: 52px;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.3);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.map-marker.mine .tile-mini {
+  border-color: var(--red);
+}
+
+.map-count {
+  position: absolute;
+  left: 14px;
+  top: -44px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border: 2px solid #fff;
+  border-radius: 13px;
+  background: var(--red);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Petit cône indiquant la direction de la prise de vue. */
+.map-heading {
+  position: absolute;
+  left: -7px;
+  top: -52px;
+  width: 14px;
+  height: 52px;
+  transform-origin: 7px 52px;
+  pointer-events: none;
+}
+
+.map-heading::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -12px;
+  border: 7px solid transparent;
+  border-bottom: 10px solid var(--red);
+}
+
+.map-me {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #1a73e8;
+  box-shadow: 0 0 0 6px rgb(26 115 232 / 0.25);
+}
+
+.map-top {
+  position: absolute;
+  top: calc(var(--safe-top) + 16px);
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-title {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 18px;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: var(--shadow);
+}
+
+.map-title strong {
+  font-weight: 500;
+}
+
+.map-title span {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.map-actions {
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.map-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px var(--pad) calc(24px + var(--safe-bottom));
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--paper);
+  box-shadow: 0 -8px 30px rgb(0 0 0 / 0.15);
+  animation: sheet-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.map-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-sheet-head div {
+  display: flex;
+  flex-direction: column;
+}
+
+.map-sheet-head strong {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.map-sheet-head span {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.map-sheet-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.map-sheet-actions .btn {
+  flex: 1;
+}
+
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
+  bottom: var(--safe-bottom);
+}
+
+.premium-tag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}

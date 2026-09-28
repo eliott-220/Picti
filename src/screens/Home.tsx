@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { viewportCamera, type GeoframedPhoto } from '../components/arProjection'
+import { ArSpotsLayer } from '../components/ArSpotsLayer'
 import { Icon } from '../components/Icon'
 import { SensorStatus } from '../components/SensorStatus'
+import { useElementSize } from '../components/useElementSize'
 import { RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
+import { isGeoframed } from '../data/types'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { navigate } from '../router'
 import { useCamera } from '../sensors/useCamera'
@@ -18,7 +22,8 @@ export function Home() {
   const [sheet, setSheet] = useState<'import' | 'menu' | null>(null)
   const [flash, setFlash] = useState(false)
   const [busy, setBusy] = useState(false)
-  const { videoRef, status: cameraStatus, error: cameraError, capture } = useCamera()
+  const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera()
+  const [stageRef, stage] = useElementSize<HTMLElement>()
   const geo = useGeolocation()
   const orientation = useOrientation()
   const { addPhoto, nearby, captures, isMine, photos } = useStore()
@@ -28,6 +33,10 @@ export function Home() {
   // Photos d'autres utilisateurs à chasser autour de soi.
   const captured = new Set(captures.map((c) => c.photoId))
   const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
+  const arPhotos = useMemo(
+    () => photos.filter((p): p is GeoframedPhoto => nearby.has(p.id) && isGeoframed(p)),
+    [photos, nearby],
+  )
 
   async function shoot() {
     if (busy) return
@@ -67,13 +76,23 @@ export function Home() {
   }
 
   return (
-    <main className="screen viewfinder">
+    <main className="screen viewfinder" ref={stageRef}>
       <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
       {cameraStatus === 'error' && (
         <div className="camera-fallback">
           <Icon name="image" size={40} />
           <p>{cameraError}</p>
         </div>
+      )}
+      {!sheet && (
+        <ArSpotsLayer
+          photos={arPhotos}
+          fix={geo.fix}
+          basis={orientation.absolute ? orientation.basis : null}
+          cam={viewportCamera(stage, cameraSize)}
+          isMine={isMine}
+          onOpen={(p) => navigate(`/chasse/${p.id}`)}
+        />
       )}
       {flash && <div className="flash" />}
 
@@ -82,8 +101,8 @@ export function Home() {
       <nav className="rail" aria-label="Explorer">
         <RoundButton
           icon="pin"
-          label="Photos à proximité"
-          onClick={() => navigate('/proximite')}
+          label="Carte des photos"
+          onClick={() => navigate('/carte')}
           dim={!!sheet}
           badge={toHunt}
         />

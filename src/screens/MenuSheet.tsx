@@ -13,6 +13,7 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
   const items: { icon: IconName; label: string; detail: string; to: string }[] = [
     { icon: 'user', label: 'Mon profil', detail: `${geoframed} photo${geoframed > 1 ? 's' : ''} géocadrée${geoframed > 1 ? 's' : ''}`, to: '/profil' },
     { icon: 'flag', label: 'Mes chasses', detail: `${hunted} capture${hunted > 1 ? 's' : ''}`, to: '/chasses' },
+    { icon: 'compass', label: 'Carte du monde', detail: 'Les photos géocadrées partout sur Terre', to: '/carte' },
     { icon: 'pin', label: 'À proximité', detail: 'Photos à retrouver autour de moi', to: '/proximite' },
     { icon: 'search', label: 'Rechercher', detail: 'Par titre ou par type', to: '/recherche' },
   ]

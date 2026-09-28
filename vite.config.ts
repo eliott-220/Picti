@@ -6,6 +6,8 @@ import { defineConfig } from 'vitest/config'
 // caméra, GPS et boussole ne sont accessibles qu'en contexte sécurisé.
 export default defineConfig(({ mode }) => ({
   plugins: [react(), ...(mode === 'https' ? [basicSsl()] : [])],
+  // Processus de fond de MapLibre (module ES).
+  worker: { format: 'es' },
   test: {
     include: ['src/**/*.test.ts'],
   },
