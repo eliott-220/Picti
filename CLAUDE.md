@@ -78,9 +78,12 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). En production : **0.009.0**, branche
-  `claude/beautiful-edison-87l36d` (commit `0c0cc37`, 28/09/2026). **0.009.1** sur la branche
-  `claude/wonderful-dirac-opn4nb` (partie de 0.009.0). `main` ne contient que le `.gitignore`.
+  (API Vercel, `create_deployment` + `deploymentId`). Dernière version : **0.009.1**, branche
+  `claude/wonderful-dirac-opn4nb` (commit `97ac582`, partie de 0.009.0) ; redéploiement en
+  production lancé le 28/09/2026 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`), **non confirmé** (la
+  session n'a pas eu l'autorisation d'en vérifier l'état). Précédente production : 0.009.0,
+  branche `claude/beautiful-edison-87l36d` (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`, retour
+  arrière possible). `main` ne contient que le `.gitignore`.
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.

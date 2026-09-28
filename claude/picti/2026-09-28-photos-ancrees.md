@@ -57,3 +57,12 @@ bonne direction. »
 
 - Pas testé sur un vrai iPhone : à vérifier sur le terrain (retard du GPS en se mettant à
   marcher, stabilité à l'arrêt, accès à l'accéléromètre sur iOS).
+
+## Mise en ligne
+
+- 28/09/2026 : aperçu construit par Vercel (`dpl_EZVndNRhb9MqKPkKTd3J3X7DvPQM`, commit `97ac582`),
+  puis redéploiement en production lancé (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`). La vérification
+  de son état a été refusée par les autorisations de la session (action de production) :
+  **mise en ligne non confirmée** — à vérifier dans le menu de l'app (numéro 0.009.1).
+- Retour arrière possible vers 0.009.0 : déploiement `dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`
+  (Vercel › picti › Deployments › Instant Rollback).
