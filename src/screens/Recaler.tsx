@@ -119,7 +119,7 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
 
   return (
     <main className="screen recaler" ref={stageRef}>
-      <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
+      <video ref={videoRef} className="camera-video mono" playsInline muted autoPlay />
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
       {url && stage.width > 0 && (

@@ -153,7 +153,7 @@ function HuntView({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
+      <video ref={videoRef} className="camera-video mono" playsInline muted autoPlay />
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
       {transform && (

@@ -293,7 +293,8 @@ img {
   object-fit: cover;
 }
 
-/* Filtre d'affichage seulement : la capture lit le flux brut, la photo reste en couleur. */
+/* Fond caméra en noir et blanc (accueil, chasse, recalage) : seules les photos restent en couleur.
+   Filtre d'affichage seulement : la capture lit le flux brut, la photo prise reste en couleur. */
 .camera-video.mono {
   filter: grayscale(1);
 }

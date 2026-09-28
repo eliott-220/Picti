@@ -78,9 +78,11 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - v0.4 : passage en Premium par code administrateur.
 - v0.5 : fin de l'essai gratuit (différé réservé à Premium, vérifié en base), notification
   de mise à jour et bouton « Recharger ».
+- Fond caméra en noir et blanc (accueil, chasse, recalage) ; photos géocadrées en couleur.
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
 
 - [2026-09-28 — Reprise du projet et prototype v0.1](claude/picti/2026-09-28-prototype-v0.1.md)
+- [2026-09-28 — Fond caméra en noir et blanc](claude/picti/2026-09-28-fond-camera-noir-et-blanc.md)
