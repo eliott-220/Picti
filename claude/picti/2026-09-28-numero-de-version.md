@@ -34,3 +34,9 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
 
 - `npm test` (64 verts), `npm run lint`, `npm run build` : OK ; `dist/version.json` contient
   `"number": "0.8.1"`.
+
+## Mise en ligne
+
+- 28/09/2026 : **0.008.1** en production sur https://picti.vercel.app (déploiement
+  `dpl_56tXm6MgZRPCx3rZYT1kJfQPWvX1`, commit `271075d`, état READY). Elle contient aussi les
+  selfies et le fond caméra noir et blanc, qui n'étaient qu'en aperçu.

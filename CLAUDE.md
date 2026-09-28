@@ -66,9 +66,11 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Commandes : `npm run dev`, `npm run dev:https` (test sur téléphone), `npm test`,
   `npm run lint`, `npm run build` (inclut `tsc -b`).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
-  (le compte PICTI protège l'accès). Déployé depuis la branche `claude/upbeat-bell-330fij`
-  via l'API Vercel. Dernière branche de travail : `claude/beautiful-edison-87l36d` (à partir de
-  `claude/blissful-maxwell-want4i` ; `main` ne contient que le `.gitignore`).
+  (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
+  aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
+  (API Vercel, `create_deployment` + `deploymentId`). En production : **0.008.1**, branche
+  `claude/beautiful-edison-87l36d` (commit `271075d`, 28/09/2026). `main` ne contient que le
+  `.gitignore`.
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.

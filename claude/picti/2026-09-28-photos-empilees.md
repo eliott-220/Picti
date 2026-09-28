@@ -56,4 +56,9 @@ indiquer par des petits points le nombre de photos, comme sur Insta. Je viens d'
 ## À faire
 
 - Tester sur iPhone (geste sur la photo dans le viseur, carte, détail).
-- Mettre en ligne sur https://picti.vercel.app.
+
+## Mise en ligne
+
+- 28/09/2026 : **0.008.1** en production sur https://picti.vercel.app (déploiement
+  `dpl_56tXm6MgZRPCx3rZYT1kJfQPWvX1`, commit `271075d`, état READY). Elle contient aussi les
+  selfies et le fond caméra noir et blanc, qui n'étaient qu'en aperçu.
