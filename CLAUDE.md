@@ -43,7 +43,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Modèle économique : géocadrage en direct gratuit ; **Premium** (colonne `profiles.plan`,
   non modifiable par l'utilisateur) : enregistrer les photos des autres
   (`SAVE_OTHERS_PREMIUM_REQUIRED = true`) et, plus tard, le différé
-  (`DIFFERE_PREMIUM_REQUIRED = false` pendant l'essai) — `src/config.ts`.
+  (`DIFFERE_PREMIUM_REQUIRED = false` pendant l'essai) — `src/config.ts`. Accès Premium :
+  paiement (à venir) ou **code** (`PremiumCard` → RPC `redeem_premium_code`, codes hachés
+  bcrypt dans `private.premium_codes`, 5 essais/heure). Ne jamais écrire un code en clair
+  dans le dépôt ; gestion des codes : voir `supabase/migrations/20260928160000_premium_codes.sql`.
 - Carte du monde : `src/screens/WorldMap.tsx` (chargée à la demande), MapLibre GL 6 +
   fond OpenFreeMap (gratuit, sans clé), regroupement Supercluster (vignette = photo la plus
   récente), RPC `photos_in_bounds`. Le processus de fond MapLibre est assemblé par Vite
@@ -68,6 +71,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - v0.2 : Supabase (comptes, publication des photos, photos des autres à proximité,
   visibilité publique/amis/privée, amis par code, chasseurs/proies, captures partagées).
 - v0.3 : carte du monde, viseur augmenté (photos du lieu empilées), enregistrement Premium.
+- v0.4 : passage en Premium par code administrateur.
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 

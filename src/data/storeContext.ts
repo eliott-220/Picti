@@ -32,6 +32,8 @@ export interface Store {
   addFriend(code: string): Promise<string>
   acceptFriend(userId: string): Promise<void>
   removeFriend(userId: string): Promise<void>
+  /** Passe le compte en Premium avec un code (seconde option de paiement). */
+  redeemPremiumCode(code: string): Promise<{ ok: boolean; message: string }>
 }
 
 export const StoreContext = createContext<Store | null>(null)

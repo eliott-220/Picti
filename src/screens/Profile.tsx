@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Icon } from '../components/Icon'
+import { PremiumCard } from '../components/PremiumCard'
 import { Avatar, AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
@@ -83,6 +84,7 @@ export function Profile() {
       </section>
 
       <section className="card white">
+        <PremiumCard />
         <h2 className="section-title">
           Mes {geoframed.length} photo{geoframed.length > 1 ? 's' : ''} géocadrée{geoframed.length > 1 ? 's' : ''}
         </h2>

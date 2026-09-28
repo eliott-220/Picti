@@ -108,3 +108,14 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
   carte groupée 7 → 4 → 3 photos, tri, verrou Premium). Fond de carte réel non visible depuis
   l'environnement cloud (réseau bloqué) : à vérifier sur iPhone.
 
+## Suite : Premium par code administrateur (v0.4)
+
+- Demande : seconde option de paiement — saisir un code (mot de passe administrateur) qui
+  passe le compte directement en Premium.
+- Réalisé : RPC `redeem_premium_code` (vérification côté serveur, code haché bcrypt dans le
+  schéma privé, 5 essais par heure et par compte), encart « PICTI Premium » dans le profil et
+  sur les verrous (paiement « bientôt », « J'ai un code »). Un code administrateur a été créé
+  et communiqué à Eliott dans la discussion (jamais écrit dans le dépôt).
+- Vérifié en base : mauvais code refusé, bon code accepté (minuscules/espaces tolérés),
+  impossible de modifier son plan soi-même, 6e essai bloqué ; parcours testé dans Chromium.
+

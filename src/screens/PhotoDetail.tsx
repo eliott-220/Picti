@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { Avatar, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
+import { PremiumCard } from '../components/PremiumCard'
 import { canSaveOthersPhotos } from '../data/premium'
 import { savePhotoToDevice } from '../data/savePhoto'
 import { useStore } from '../data/storeContext'
@@ -131,15 +132,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
           <Icon name="download" /> {saving ? 'Enregistrement…' : 'Enregistrer sur mon téléphone'}
           {!canSave && <span className="premium-tag">Premium</span>}
         </button>
-        {paywall && (
-          <div className="paywall">
-            <strong>Enregistrer les photos des autres : PICTI Premium</strong>
-            <span>
-              Vous pouvez chasser et contempler cette photo sur place gratuitement. L’enregistrer sur votre téléphone est
-              réservé aux comptes Premium (bientôt disponible).
-            </span>
-          </div>
-        )}
+        {paywall && <PremiumCard reason="Enregistrer les photos des autres : PICTI Premium" />}
 
         {!mine && (
           <div className="author">

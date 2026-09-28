@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { EmptyState, PhotoTile, Sheet } from '../components/ui'
 import { importPhotoFile } from '../data/pipeline'
+import { PremiumCard } from '../components/PremiumCard'
 import { canUseDiffere } from '../data/premium'
 import { useStore } from '../data/storeContext'
 import { isGeoframed } from '../data/types'
@@ -59,12 +60,7 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
 
   return (
     <Sheet onClose={onClose} label="Géocadrer en différé">
-      {!allowed && (
-        <div className="paywall">
-          <strong>Géocadrage en différé : PICTI Premium</strong>
-          <span>Importer des photos déjà prises est réservé aux comptes Premium. Le géocadrage en direct reste gratuit.</span>
-        </div>
-      )}
+      {!allowed && <PremiumCard reason="Géocadrage en différé : PICTI Premium" />}
       <div className="sheet-head">
         <button type="button" className="import-btn" onClick={() => input.current?.click()} disabled={busy || !allowed}>
           <Icon name={busy ? 'image' : 'plus'} />

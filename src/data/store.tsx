@@ -279,6 +279,18 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     [userId, reloadFriends],
   )
 
+  const redeemPremiumCode = useCallback(async (code: string) => {
+    if (!code.trim()) return { ok: false, message: 'Saisissez votre code.' }
+    const { data, error: e } = await supabase.rpc('redeem_premium_code', { p_code: code })
+    fail(e, 'Code Premium')
+    if (data === 'premium') {
+      setProfile((p) => (p ? { ...p, plan: 'premium' } : p))
+      return { ok: true, message: 'Bienvenue dans PICTI Premium !' }
+    }
+    if (data === 'trop-de-tentatives') return { ok: false, message: 'Trop de tentatives : réessayez dans une heure.' }
+    return { ok: false, message: 'Code invalide.' }
+  }, [])
+
   const value = useMemo<Store>(
     () => ({
       userId,
@@ -302,6 +314,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       addFriend,
       acceptFriend,
       removeFriend,
+      redeemPremiumCode,
     }),
     [
       userId,
@@ -325,6 +338,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       addFriend,
       acceptFriend,
       removeFriend,
+      redeemPremiumCode,
     ],
   )
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

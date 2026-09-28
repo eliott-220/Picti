@@ -40,6 +40,8 @@ photos). Le géocadrage en direct est gratuit ; sont réservés à **PICTI Premi
 l'enregistrement des photos des autres (`SAVE_OTHERS_PREMIUM_REQUIRED`, actif) et, plus tard,
 le géocadrage en différé (`DIFFERE_PREMIUM_REQUIRED`, gratuit pendant l'essai) — voir
 `src/config.ts` ; le plan d'un compte est la colonne `profiles.plan` (`free` / `premium`).
+On passe en Premium par paiement (à venir) ou avec un **code** (profil → « J'ai un code »),
+vérifié côté serveur (codes hachés, 5 essais par heure).
 
 ## Démarrer
 
