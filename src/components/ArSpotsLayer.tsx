@@ -107,6 +107,7 @@ export function ArSpotsLayer({
             isMine={isMine}
             action={{ label: 'Chasser', onClick: () => onOpen(focus.cards[focus.index].photo) }}
             dots={false}
+            distance={focus.cards[focus.index].ar.distance}
           />
         </div>
       )}

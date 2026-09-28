@@ -96,8 +96,10 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
   « vitesse constante » sur le GPS ; entre deux relevés (un par seconde), la position avance à
   la vitesse de marche et les corrections sont amorties à l'écran (`useLivePosition`).
   L'accéléromètre dit si l'on marche : à l'arrêt, plus d'élan, le GPS rattrape son retard
-  quelques instants puis la position se fige (la dérive du GPS ne fait plus bouger les
-  photos) ; un saut confirmé ou une vitesse de véhicule sont suivis.
+  quelques instants ; ensuite ses allers-retours sont amortis (les photos ne tremblent pas),
+  mais un écart qui persiste dans la même direction est rattrapé (marche non détectée, GPS en
+  retard) ; un saut confirmé ou une vitesse de véhicule sont suivis. Le viseur affiche la
+  distance à la photo visée ; « · marche » sur la pastille GPS quand les pas sont détectés.
 - **Précision GPS et recalage** : un téléphone n'est précis qu'à quelques mètres. En chasse,
   quand la photo est alignée (sur place, bonne orientation, téléphone immobile) juste avant
   sa capture, l'écart restant avec le point de vue est attribué au GPS

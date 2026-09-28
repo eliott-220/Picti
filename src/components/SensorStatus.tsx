@@ -1,4 +1,5 @@
 import type { GeolocationState } from '../sensors/useGeolocation'
+import { currentMotion } from '../sensors/motion'
 import { isRemembered } from '../sensors/permissions'
 import type { OrientationState } from '../sensors/useOrientation'
 import { Icon } from './Icon'
@@ -6,7 +7,11 @@ import { Icon } from './Icon'
 /** Pastilles d'état du GPS et de la boussole, indispensables au géocadrage. */
 export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orientation: OrientationState }) {
   const gps = geo.fix
-    ? { ok: geo.fix.accuracy <= 25, text: `GPS ±${Math.round(geo.fix.accuracy)} m` }
+    ? {
+        ok: geo.fix.accuracy <= 25,
+        // « marche » : l'accéléromètre voit les pas (la position suit alors le GPS de près).
+        text: `GPS ±${Math.round(geo.fix.accuracy)} m${currentMotion() === 'moving' ? ' · marche' : ''}`,
+      }
     : { ok: false, text: geo.error ?? 'GPS…' }
 
   let compass: { ok: boolean; text: string }

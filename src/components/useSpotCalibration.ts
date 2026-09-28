@@ -28,7 +28,9 @@ export function useSpotCalibration(eye: Vec3 | null, active: boolean): Vec3 {
       const dt = now - last
       last = now
       const to = target.current
-      if (to && currentMotion() !== 'moving') {
+      // Seulement téléphone immobile (accéléromètre), jamais en marchant ni sans capteur.
+      const motion = currentMotion()
+      if (to && (motion === 'still' || motion === 'settling')) {
         setOffset((o) => {
           const gap = Math.hypot(to[0] - o[0], to[1] - o[1])
           if (gap < 0.005) return o

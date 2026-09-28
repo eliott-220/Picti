@@ -56,7 +56,7 @@ describe('suivi de la position', () => {
     const drift = (mode: MotionState) =>
       Math.max(...run(fixes, mode, settled).map((t) => Math.hypot(where(t).e, where(t).n)))
     expect(drift('still')).toBeLessThan(0.75)
-    // En marchant, les mêmes relevés sont bien davantage pris en compte.
+    // En marchant, les mêmes relevés sont davantage pris en compte.
     expect(drift('moving')).toBeGreaterThan(2 * drift('still'))
   })
 
@@ -94,17 +94,18 @@ describe('suivi de la position', () => {
     }
   })
 
-  it('après une marche, s’immobilise fermement malgré les écarts du GPS', () => {
-    const walked = run(
-      Array.from({ length: 6 }, (_, i) => fixAt(0, i, i)),
-      'moving',
-    )[5]
-    const [settled] = run([fixAt(0, 5, 6)], 'settling', walked)
-    const jitter = Array.from({ length: 12 }, (_, i) => fixAt(i % 2 ? 2.5 : -2.5, 5 + (i % 3 ? 2.5 : -2.5), 7 + i))
-    for (const track of run(jitter, 'still', settled)) {
-      const p = where(track)
-      expect(Math.hypot(p.e, p.n - 5)).toBeLessThan(0.4)
-    }
+  it('rattrape en quelques secondes un déplacement que l’accéléromètre n’a pas vu', () => {
+    // Téléphone tenu très stable : la marche n'est pas détectée, mais le GPS montre 5 m.
+    const settled = run(
+      Array.from({ length: 10 }, (_, i) => fixAt(0, 0, i)),
+      'still',
+    )[9]
+    const after = run(
+      Array.from({ length: 8 }, (_, i) => fixAt(0, -5, 10 + i)),
+      'still',
+      settled,
+    )
+    expect(where(after[7]).n).toBeLessThan(-4)
   })
 
   it('prolonge la marche entre deux relevés, pas à l’arrêt', () => {

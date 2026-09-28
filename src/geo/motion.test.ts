@@ -44,7 +44,7 @@ describe('détection de la marche', () => {
     const walked = feed(feed(null, 0, 1, tremor), 1, 5, walking)
     expect(motionState(walked, 5000)).toBe('moving')
     expect(motionState(feed(walked, 5, 6.5, tremor), 6500)).toBe('settling')
-    expect(motionState(feed(walked, 5, 9, tremor), 9000)).toBe('still')
+    expect(motionState(feed(walked, 5, 13, tremor), 13000)).toBe('still')
   })
 
   it('tourner sur soi-même pour regarder autour de soi n’est pas marcher', () => {

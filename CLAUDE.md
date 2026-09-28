@@ -68,8 +68,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   l'œil sur le point de vue selon la distance (l'ancien `parallaxEye` faisait suivre la photo
   au téléphone dans un rayon de 8 à 30 m). Position : un seul suivi GPS partagé
   (`useGeolocation`, filtre de Kalman `src/geo/tracking.ts`) + accéléromètre
-  (`src/geo/motion.ts`, `src/sensors/motion.ts` : marche / vient de s'arrêter / immobile →
-  position figée) ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
+  (`src/geo/motion.ts`, `src/sensors/motion.ts` : marche / vient de s'arrêter / immobile) ;
+  à l'arrêt, les allers-retours du GPS sont amortis mais un écart **persistant** est rattrapé
+  (`persistentShift` : marche non détectée, GPS en retard) — ne jamais figer la position sans
+  cette porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
   capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
@@ -126,6 +128,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.009.0 : autorisations caméra et boussole gardées en mémoire.
 - 0.009.1 : photos ancrées dans le décor (elles ne suivent plus le téléphone) : position réelle
   du spectateur, suivi GPS + accéléromètre, recalage au moment de la capture.
+- 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
+  rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
 - Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.1) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -139,3 +143,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Heure des photos](claude/picti/2026-09-28-heure-des-photos.md)
 - [2026-09-28 — Autorisations caméra et boussole mémorisées](claude/picti/2026-09-28-autorisations-memorisees.md)
 - [2026-09-28 — Photos ancrées dans le décor (géolocalisation)](claude/picti/2026-09-28-photos-ancrees.md)
+- [2026-09-28 — Photo qui suit encore après 5 m (0.009.2)](claude/picti/2026-09-28-photo-suit-encore.md)

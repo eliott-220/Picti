@@ -17,13 +17,13 @@ export type MotionState = 'moving' | 'settling' | 'still' | 'unknown'
 
 export const MOTION = {
   /** Agitation (valeur efficace de l'accélération propre, m/s²) au-delà de laquelle on marche. */
-  threshold: 0.35,
+  threshold: 0.25,
   /** Durée d'observation de l'agitation (s). */
   window: 0.25,
   /** Entre deux pas, on marche toujours (ms). */
   stepGap: 400,
-  /** Après le dernier pas, le GPS rattrape son retard pendant ce temps (ms). */
-  settle: 2000,
+  /** Après le dernier pas, le GPS rattrape son retard pendant ce temps (ms) ; au-delà, un retard plus long est rattrapé par `persistentShift` (tracking.ts). */
+  settle: 2500,
   /** Sans mesure depuis ce délai (ms), l'accéléromètre est considéré absent. */
   stale: 1000,
   /** Durée d'estimation de la pesanteur (s), quand le capteur ne la retire pas lui-même. */

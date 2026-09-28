@@ -4,6 +4,7 @@
 import type { HTMLAttributes } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { formatDateTime, type GeoPhoto } from '../data/types'
+import { formatDistance } from '../geo/geodesy'
 import { OVERLAY_W, overlayHeight, photoTime } from './arProjection'
 import { Dots } from './Dots'
 import { Icon } from './Icon'
@@ -53,6 +54,7 @@ export function SpotTimeline({
   isMine,
   action,
   dots = true,
+  distance,
 }: {
   items: GeoPhoto[]
   index: number
@@ -61,11 +63,14 @@ export function SpotTimeline({
   action?: { label: string; onClick: () => void }
   /** Points du nombre de photos (sauf s'ils sont déjà affichés sous la photo). */
   dots?: boolean
+  /** Distance au point de vue (m), si connue. */
+  distance?: number | null
 }) {
   const photo = items[index]
   const step = (s: 1 | -1) => onChange(Math.min(items.length - 1, Math.max(0, index + s)))
   const swipe = useSwipe(step)
   const author = isMine(photo) ? 'Moi' : photo.ownerName || 'Quelqu’un'
+  const where = distance != null ? ` · à ${formatDistance(distance)}` : ''
   return (
     <div
       className="timeline"
@@ -90,7 +95,7 @@ export function SpotTimeline({
       <PhotoTile id={photo.id} size="mini" />
       <div className="timeline-text">
         <strong>{formatDateTime(photoTime(photo), { short: true })}</strong>
-        <span>{index === 0 && items.length > 1 ? `${author} · la plus récente` : author}</span>
+        <span>{(index === 0 && items.length > 1 ? `${author} · la plus récente` : author) + where}</span>
         {dots && <Dots count={items.length} index={index} className="light" />}
       </div>
       {action && (
