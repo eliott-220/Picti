@@ -34,9 +34,10 @@ export function angleDiffDeg(from: number, to: number): number {
   return d > 180 ? d - 360 : d
 }
 
-/** Interpolation d'Hermite : 0 sous `edge0`, 1 au-delà de `edge1`. */
-export function smoothstep(edge0: number, edge1: number, x: number): number {
-  if (edge1 === edge0) return x < edge0 ? 0 : 1
-  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1)
-  return t * t * (3 - 2 * t)
+/**
+ * Rapproche `from` de `to` comme un filtre du premier ordre : après un
+ * temps `dt`, il reste exp(-dt / tau) de l'écart (dt et tau en ms).
+ */
+export function approach(from: Vec3, to: Vec3, dt: number, tau: number): Vec3 {
+  return lerp3(from, to, 1 - Math.exp(-Math.max(0, dt) / tau))
 }

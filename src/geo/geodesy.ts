@@ -58,27 +58,6 @@ export function fromENU(origin: GeoPoint, enu: Vec3): GeoPoint {
   }
 }
 
-/**
- * Fusionne une nouvelle position GPS avec l'estimation précédente,
- * en pondérant par l'inverse de la variance de chaque mesure.
- * L'ancienne estimation perd en confiance avec le temps (on marche).
- */
-export function fuseFix(prev: GeoFix | null, next: GeoFix, walkSpeed = 1.5): GeoFix {
-  if (!prev) return next
-  const dt = Math.max(0, (next.timestamp - prev.timestamp) / 1000)
-  const prevAcc = prev.accuracy + walkSpeed * dt
-  const wPrev = 1 / prevAcc ** 2
-  const wNext = 1 / next.accuracy ** 2
-  const k = wNext / (wPrev + wNext)
-  return {
-    lat: prev.lat + (next.lat - prev.lat) * k,
-    lon: prev.lon + (next.lon - prev.lon) * k,
-    alt: next.alt ?? prev.alt ?? null,
-    accuracy: Math.sqrt(1 / (wPrev + wNext)),
-    timestamp: next.timestamp,
-  }
-}
-
 const COMPASS_POINTS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'] as const
 
 /** Point cardinal (rose à 8 directions, en français). */

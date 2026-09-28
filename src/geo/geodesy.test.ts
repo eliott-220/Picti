@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bearingDeg, compassPoint, distanceMeters, formatDistance, fromENU, fuseFix, toENU } from './geodesy'
+import { bearingDeg, compassPoint, distanceMeters, formatDistance, fromENU, toENU } from './geodesy'
 
 const LA_ROCHELLE = { lat: 46.1591, lon: -1.1520 }
 
@@ -41,23 +41,6 @@ describe('repère ENU', () => {
     const [e, n] = toENU(LA_ROCHELLE, p)
     expect(e).toBeCloseTo(42, 6)
     expect(n).toBeCloseTo(-17, 6)
-  })
-})
-
-describe('fuseFix', () => {
-  it('se rapproche de la mesure la plus précise et gagne en précision', () => {
-    const a = { ...LA_ROCHELLE, accuracy: 20, timestamp: 0 }
-    const b = { lat: LA_ROCHELLE.lat + 0.0001, lon: LA_ROCHELLE.lon, accuracy: 5, timestamp: 0 }
-    const f = fuseFix(a, b)
-    expect(f.lat - a.lat).toBeGreaterThan((b.lat - a.lat) * 0.9)
-    expect(f.accuracy).toBeLessThan(5)
-  })
-
-  it('oublie une ancienne estimation', () => {
-    const a = { ...LA_ROCHELLE, accuracy: 5, timestamp: 0 }
-    const b = { lat: LA_ROCHELLE.lat + 0.0001, lon: LA_ROCHELLE.lon, accuracy: 5, timestamp: 60_000 }
-    const f = fuseFix(a, b)
-    expect(f.lat - a.lat).toBeGreaterThan((b.lat - a.lat) * 0.99)
   })
 })
 

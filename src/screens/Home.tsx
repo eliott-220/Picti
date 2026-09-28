@@ -15,6 +15,7 @@ import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { navigate } from '../router'
 import { useCamera, type CameraFacing } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
+import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
@@ -29,6 +30,8 @@ export function Home() {
   const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera(true, facing)
   const [stageRef, stage] = useElementSize<HTMLElement>()
   const geo = useGeolocation()
+  // Position suivie image par image : les photos restent à leur place quand on marche.
+  const position = useLivePosition(geo.track)
   const orientation = useOrientation()
   const { addPhoto, nearby, captures, isMine, photos } = useStore()
   const toast = useToast()
@@ -64,7 +67,7 @@ export function Home() {
         : orientation.angles
       const { photo, images } = await createDirectPhoto(
         frame,
-        { fix: geo.fix, angles, absolute: orientation.absolute },
+        { fix: position ?? geo.fix, angles, absolute: orientation.absolute },
         { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : DEFAULT_PHONE_FOCAL35 },
       )
       await addPhoto(photo, images)
@@ -101,7 +104,7 @@ export function Home() {
       {!sheet && !selfie && (
         <ArSpotsLayer
           photos={arPhotos}
-          fix={geo.fix}
+          fix={position}
           basis={orientation.absolute ? orientation.basis : null}
           cam={viewportCamera(stage, cameraSize)}
           isMine={isMine}

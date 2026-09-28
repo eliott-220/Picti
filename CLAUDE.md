@@ -63,14 +63,24 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - `src/geo/` = moteur pur, couvert par Vitest : **toute modification de la géométrie doit
   garder `npm test` vert**. Repère monde ENU (x Est, y Nord, z Haut) ; caméra = base
   (f avant, r droite, u haut) ; angles en degrés.
+- **Photos ancrées dans le décor** (depuis 0.009.1) : la projection part toujours de la
+  position réelle du spectateur (`viewerEye`, altitude GPS ignorée) ; ne **jamais** recaler
+  l'œil sur le point de vue selon la distance (l'ancien `parallaxEye` faisait suivre la photo
+  au téléphone dans un rayon de 8 à 30 m). Position : un seul suivi GPS partagé
+  (`useGeolocation`, filtre de Kalman `src/geo/tracking.ts`) + accéléromètre
+  (`src/geo/motion.ts`, `src/sensors/motion.ts` : marche / vient de s'arrêter / immobile →
+  position figée) ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
+  photo prise est enregistrée à la position affichée. En chasse seulement,
+  `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
+  capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
 - Commandes : `npm run dev`, `npm run dev:https` (test sur téléphone), `npm test`,
   `npm run lint`, `npm run build` (inclut `tsc -b`).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
   (API Vercel, `create_deployment` + `deploymentId`). En production : **0.009.0**, branche
-  `claude/beautiful-edison-87l36d` (commit `0c0cc37`, 28/09/2026). `main` ne contient que le
-  `.gitignore`.
+  `claude/beautiful-edison-87l36d` (commit `0c0cc37`, 28/09/2026). **0.009.1** sur la branche
+  `claude/wonderful-dirac-opn4nb` (partie de 0.009.0). `main` ne contient que le `.gitignore`.
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -111,7 +121,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.008.1 : numéro de version au format x.xxx.x (menu, notification de mise à jour).
 - 0.008.2 : heure de prise de vue à côté de la date (`formatDateTime`, `photoTitleAndDate`).
 - 0.009.0 : autorisations caméra et boussole gardées en mémoire.
-- Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
+- 0.009.1 : photos ancrées dans le décor (elles ne suivent plus le téléphone) : position réelle
+  du spectateur, suivi GPS + accéléromètre, recalage au moment de la capture.
+- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.1) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
@@ -123,3 +135,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Numéro de version x.xxx.x](claude/picti/2026-09-28-numero-de-version.md)
 - [2026-09-28 — Heure des photos](claude/picti/2026-09-28-heure-des-photos.md)
 - [2026-09-28 — Autorisations caméra et boussole mémorisées](claude/picti/2026-09-28-autorisations-memorisees.md)
+- [2026-09-28 — Photos ancrées dans le décor (géolocalisation)](claude/picti/2026-09-28-photos-ancrees.md)

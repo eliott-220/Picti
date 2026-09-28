@@ -4,10 +4,11 @@ import { photoTime, projectGeoPhoto, viewportCamera, type GeoframedPhoto } from 
 import { Icon } from '../components/Icon'
 import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
+import { useSpotCalibration } from '../components/useSpotCalibration'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
-import { ALIGN_TOLERANCE, computeAlignment, guidance } from '../geo/alignment'
+import { ALIGN_TOLERANCE, computeAlignment, guidance, viewerEye } from '../geo/alignment'
 import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
 import { basisFromAngles, type CameraAngles } from '../geo/orientation'
@@ -15,6 +16,7 @@ import { SAME_SPOT_RADIUS } from '../geo/spots'
 import { goBack } from '../router'
 import { useCamera } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
+import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 
 /** Temps d'alignement continu requis pour capturer une photo (ms). */
@@ -62,6 +64,7 @@ function HuntView({
   const { captures, addCapture, isMine } = useStore()
   const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
   const geo = useGeolocation()
+  const position = useLivePosition(geo.track)
   const orientation = useOrientation()
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
   const [opacity, setOpacity] = useState(0.8)
@@ -108,17 +111,21 @@ function HuntView({
 
   const viewerAngles = demo ? look : orientation.angles
   const viewerBasis = demo ? basisFromAngles(look) : orientation.basis
-  const viewerFix: GeoFix | null = demo ? { ...g.position, accuracy: 3, timestamp: 0 } : geo.fix
+  const viewerFix: GeoFix | null = demo ? { ...g.position, accuracy: 3, timestamp: 0 } : position
 
   const al = computeAlignment(target, { position: viewerFix, angles: viewerAngles })
+  // Photo alignée, avant sa capture : on se considère au point de vue exact et
+  // l'écart restant est attribué au GPS. La photo se confond alors avec le
+  // décor ; ensuite elle garde sa place quand on se déplace.
+  const offset = useSpotCalibration(viewerFix && viewerEye(g.position, viewerFix), phase === 'hunting' && al.aligned)
 
   const cam = viewportCamera(stage, cameraSize)
-  const ar = cam && viewerBasis ? projectGeoPhoto(photo, viewerFix, viewerBasis, cam) : null
+  const ar = cam && viewerBasis ? projectGeoPhoto(photo, viewerFix, viewerBasis, cam, offset) : null
   const transform = ar?.transform ?? null
 
   // Flèche de bord d'écran : où se trouve la photo quand elle est hors champ.
   let edgeArrow: number | null = null
-  if (viewerBasis && ar && !ar.projection.onScreen) {
+  if (viewerBasis && ar && ar.facing && !ar.projection.onScreen) {
     const center: Vec3 = scale(add(ar.corners[0], ar.corners[2]), 0.5)
     const d = sub(center, ar.eye)
     edgeArrow = (Math.atan2(dot(d, viewerBasis.r), dot(d, viewerBasis.u)) * 180) / Math.PI

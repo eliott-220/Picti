@@ -4,6 +4,7 @@ import { coverViewport, fieldOfView, focalPx } from './optics'
 import { basisFromAngles } from './orientation'
 import {
   applyHomography,
+  facesViewer,
   homography,
   photoPlaneCorners,
   projectPhoto,
@@ -68,6 +69,13 @@ describe('projection du plan-photo', () => {
     const p = projectPhoto(corners, scale(basis.f, 10), basis, screen)
     expect(p.inFront).toBe(false)
     expect(p.onScreen).toBe(false)
+  })
+
+  it('se voit de face jusqu’à ce qu’on la dépasse', () => {
+    expect(facesViewer(basis, 6, [0, 0, 0])).toBe(true)
+    expect(facesViewer(basis, 6, scale(basis.f, -20))).toBe(true)
+    expect(facesViewer(basis, 6, scale(basis.r, 15))).toBe(true)
+    expect(facesViewer(basis, 6, scale(basis.f, 7))).toBe(false)
   })
 
   it('n’est pas à l’écran quand on regarde à l’opposé', () => {

@@ -42,6 +42,15 @@ export function photoPlaneCorners(basis: CameraBasis, photo: PhotoGeometry, orig
   ]
 }
 
+/**
+ * Le spectateur (`eye`, repère centré sur le point de vue) voit la photo de
+ * face : il se tient du côté du photographe par rapport au plan-photo.
+ * Au-delà (on l'a dépassée), on la verrait de dos, à l'envers.
+ */
+export function facesViewer(basis: CameraBasis, depth: number, eye: Vec3): boolean {
+  return dot(eye, basis.f) < depth
+}
+
 /** Point projeté à l'écran ; `z` = profondeur le long de l'axe de visée. */
 export interface ScreenPoint {
   x: number

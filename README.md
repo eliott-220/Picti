@@ -26,7 +26,7 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
 | À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
 
-| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
+| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place et **y restent quand on se déplace** ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
 | **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne. |
 | Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
 
@@ -88,9 +88,21 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
   de vue exact, le plan-photo recouvre parfaitement le décor.
 - **Alignement** (`src/geo/alignment.ts`) : distance au point de vue, écarts de cap,
   d'inclinaison et de roulis, score global et consignes de guidage.
-- **Précision GPS** : un téléphone n'est précis qu'à quelques mètres. Une fois « sur place »
-  (dans le rayon de précision), la projection cale l'œil sur le point de vue exact — seule
-  l'orientation compte — puis réintroduit la parallaxe en s'éloignant.
+- **Photo ancrée dans le décor** (`src/geo/alignment.ts`, `viewerEye`) : la projection part
+  toujours de la position réelle du spectateur, même tout près du point de vue ; quand on se
+  déplace, la photo reste à sa place (elle se décale, grandit, rapetisse, disparaît une fois
+  dépassée — vue de dos, elle n'est pas affichée). L'altitude GPS, trop imprécise, est ignorée.
+- **Suivi de la position** (`src/geo/tracking.ts`, `src/geo/motion.ts`) : filtre de Kalman
+  « vitesse constante » sur le GPS ; entre deux relevés (un par seconde), la position avance à
+  la vitesse de marche et les corrections sont amorties à l'écran (`useLivePosition`).
+  L'accéléromètre dit si l'on marche : à l'arrêt, plus d'élan, le GPS rattrape son retard
+  quelques instants puis la position se fige (la dérive du GPS ne fait plus bouger les
+  photos) ; un saut confirmé ou une vitesse de véhicule sont suivis.
+- **Précision GPS et recalage** : un téléphone n'est précis qu'à quelques mètres. En chasse,
+  quand la photo est alignée (sur place, bonne orientation, téléphone immobile) juste avant
+  sa capture, l'écart restant avec le point de vue est attribué au GPS
+  (`useSpotCalibration`) : la photo se confond avec le décor, puis garde sa place si l'on
+  bouge.
 
 ## Architecture
 
@@ -106,6 +118,9 @@ supabase/migrations/  schéma, règles d'accès (RLS), recherche à proximité, 
 
 ## Limites connues
 
+- Le GPS a environ une seconde de retard : en se mettant à marcher, la photo « traîne » un
+  instant avant de reprendre sa place. Les photos des autres peuvent être décalées de
+  l'écart entre les GPS des deux prises (quelques mètres), corrigé au moment de la capture.
 - Précision GPS de 5 à 10 m : la présentation de 2018 prévoyait balises BLE puis Galileo ;
   aujourd'hui, le positionnement visuel (VPS, p. ex. ARCore Geospatial API) donne une
   précision sub-métrique — piste pour une future version native.

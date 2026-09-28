@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeAlignment, guidance, parallaxEye } from './alignment'
+import { computeAlignment, guidance, viewerEye } from './alignment'
 import { fromENU } from './geodesy'
 
 const spot = { lat: 46.1557, lon: -1.1533 }
@@ -51,12 +51,26 @@ describe('computeAlignment', () => {
   })
 })
 
-describe('parallaxEye', () => {
-  it('cale l’œil sur le point de vue une fois sur place', () => {
-    expect(parallaxEye([3, 4, 0], 5, 8)).toEqual([0, 0, 0])
+describe('viewerEye', () => {
+  it('place l’œil à la position réelle du spectateur, même tout près du point de vue', () => {
+    const eye = viewerEye(spot, fixAt(3, -2))
+    expect(eye[0]).toBeCloseTo(3, 6)
+    expect(eye[1]).toBeCloseTo(-2, 6)
   })
 
-  it('restitue la position réelle au loin', () => {
-    expect(parallaxEye([30, 40, 0], 50, 8)).toEqual([30, 40, 0])
+  it('ignore l’altitude GPS, trop imprécise', () => {
+    const eye = viewerEye({ ...spot, alt: 20 }, { ...fixAt(30, 40), alt: 35 })
+    expect(eye[0]).toBeCloseTo(30, 6)
+    expect(eye[1]).toBeCloseTo(40, 6)
+    expect(eye[2]).toBe(0)
+  })
+
+  it('retranche le recalage au point de vue', () => {
+    const eye = viewerEye(spot, fixAt(3, -2), [3, -2, 0])
+    expect(eye[0]).toBeCloseTo(0, 6)
+    expect(eye[1]).toBeCloseTo(0, 6)
+    // Une fois recalé, on retrouve ses déplacements.
+    const moved = viewerEye(spot, fixAt(5, -2), [3, -2, 0])
+    expect(moved[0]).toBeCloseTo(2, 6)
   })
 })

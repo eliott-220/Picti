@@ -1,8 +1,8 @@
 // Alignement du spectateur avec le point de vue d'une photo géocadrée :
 // c'est ce qui permet de « capturer » une photo lors d'une chasse.
 
-import { bearingDeg, compassPoint, distanceMeters, formatDistance, type GeoFix, type GeoPoint } from './geodesy'
-import { angleDiffDeg, scale, smoothstep, type Vec3 } from './math'
+import { bearingDeg, compassPoint, distanceMeters, formatDistance, toENU, type GeoFix, type GeoPoint } from './geodesy'
+import { angleDiffDeg, type Vec3 } from './math'
 import type { CameraAngles } from './orientation'
 
 export const ALIGN_TOLERANCE = {
@@ -88,11 +88,23 @@ export function guidance(al: Alignment, hasOrientation: boolean): string {
 }
 
 /**
- * Position de l'œil utilisée pour la projection, relative au point de vue.
- * Le GPS d'un téléphone n'est précis qu'à quelques mètres : une fois « sur
- * place », on cale l'œil sur le point de vue exact (seule l'orientation
- * compte), puis on réintroduit progressivement la parallaxe en s'éloignant.
+ * Position de l'œil utilisée pour la projection, relative au point de vue :
+ * la position réelle du spectateur, même tout près, pour que la photo reste
+ * à sa place quand il se déplace. L'altitude GPS, bien trop imprécise, est
+ * ignorée : on suppose le spectateur à la hauteur du photographe.
+ * `offset` : recalage retranché (voir `SPOT_CALIBRATION_MS`).
  */
-export function parallaxEye(viewerEnu: Vec3, distance: number, radius: number): Vec3 {
-  return scale(viewerEnu, smoothstep(radius, radius + 25, distance))
+export function viewerEye(viewpoint: GeoPoint, viewer: GeoPoint, offset: Vec3 = [0, 0, 0]): Vec3 {
+  const [east, north] = toENU(viewpoint, viewer)
+  return [east - offset[0], north - offset[1], 0]
 }
+
+/**
+ * Recalage au point de vue, lors d'une chasse : le GPS n'étant précis qu'à
+ * quelques mètres, quand la photo est alignée (sur place, bonne orientation,
+ * téléphone immobile) juste avant sa capture, on considère le chasseur au
+ * point de vue exact et l'écart restant est attribué au GPS. Il s'efface en
+ * ce temps (ms) et la photo se confond avec le décor ; ensuite il ne bouge
+ * plus : si l'on se déplace, la photo garde sa place.
+ */
+export const SPOT_CALIBRATION_MS = 400

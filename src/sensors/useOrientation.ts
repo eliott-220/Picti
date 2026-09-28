@@ -36,6 +36,16 @@ const permissionApi = (): PermissionApi | null =>
 
 const needsPermission = () => typeof permissionApi()?.requestPermission === 'function'
 
+/**
+ * L'accéléromètre (détection de la marche, `motion.ts`) relève de la même
+ * autorisation « mouvement et orientation » : on la demande en même temps,
+ * sans attendre ni afficher d'erreur (sans elle, la position suit le GPS).
+ */
+function requestMotion() {
+  const api = typeof DeviceMotionEvent === 'undefined' ? null : (DeviceMotionEvent as unknown as PermissionApi)
+  void api?.requestPermission?.().catch(() => undefined)
+}
+
 // Accordée une fois par session (iOS), valable pour tous les écrans.
 let permissionGranted = false
 let pendingRequest: Promise<boolean> | null = null
@@ -45,7 +55,8 @@ const grantListeners = new Set<() => void>()
 function requestCompass(): Promise<boolean> {
   const api = permissionApi()
   if (!api?.requestPermission) return Promise.resolve(true)
-  pendingRequest ??= api
+  if (pendingRequest) return pendingRequest
+  pendingRequest = api
     .requestPermission()
     .then((answer) => {
       permissionGranted = answer === 'granted'
@@ -57,6 +68,7 @@ function requestCompass(): Promise<boolean> {
     .finally(() => {
       pendingRequest = null
     })
+  requestMotion()
   return pendingRequest
 }
 
@@ -77,6 +89,7 @@ function restoreCompass() {
     .then((answer) => {
       if (answer !== 'granted') return
       permissionGranted = true
+      requestMotion()
       grantListeners.forEach((l) => l())
     })
     .catch(() => {
