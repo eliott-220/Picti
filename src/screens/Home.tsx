@@ -9,9 +9,11 @@ import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
 import { isGeoframed } from '../data/types'
+import { DEFAULT_PHONE_FOCAL35, FRONT_PHONE_FOCAL35 } from '../geo/optics'
+import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { navigate } from '../router'
-import { useCamera } from '../sensors/useCamera'
+import { useCamera, type CameraFacing } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { useOrientation } from '../sensors/useOrientation'
 import { ImportSheet } from './ImportSheet'
@@ -22,7 +24,9 @@ export function Home() {
   const [sheet, setSheet] = useState<'import' | 'menu' | null>(null)
   const [flash, setFlash] = useState(false)
   const [busy, setBusy] = useState(false)
-  const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera()
+  const [facing, setFacing] = useState<CameraFacing>('environment')
+  const selfie = facing === 'user'
+  const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera(true, facing)
   const [stageRef, stage] = useElementSize<HTMLElement>()
   const geo = useGeolocation()
   const orientation = useOrientation()
@@ -55,18 +59,26 @@ export function Home() {
     setTimeout(() => setFlash(false), 160)
     try {
       const frame = await capture()
-      const { photo, images } = await createDirectPhoto(frame, {
-        fix: geo.fix,
-        angles: orientation.angles,
-        absolute: orientation.absolute,
-      })
+      // Selfie : on géocadre l'objectif avant, qui regarde à l'opposé du téléphone.
+      const angles = selfie
+        ? orientation.basis && anglesFromBasis(frontCameraBasis(orientation.basis))
+        : orientation.angles
+      const { photo, images } = await createDirectPhoto(
+        frame,
+        { fix: geo.fix, angles, absolute: orientation.absolute },
+        { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : DEFAULT_PHONE_FOCAL35 },
+      )
       await addPhoto(photo, images)
       navigator.vibrate?.(30)
       if (photo.geoframe) {
-        toast('Photo géocadrée et publiée', { label: 'Voir', to: `/photo/${photo.id}` })
+        toast(selfie ? 'Selfie géocadré et publié' : 'Photo géocadrée et publiée', {
+          label: 'Voir',
+          to: `/photo/${photo.id}`,
+        })
       } else {
         const missing = !geo.fix ? 'position GPS' : 'boussole'
-        toast(`Photo gardée sans ${missing} : à géocadrer sur place`, { label: 'Voir', to: `/photo/${photo.id}` })
+        const kind = selfie ? 'Selfie gardé' : 'Photo gardée'
+        toast(`${kind} sans ${missing} : à géocadrer sur place`, { label: 'Voir', to: `/photo/${photo.id}` })
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Capture impossible')
@@ -77,15 +89,17 @@ export function Home() {
 
   return (
     <main className="screen viewfinder" ref={stageRef}>
-      {/* Monde en noir et blanc : seules les photos géocadrées gardent leur couleur. */}
-      <video ref={videoRef} className="camera-video mono" playsInline muted autoPlay />
+      {/* Monde en noir et blanc : seules les photos géocadrées gardent leur couleur.
+          Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
+      <video ref={videoRef} className={`camera-video mono ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
       {cameraStatus === 'error' && (
         <div className="camera-fallback">
           <Icon name="image" size={40} />
           <p>{cameraError}</p>
         </div>
       )}
-      {!sheet && (
+      {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie. */}
+      {!sheet && !selfie && (
         <ArSpotsLayer
           photos={arPhotos}
           fix={geo.fix}
@@ -109,7 +123,18 @@ export function Home() {
         />
         <RoundButton icon="filter" label="Filtrer" onClick={() => navigate('/recherche?filtres')} dim={!!sheet} />
         <RoundButton icon="search" label="Rechercher" onClick={() => navigate('/recherche')} dim={!!sheet} />
+        <RoundButton
+          icon="flipCamera"
+          label={selfie ? 'Revenir à la caméra principale' : 'Prendre un selfie (caméra avant)'}
+          onClick={() => setFacing(selfie ? 'environment' : 'user')}
+          dim={!!sheet}
+          className={selfie ? 'active' : ''}
+        />
       </nav>
+
+      {selfie && !sheet && (
+        <p className="selfie-hint"><strong>Selfie</strong> · on le retrouvera en visant, depuis la place du téléphone, l’endroit où vous vous tenez</p>
+      )}
 
       <div className="bottom-bar">
         <RoundButton icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
@@ -118,7 +143,7 @@ export function Home() {
           className="shutter"
           onClick={shoot}
           disabled={busy}
-          aria-label="Géocadrer en direct (prendre une photo)"
+          aria-label={selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}
         >
           <Icon name="scan" size={40} />
         </button>

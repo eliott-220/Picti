@@ -66,6 +66,12 @@ const PATHS = {
   ),
   reload: <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" />,
   download: <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />,
+  flipCamera: (
+    <>
+      <path d="M8.5 7 10 4.5h4L15.5 7H18a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3Z" />
+      <path d="M9 13.5a3 3 0 0 1 5.3-1.9M15 13.5a3 3 0 0 1-5.3 1.9M14.8 9.8v2h-2M9.2 17.2v-2h2" />
+    </>
+  ),
   zoom: (
     <>
       <circle cx="11" cy="11" r="7" />

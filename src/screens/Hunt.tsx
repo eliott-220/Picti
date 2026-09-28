@@ -179,7 +179,11 @@ function HuntView({
           <div>
             <strong>{message}</strong>
             <span>
-              {[isMine(photo) ? photo.title : `Photo de ${photo.ownerName || 'quelqu’un'}`, photoDate(photo)]
+              {[
+                isMine(photo) ? photo.title : `${photo.selfie ? 'Selfie' : 'Photo'} de ${photo.ownerName || 'quelqu’un'}`,
+                isMine(photo) && photo.selfie ? 'Selfie' : null,
+                photoDate(photo),
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </span>

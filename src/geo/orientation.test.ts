@@ -4,6 +4,7 @@ import {
   anglesFromBasis,
   basisFromAngles,
   basisFromDeviceOrientation,
+  frontCameraBasis,
   rotateAboutUp,
   rotateForScreen,
   smoothBasis,
@@ -112,5 +113,31 @@ describe('smoothBasis', () => {
     expectOrthonormal(s)
     const h = anglesFromBasis(s).heading
     expect(Math.min(h, 360 - h)).toBeCloseTo(0, 5)
+  })
+})
+
+describe('frontCameraBasis', () => {
+  it('téléphone face au nord : la caméra avant regarde vers le sud', () => {
+    const a = anglesFromBasis(frontCameraBasis(basisFromDeviceOrientation(0, 90, 0)))
+    expect(a.heading).toBeCloseTo(180)
+    expect(a.pitch).toBeCloseTo(0)
+    expect(a.roll).toBeCloseTo(0)
+  })
+
+  it('retourne le cap, inverse l’inclinaison et le roulis', () => {
+    const b = frontCameraBasis(basisFromAngles({ heading: 30, pitch: 15, roll: 8 }))
+    expectOrthonormal(b)
+    const a = anglesFromBasis(b)
+    expect(a.heading).toBeCloseTo(210)
+    expect(a.pitch).toBeCloseTo(-15)
+    expect(a.roll).toBeCloseTo(-8)
+  })
+
+  it('appliquée deux fois, redonne la caméra arrière', () => {
+    const b = basisFromAngles({ heading: 123, pitch: -20, roll: 4 })
+    const a = anglesFromBasis(frontCameraBasis(frontCameraBasis(b)))
+    expect(a.heading).toBeCloseTo(123)
+    expect(a.pitch).toBeCloseTo(-20)
+    expect(a.roll).toBeCloseTo(4)
   })
 })

@@ -53,6 +53,12 @@ export interface GeoPhoto {
   geoframe: Geoframe | null
   /** Position approximative connue avant géocadrage (EXIF sans direction). */
   hintPosition: GeoPoint | null
+  /**
+   * Selfie pris avec la caméra avant. Le géocadrage est celui de l'objectif
+   * avant : on le retrouve en visant, depuis la place du téléphone, l'endroit
+   * où se tenait son auteur.
+   */
+  selfie: boolean
 }
 
 /** Une photo retrouvée in situ lors d'une chasse. */

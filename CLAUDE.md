@@ -65,6 +65,11 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Mises à jour : le build publie `version.json` (commit Vercel) ; `UpdateBanner` affiche
   « Nouvelle version disponible » (vérif. au retour dans l'app et toutes les 5 min) ;
   bouton « Recharger » + version dans le menu.
+- Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
+  l'orientation de l'objectif avant (`frontCameraBasis` : cap +180°, inclinaison et roulis
+  inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Ensuite, mêmes
+  règles que toute photo : on la retrouve en visant, depuis la place du téléphone, l'endroit
+  où se tenait l'auteur.
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
@@ -79,6 +84,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - v0.5 : fin de l'essai gratuit (différé réservé à Premium, vérifié en base), notification
   de mise à jour et bouton « Recharger ».
 - Fond caméra en noir et blanc (accueil, chasse, recalage) ; photos géocadrées en couleur.
+- Selfies géocadrés (caméra avant), filtre « Selfies » dans la recherche.
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -86,3 +92,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 
 - [2026-09-28 — Reprise du projet et prototype v0.1](claude/picti/2026-09-28-prototype-v0.1.md)
 - [2026-09-28 — Fond caméra en noir et blanc](claude/picti/2026-09-28-fond-camera-noir-et-blanc.md)
+- [2026-09-28 — Selfies géocadrés](claude/picti/2026-09-28-selfies.md)

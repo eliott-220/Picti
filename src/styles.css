@@ -224,6 +224,11 @@ img {
   background: rgb(255 255 255 / 0.55);
 }
 
+.round-btn.active {
+  background: var(--red);
+  color: #fff;
+}
+
 .icon-btn {
   display: inline-grid;
   place-items: center;
@@ -297,6 +302,24 @@ img {
    Filtre d'affichage seulement : la capture lit le flux brut, la photo prise reste en couleur. */
 .camera-video.mono {
   filter: grayscale(1);
+}
+
+/* Selfie : aperçu en miroir, comme un reflet (la capture lit le flux brut, non inversé). */
+.camera-video.mirror {
+  transform: scaleX(-1);
+}
+
+.selfie-hint {
+  position: absolute;
+  top: calc(var(--safe-top) + 100px);
+  left: 16px;
+  right: 88px;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 13px;
 }
 
 .camera-fallback {

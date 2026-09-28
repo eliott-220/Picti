@@ -139,7 +139,11 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
             <DirectionArrow deg={angleDiffDeg(orientation.angles.heading, hintBearing)} />
           )}
           <div>
-            <strong>Superposez la photo au décor réel</strong>
+            <strong>
+              {photo.selfie
+                ? 'Visez, depuis la place du téléphone, l’endroit où vous vous teniez'
+                : 'Superposez la photo au décor réel'}
+            </strong>
             <span>
               {hintDistance != null
                 ? `Prise à ${formatDistance(hintDistance)}${hintBearing != null ? ` vers le ${compassPoint(hintBearing)}` : ''}`

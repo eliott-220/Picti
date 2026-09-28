@@ -19,6 +19,7 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | Service | Écran | Détail |
 | --- | --- | --- |
 | **Géocadrage en direct** | Accueil (viseur) | Le déclencheur rouge fige l'image de la caméra et enregistre position GPS (lissée), cap, inclinaison et roulis. |
+| **Selfie géocadré** | Accueil → bouton caméra | Caméra avant : on géocadre l'objectif avant (cap retourné). Le selfie se retrouve comme toute photo, en visant depuis la place du téléphone l'endroit où posait son auteur. |
 | **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement. |
 | **Géocadrage en différé (sur place)** | Recaler | Pour les photos sans direction ou sans GPS : sur le lieu, on superpose le cliché (transparence + cadrage/focale) au décor réel, puis « Géocadrer ici ». |
 | **Chasse in situ** | Chasser | Guidage vers le point de vue (distance, direction), photo projetée en perspective dans la vue caméra, jauges cap/inclinaison ; alignement tenu 1,5 s ⇒ photo **capturée**. |

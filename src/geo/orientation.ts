@@ -67,6 +67,15 @@ export function rotateForScreen(basis: CameraBasis, screenAngle: number): Camera
   }
 }
 
+/**
+ * Base de la caméra avant (selfie), déduite de celle de la caméra arrière :
+ * elle regarde à l'opposé (sortie de l'écran, +z) avec le même haut, donc sa
+ * droite est inversée. Il s'agit de l'image réelle du capteur, non miroir.
+ */
+export function frontCameraBasis({ f, r, u }: CameraBasis): CameraBasis {
+  return { f: scale(f, -1), r: scale(r, -1), u }
+}
+
 /** Fait pivoter la base autour de la verticale : le cap augmente de `deg`. */
 export function rotateAboutUp(basis: CameraBasis, deg: number): CameraBasis {
   const c = Math.cos(deg * DEG)

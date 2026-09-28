@@ -13,6 +13,9 @@ export const FULL_FRAME_DIAGONAL_MM = Math.hypot(36, 24)
 /** Focale équivalente typique du module principal d'un smartphone. */
 export const DEFAULT_PHONE_FOCAL35 = 26
 
+/** Focale équivalente typique de la caméra avant (selfie), plus grand-angle. */
+export const FRONT_PHONE_FOCAL35 = 23
+
 /** Focale exprimée en pixels pour une image de `width` × `height`. */
 export function focalPx(focal35: number, width: number, height: number): number {
   return (focal35 * Math.hypot(width, height)) / FULL_FRAME_DIAGONAL_MM

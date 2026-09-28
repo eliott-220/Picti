@@ -167,6 +167,12 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
         <dl className="facts">
           <dt>Statut</dt>
           <dd>{photo.mode ? MODE_LABEL[photo.mode] : 'À géocadrer sur place'}</dd>
+          {photo.selfie && (
+            <>
+              <dt>Selfie</dt>
+              <dd>Caméra avant : on le retrouve en visant, depuis la place du téléphone, l’endroit où posait son auteur</dd>
+            </>
+          )}
           {captured && (
             <>
               <dt>Chasse</dt>

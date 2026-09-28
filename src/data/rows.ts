@@ -22,6 +22,7 @@ export interface PhotoRow {
   roll: number | null
   heading_source: 'boussole' | 'exif' | null
   pitch_assumed: boolean
+  selfie: boolean
   hint_lat: number | null
   hint_lon: number | null
   visibility: Visibility
@@ -66,6 +67,7 @@ export function rowToPhoto(r: PhotoRow): GeoPhoto {
         }
       : null,
     hintPosition: r.hint_lat != null && r.hint_lon != null ? { lat: r.hint_lat, lon: r.hint_lon } : null,
+    selfie: r.selfie ?? false,
   }
 }
 
@@ -90,6 +92,7 @@ export function photoToRow(p: GeoPhoto): Omit<PhotoRow, 'owner' | 'created_at' |
     roll: g?.roll ?? null,
     heading_source: g?.headingSource ?? null,
     pitch_assumed: g?.pitchAssumed ?? false,
+    selfie: p.selfie,
     hint_lat: p.hintPosition?.lat ?? null,
     hint_lon: p.hintPosition?.lon ?? null,
     visibility: p.visibility,

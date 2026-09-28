@@ -3,6 +3,9 @@ import { grabVideoFrame, type EncodedImage } from '../data/images'
 
 export type CameraStatus = 'starting' | 'ready' | 'error'
 
+/** Caméra arrière (`environment`) ou avant, pour les selfies (`user`). */
+export type CameraFacing = 'environment' | 'user'
+
 export interface CameraState {
   videoRef: RefObject<HTMLVideoElement | null>
   status: CameraStatus
@@ -25,8 +28,8 @@ function unsupportedReason(): string | null {
   return window.isSecureContext ? 'Caméra non prise en charge' : 'La caméra exige une connexion HTTPS'
 }
 
-/** Flux de la caméra arrière, affiché dans l'élément <video> référencé. */
-export function useCamera(enabled = true): CameraState {
+/** Flux de la caméra (arrière par défaut), affiché dans l'élément <video> référencé. */
+export function useCamera(enabled = true, facing: CameraFacing = 'environment'): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [unsupported] = useState(unsupportedReason)
   const [state, setState] = useState<{ status: CameraStatus; error: string | null }>({
@@ -40,6 +43,7 @@ export function useCamera(enabled = true): CameraState {
     if (!enabled || unsupported || !video) return
     let stream: MediaStream | null = null
     let cancelled = false
+    setState({ status: 'starting', error: null })
     const onSize = () => {
       if (video.videoWidth) setSize({ width: video.videoWidth, height: video.videoHeight })
     }
@@ -51,7 +55,7 @@ export function useCamera(enabled = true): CameraState {
         audio: false,
         // Format 4:3 natif des capteurs photo : le champ de vision reste celui
         // de l'objectif (pas de recadrage 16:9), ce que suppose le géocadrage.
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } },
+        video: { facingMode: { ideal: facing }, width: { ideal: 2560 }, height: { ideal: 1920 } },
       })
       .then(async (s) => {
         stream = s
@@ -72,7 +76,7 @@ export function useCamera(enabled = true): CameraState {
       video.removeEventListener('resize', onSize)
       video.srcObject = null
     }
-  }, [enabled, unsupported])
+  }, [enabled, unsupported, facing])
 
   const capture = useCallback(() => {
     const video = videoRef.current

@@ -27,6 +27,7 @@ const photo: GeoPhoto = {
     pitchAssumed: false,
   },
   hintPosition: null,
+  selfie: false,
 }
 
 const asRow = (p: GeoPhoto): PhotoRow => ({
@@ -51,6 +52,12 @@ describe('conversion photo ⇄ ligne', () => {
     }
     expect(rowToPhoto(asRow(pending))).toEqual(pending)
     expect(photoToRow(pending).lat).toBeNull()
+  })
+
+  it('fait l’aller-retour d’un selfie', () => {
+    const selfie: GeoPhoto = { ...photo, selfie: true, focal35: 23 }
+    expect(rowToPhoto(asRow(selfie))).toEqual(selfie)
+    expect(photoToRow(selfie).selfie).toBe(true)
   })
 
   it('ignore un mode sans orientation complète', () => {

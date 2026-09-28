@@ -5,11 +5,12 @@ import { useStore } from '../data/storeContext'
 import { isGeoframed, type GeoPhoto } from '../data/types'
 import { goBack, navigate } from '../router'
 
-type Filter = 'toutes' | 'direct' | 'differe' | 'a-geocadrer' | 'capturees'
+type Filter = 'toutes' | 'direct' | 'selfies' | 'differe' | 'a-geocadrer' | 'capturees'
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'toutes', label: 'Toutes' },
   { id: 'direct', label: 'En direct' },
+  { id: 'selfies', label: 'Selfies' },
   { id: 'differe', label: 'En différé' },
   { id: 'a-geocadrer', label: 'À géocadrer' },
   { id: 'capturees', label: 'Capturées' },
@@ -31,6 +32,9 @@ export function Search({ filters }: { filters: boolean }) {
     switch (filter) {
       case 'direct':
         if (p.mode !== 'direct') return false
+        break
+      case 'selfies':
+        if (!p.selfie) return false
         break
       case 'differe':
         if (p.mode !== 'differe-auto' && p.mode !== 'differe-manuel') return false

@@ -23,6 +23,13 @@ export interface SensorSnapshot {
   absolute: boolean
 }
 
+export interface DirectOptions {
+  /** Focale équivalente de la caméra utilisée. */
+  focal35?: number
+  /** Prise avec la caméra avant : `angles` sont alors ceux de l'objectif avant. */
+  selfie?: boolean
+}
+
 /**
  * Géocadrage en direct : la photo est marquée de la position et de
  * l'orientation exactes du téléphone. Si un capteur manque, elle est
@@ -31,7 +38,7 @@ export interface SensorSnapshot {
 export async function createDirectPhoto(
   frame: EncodedImage,
   sensors: SensorSnapshot,
-  focal35 = DEFAULT_PHONE_FOCAL35,
+  { focal35 = DEFAULT_PHONE_FOCAL35, selfie = false }: DirectOptions = {},
 ): Promise<NewPhoto> {
   const now = Date.now()
   const { fix, angles, absolute } = sensors
@@ -57,6 +64,7 @@ export async function createDirectPhoto(
         }
       : null,
     hintPosition: fix ? { lat: fix.lat, lon: fix.lon, alt: fix.alt ?? null } : null,
+    selfie,
   }
   return { photo, images: { full: frame.blob, thumb: await makeThumbnail(frame.blob) } }
 }
@@ -98,6 +106,7 @@ export async function importPhotoFile(file: File): Promise<ImportResult> {
             }
           : null,
       hintPosition: exif.position,
+      selfie: false,
     }
     return { photo, images: { full: file, thumb: await makeThumbnail(bitmap) }, completeness }
   } finally {
