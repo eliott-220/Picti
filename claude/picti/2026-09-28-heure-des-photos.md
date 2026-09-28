@@ -21,3 +21,8 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
 ## Vérifications
 
 - `npm test` (67 verts), `npm run lint`, `npm run build` : OK.
+
+## Mise en ligne
+
+- 28/09/2026 : **0.008.2** en production sur https://picti.vercel.app (déploiement
+  `dpl_HW4cviiadAphqrv4Y4kGmVyXJQE7`, commit `20a6ad8`).
