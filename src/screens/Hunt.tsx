@@ -6,7 +6,7 @@ import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
-import { isGeoframed, photoDate } from '../data/types'
+import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
 import { ALIGN_TOLERANCE, computeAlignment, guidance } from '../geo/alignment'
 import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
@@ -180,9 +180,11 @@ function HuntView({
             <strong>{message}</strong>
             <span>
               {[
-                isMine(photo) ? photo.title : `${photo.selfie ? 'Selfie' : 'Photo'} de ${photo.ownerName || 'quelqu’un'}`,
+                isMine(photo)
+                  ? photoTitleAndDate(photo)
+                  : `${photo.selfie ? 'Selfie' : 'Photo'} de ${photo.ownerName || 'quelqu’un'}`,
                 isMine(photo) && photo.selfie ? 'Selfie' : null,
-                photoDate(photo),
+                isMine(photo) ? null : formatDateTime(photoTime(photo)),
               ]
                 .filter(Boolean)
                 .join(' · ')}

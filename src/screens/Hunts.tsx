@@ -1,6 +1,6 @@
 import { AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
-import { formatDate, isGeoframed } from '../data/types'
+import { formatDateTime, isGeoframed } from '../data/types'
 import { goBack, navigate } from '../router'
 
 /** « Mes chasses » : mes proies (auteurs des photos retrouvées) et mes captures. */
@@ -62,7 +62,7 @@ export function Hunts() {
                 <PhotoTile
                   key={c.id}
                   id={c.photoId}
-                  caption={isMine(p) ? formatDate(c.capturedAt) : `${p.ownerName} · ${formatDate(c.capturedAt)}`}
+                  caption={isMine(p) ? formatDateTime(c.capturedAt, { short: true }) : `${p.ownerName} · ${formatDateTime(c.capturedAt, { short: true })}`}
                   onClick={() => navigate(`/photo/${c.photoId}`)}
                 />
               )

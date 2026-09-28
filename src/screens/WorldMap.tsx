@@ -10,7 +10,7 @@ import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
 import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
-import { formatDate } from '../data/types'
+import { formatDateTime } from '../data/types'
 import { distanceMeters, formatDistance } from '../geo/geodesy'
 import { groupBySpot } from '../geo/spots'
 import { goBack, navigate } from '../router'
@@ -339,7 +339,7 @@ export default function WorldMap() {
               renderCard={(p) => (
                 <MapDeckCard
                   photo={p}
-                  caption={`${formatDate(p.time)}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
+                  caption={`${formatDateTime(p.time, { short: true })}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
                 />
               )}
             />
@@ -350,7 +350,7 @@ export default function WorldMap() {
                   key={p.id}
                   id={p.id}
                   size="strip"
-                  caption={`${formatDate(p.time)}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
+                  caption={`${formatDateTime(p.time, { short: true })}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
                   onClick={() => navigate(`/photo/${p.id}`)}
                 />
               ))}

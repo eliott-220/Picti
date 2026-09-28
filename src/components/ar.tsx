@@ -3,7 +3,7 @@
 
 import type { HTMLAttributes } from 'react'
 import { useImageUrl } from '../data/imageUrls'
-import { formatDate, type GeoPhoto } from '../data/types'
+import { formatDateTime, type GeoPhoto } from '../data/types'
 import { OVERLAY_W, overlayHeight, photoTime } from './arProjection'
 import { Dots } from './Dots'
 import { Icon } from './Icon'
@@ -89,7 +89,7 @@ export function SpotTimeline({
       </button>
       <PhotoTile id={photo.id} size="mini" />
       <div className="timeline-text">
-        <strong>{formatDate(photoTime(photo))}</strong>
+        <strong>{formatDateTime(photoTime(photo), { short: true })}</strong>
         <span>{index === 0 && items.length > 1 ? `${author} · la plus récente` : author}</span>
         {dots && <Dots count={items.length} index={index} className="light" />}
       </div>

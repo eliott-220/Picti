@@ -108,10 +108,35 @@ export function formatDate(ts: number | null | undefined): string {
   return new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-/** Date de prise de vue à afficher sous le titre (sauf si le titre est déjà cette date). */
-export function photoDate(p: GeoPhoto): string | null {
-  const d = formatDate(p.takenAt ?? p.addedAt)
-  return d === p.title ? null : d
+/** Heure, ex. « 17:05 ». */
+export function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
+/**
+ * Date et heure, ex. « 28 septembre 2026 à 17:05 » ou, en version courte
+ * (vignettes, frise), « 28 sept. 2026 · 17:05 ».
+ */
+export function formatDateTime(ts: number | null | undefined, { short = false } = {}): string {
+  if (ts == null) return 'Date inconnue'
+  if (!short) return `${formatDate(ts)} à ${formatTime(ts)}`
+  const day = new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${day} · ${formatTime(ts)}`
+}
+
+/**
+ * Date et heure de prise de vue à afficher sous le titre ; seulement
+ * l'heure si le titre est déjà cette date.
+ */
+export function photoDate(p: GeoPhoto): string {
+  const ts = p.takenAt ?? p.addedAt
+  return formatDate(ts) === p.title ? `à ${formatTime(ts)}` : formatDateTime(ts)
+}
+
+/** Titre suivi de la date et de l'heure (sans répéter la date si c'est le titre). */
+export function photoTitleAndDate(p: GeoPhoto): string {
+  const when = formatDateTime(p.takenAt ?? p.addedAt)
+  return formatDate(p.takenAt ?? p.addedAt) === p.title || !p.title ? when : `${p.title} · ${when}`
 }
 
 /** Identifiant UUID v4 (clé primaire des photos en base). */

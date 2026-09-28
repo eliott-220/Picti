@@ -10,7 +10,7 @@ import { canSaveOthersPhotos } from '../data/premium'
 import { savePhotoToDevice } from '../data/savePhoto'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
-import { isGeoframed, MODE_LABEL, photoDate, VISIBILITY_LABEL, type GeoPhoto, type Visibility } from '../data/types'
+import { isGeoframed, MODE_LABEL, photoDate, photoTitleAndDate, VISIBILITY_LABEL, type GeoPhoto, type Visibility } from '../data/types'
 import { compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { goBack, navigate } from '../router'
@@ -124,7 +124,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
           ) : (
             <h1>{mine ? photo.title : photo.ownerName || 'Photo'}</h1>
           )}
-          <p>{mine ? photoDate(photo) : [photo.title, photoDate(photo)].filter(Boolean).join(' · ')}</p>
+          <p>{mine ? photoDate(photo) : photoTitleAndDate(photo)}</p>
         </div>
         {mine && <RoundButton icon="pencil" label="Renommer" onClick={() => setRenaming(true)} className="detail-edit" />}
       </div>
