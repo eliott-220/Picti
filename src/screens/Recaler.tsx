@@ -4,6 +4,7 @@ import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
+import { PremiumCard } from '../components/PremiumCard'
 import { canUseDiffere } from '../data/premium'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
@@ -30,9 +31,15 @@ export function Recaler({ id }: { id: string }) {
       : 'Cette photo n’existe plus.'
     : !isMine(photo)
       ? 'Seul l’auteur d’une photo peut la géocadrer.'
-      : !canUseDiffere(profile)
-        ? 'Le géocadrage en différé est réservé à PICTI Premium.'
-        : null
+      : null
+  if (photo && !reason && !canUseDiffere(profile)) {
+    return (
+      <main className="screen page missing premium-gate">
+        <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
+        <PremiumCard reason="Géocadrage en différé : PICTI Premium" />
+      </main>
+    )
+  }
   if (!photo || reason) {
     return (
       <main className="screen page missing">

@@ -6,10 +6,10 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? 'https://fiybbf
 export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY ?? 'sb_publishable_1QvmuyoDl00cdBoW11MEPw_Ddb0S4DK'
 
 /**
- * Le géocadrage en différé (import de photos existantes) deviendra payant.
- * Passer à `true` pour le réserver aux comptes « premium ».
+ * Géocadrage en différé (import de photos déjà prises) : réservé à PICTI Premium
+ * (activé par paiement ou par code). Doublé côté serveur par la règle RLS des photos.
  */
-export const DIFFERE_PREMIUM_REQUIRED = false
+export const DIFFERE_PREMIUM_REQUIRED = true
 
 /** Enregistrer sur son téléphone la photo d'un autre utilisateur : réservé à PICTI Premium. */
 export const SAVE_OTHERS_PREMIUM_REQUIRED = true

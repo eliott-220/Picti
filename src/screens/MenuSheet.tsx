@@ -1,6 +1,7 @@
 import { Icon, Logo, type IconName } from '../components/Icon'
 import { Sheet } from '../components/ui'
 import { useStore } from '../data/storeContext'
+import { formatVersion, reloadApp } from '../data/appUpdate'
 import { supabase } from '../data/supabase'
 import { isGeoframed } from '../data/types'
 import { navigate } from '../router'
@@ -48,6 +49,12 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
       <button type="button" className="btn ghost signout" onClick={() => void supabase.auth.signOut()}>
         Se déconnecter
       </button>
+      <div className="menu-footer">
+        <span>{formatVersion()}</span>
+        <button type="button" className="btn small ghost" onClick={reloadApp}>
+          <Icon name="reload" size={18} /> Recharger
+        </button>
+      </div>
     </Sheet>
   )
 }

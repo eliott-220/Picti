@@ -119,3 +119,16 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
 - Vérifié en base : mauvais code refusé, bon code accepté (minuscules/espaces tolérés),
   impossible de modifier son plan soi-même, 6e essai bloqué ; parcours testé dans Chromium.
 
+## Suite : fin de l'essai gratuit, mises à jour (v0.5)
+
+- Demandes : les outils Premium ne sont plus disponibles en version d'essai, seulement après
+  activation (paiement ou code) ; remettre un bouton pour recharger l'app, avec une
+  notification de mise à jour.
+- Réalisé : `DIFFERE_PREMIUM_REQUIRED = true` (import et recalage sur place verrouillés,
+  encart Premium avec « J'ai un code ») ; déclencheur Supabase `photos_differe_premium` qui
+  refuse le passage en mode différé pour un compte gratuit (anciennes photos toujours
+  modifiables) ; `version.json` publié à chaque build, bannière « Nouvelle version de PICTI
+  disponible » + « Mettre à jour », bouton « Recharger » et numéro de version dans le menu.
+- Vérifié : en base (gratuit refusé, Premium accepté, ancienne photo renommable) ; dans
+  Chromium (import verrouillé, bouton Recharger, bannière après publication d'une version).
+

@@ -1740,3 +1740,57 @@ img {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+.sheet > .premium-card {
+  margin-bottom: 18px;
+}
+
+/* ---------- Mise à jour de l'application ---------- */
+
+.update-banner {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  animation: toast-in 0.25s ease-out;
+}
+
+.update-banner button {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-weight: 500;
+}
+
+.menu-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.menu-footer .btn {
+  flex-shrink: 0;
+}
+
+.premium-gate {
+  padding: calc(var(--safe-top) + 88px) var(--pad) var(--pad);
+}

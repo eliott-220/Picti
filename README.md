@@ -37,8 +37,8 @@ publiée — **publique** par défaut, ou réservée aux **amis**, ou **privée*
 au même endroit la voit apparaître dans « À proximité » et peut la chasser. Amis ajoutés par
 code, *chasseurs* (ceux qui ont capturé mes photos) et *proies* (ceux dont j'ai capturé les
 photos). Le géocadrage en direct est gratuit ; sont réservés à **PICTI Premium** :
-l'enregistrement des photos des autres (`SAVE_OTHERS_PREMIUM_REQUIRED`, actif) et, plus tard,
-le géocadrage en différé (`DIFFERE_PREMIUM_REQUIRED`, gratuit pendant l'essai) — voir
+l'enregistrement des photos des autres (`SAVE_OTHERS_PREMIUM_REQUIRED`) et le géocadrage en
+différé (`DIFFERE_PREMIUM_REQUIRED`, également refusé par la base aux comptes gratuits) — voir
 `src/config.ts` ; le plan d'un compte est la colonne `profiles.plan` (`free` / `premium`).
 On passe en Premium par paiement (à venir) ou avec un **code** (profil → « J'ai un code »),
 vérifié côté serveur (codes hachés, 5 essais par heure).
@@ -62,6 +62,10 @@ En local, ouvrir `https://<ip-de-l-ordinateur>:5173` depuis le téléphone (mêm
 certificat, puis autoriser caméra, position et — sur iPhone — « mouvement et orientation »
 (bouton **Activer la boussole**). On peut aussi déployer tel quel sur Vercel (site
 statique, `npm run build` → `dist/`).
+
+Quand une nouvelle version est en ligne, l'app affiche « Nouvelle version de PICTI
+disponible » ; le menu propose aussi un bouton **Recharger** (utile depuis l'écran d'accueil
+de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
 
 | Script | Rôle |
 | --- | --- |

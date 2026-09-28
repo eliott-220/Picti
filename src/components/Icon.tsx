@@ -64,6 +64,7 @@ const PATHS = {
       <circle cx="12" cy="12" r="3" />
     </>
   ),
+  reload: <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" />,
   download: <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />,
   zoom: (
     <>

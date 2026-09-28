@@ -44,7 +44,7 @@ export function PremiumCard({ reason }: { reason?: string }) {
       <strong>{reason ?? 'PICTI Premium'}</strong>
       <ul>
         <li>Enregistrer sur votre téléphone les photos des autres utilisateurs</li>
-        <li>Géocadrer en différé vos anciennes photos (bientôt réservé à Premium)</li>
+        <li>Géocadrer en différé vos photos déjà prises (import et recalage sur place)</li>
       </ul>
       <div className="premium-options">
         <button type="button" className="btn" disabled>

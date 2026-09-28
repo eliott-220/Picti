@@ -8,7 +8,6 @@ import { useStore } from '../data/storeContext'
 import { isGeoframed } from '../data/types'
 import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { navigate } from '../router'
-import { DIFFERE_PREMIUM_REQUIRED } from '../config'
 
 interface Summary {
   auto: number
@@ -78,10 +77,6 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
           onChange={(e) => void onFiles(e.target.files)}
         />
       </div>
-
-      {allowed && !DIFFERE_PREMIUM_REQUIRED && (
-        <p className="premium-hint">Gratuit pendant la version d’essai, bientôt réservé à PICTI Premium.</p>
-      )}
 
       {summary && (
         <p className="import-summary">

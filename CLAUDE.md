@@ -42,8 +42,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `public` (défaut) / `amis` / `prive`. Config client : `src/config.ts`.
 - Modèle économique : géocadrage en direct gratuit ; **Premium** (colonne `profiles.plan`,
   non modifiable par l'utilisateur) : enregistrer les photos des autres
-  (`SAVE_OTHERS_PREMIUM_REQUIRED = true`) et, plus tard, le différé
-  (`DIFFERE_PREMIUM_REQUIRED = false` pendant l'essai) — `src/config.ts`. Accès Premium :
+  (`SAVE_OTHERS_PREMIUM_REQUIRED = true`) et le géocadrage en différé
+  (`DIFFERE_PREMIUM_REQUIRED = true`, doublé côté serveur par le déclencheur
+  `photos_differe_premium`) — `src/config.ts`. Plus de période d'essai gratuite. Accès Premium :
   paiement (à venir) ou **code** (`PremiumCard` → RPC `redeem_premium_code`, codes hachés
   bcrypt dans `private.premium_codes`, 5 essais/heure). Ne jamais écrire un code en clair
   dans le dépôt ; gestion des codes : voir `supabase/migrations/20260928160000_premium_codes.sql`.
@@ -61,6 +62,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Déployé depuis la branche `claude/upbeat-bell-330fij`
   via l'API Vercel.
+- Mises à jour : le build publie `version.json` (commit Vercel) ; `UpdateBanner` affiche
+  « Nouvelle version disponible » (vérif. au retour dans l'app et toutes les 5 min) ;
+  bouton « Recharger » + version dans le menu.
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
@@ -72,6 +76,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   visibilité publique/amis/privée, amis par code, chasseurs/proies, captures partagées).
 - v0.3 : carte du monde, viseur augmenté (photos du lieu empilées), enregistrement Premium.
 - v0.4 : passage en Premium par code administrateur.
+- v0.5 : fin de l'essai gratuit (différé réservé à Premium, vérifié en base), notification
+  de mise à jour et bouton « Recharger ».
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
