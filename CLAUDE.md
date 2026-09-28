@@ -52,8 +52,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   fond OpenFreeMap (gratuit, sans clé), regroupement Supercluster (vignette = photo la plus
   récente), RPC `photos_in_bounds`. Le processus de fond MapLibre est assemblé par Vite
   (`?worker&url` + `setWorkerUrl`).
-- Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : la plus récente devant,
-  frise pour remonter le temps — viseur de l'accueil (`ArSpotsLayer`) et chasse.
+- Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
+  devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
+  en boucle via `cycle`) et des **points façon Instagram** (`Dots`) indiquent leur nombre.
+  Partout : viseur de l'accueil (`ArSpotsLayer` : pile des photos du lieu visibles dans la
+  direction visée), en-tête du détail (`usePhotosHere`), carte (les photos d'un endroit
+  forment un seul point, jamais séparé au zoom), grille « Mes photos » (une vignette par
+  endroit), frise de la chasse. Le viseur affiche toutes les photos géocadrées connues à
+  moins de 150 m : une photo qu'on vient de prendre y apparaît aussitôt.
 - `src/geo/` = moteur pur, couvert par Vitest : **toute modification de la géométrie doit
   garder `npm test` vert**. Repère monde ENU (x Est, y Nord, z Haut) ; caméra = base
   (f avant, r droite, u haut) ; angles en degrés.
@@ -61,7 +67,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `npm run lint`, `npm run build` (inclut `tsc -b`).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Déployé depuis la branche `claude/upbeat-bell-330fij`
-  via l'API Vercel.
+  via l'API Vercel. Dernière branche de travail : `claude/beautiful-edison-87l36d` (à partir de
+  `claude/blissful-maxwell-want4i` ; `main` ne contient que le `.gitignore`).
 - Mises à jour : le build publie `version.json` (commit Vercel) ; `UpdateBanner` affiche
   « Nouvelle version disponible » (vérif. au retour dans l'app et toutes les 5 min) ;
   bouton « Recharger » + version dans le menu.
@@ -85,6 +92,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   de mise à jour et bouton « Recharger ».
 - Fond caméra en noir et blanc (accueil, chasse, recalage) ; photos géocadrées en couleur.
 - Selfies géocadrés (caméra avant), filtre « Selfies » dans la recherche.
+- Photos d'un même endroit empilées, à faire glisser (Tinder) avec points (Instagram).
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -93,3 +101,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Reprise du projet et prototype v0.1](claude/picti/2026-09-28-prototype-v0.1.md)
 - [2026-09-28 — Fond caméra en noir et blanc](claude/picti/2026-09-28-fond-camera-noir-et-blanc.md)
 - [2026-09-28 — Selfies géocadrés](claude/picti/2026-09-28-selfies.md)
+- [2026-09-28 — Photos d'un même endroit empilées](claude/picti/2026-09-28-photos-empilees.md)

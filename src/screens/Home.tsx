@@ -37,10 +37,9 @@ export function Home() {
   // Photos d'autres utilisateurs à chasser autour de soi.
   const captured = new Set(captures.map((c) => c.photoId))
   const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
-  const arPhotos = useMemo(
-    () => photos.filter((p): p is GeoframedPhoto => nearby.has(p.id) && isGeoframed(p)),
-    [photos, nearby],
-  )
+  // Toutes les photos géocadrées connues (le viseur ne garde que celles d'alentour) :
+  // une photo qu'on vient de prendre y apparaît aussitôt, sans attendre la recherche à proximité.
+  const arPhotos = useMemo(() => photos.filter((p): p is GeoframedPhoto => isGeoframed(p)), [photos])
 
   async function shoot() {
     if (busy) return

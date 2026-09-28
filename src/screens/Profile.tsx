@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { photoTime } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { PremiumCard } from '../components/PremiumCard'
 import { Avatar, AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
@@ -6,6 +7,7 @@ import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, VISIBILITY_LABEL } from '../data/types'
+import { groupBySpot } from '../geo/spots'
 import { goBack, navigate } from '../router'
 
 /** « Moi » : profil, chasseurs, amis et photos géocadrées. */
@@ -17,6 +19,8 @@ export function Profile() {
   const [city, setCity] = useState(profile?.city ?? '')
 
   const geoframed = myPhotos.filter(isGeoframed)
+  // Photos prises au même endroit : une seule vignette, empilée (on les fait défiler dans le détail).
+  const spots = groupBySpot(geoframed, (p) => p.geoframe.position, photoTime)
   const pending = myPhotos.filter((p) => !isGeoframed(p))
   const heroUrl = useImageUrl(geoframed[0]?.id ?? myPhotos[0]?.id, 'full')
 
@@ -90,11 +94,13 @@ export function Profile() {
         </h2>
         {geoframed.length ? (
           <div className="grid">
-            {geoframed.map((p) => (
+            {spots.map(({ items: [p, ...others] }) => (
               <PhotoTile
                 key={p.id}
                 id={p.id}
                 badge={p.visibility !== 'public' ? VISIBILITY_LABEL[p.visibility] : undefined}
+                stack={1 + others.length}
+                label={others.length ? `${1 + others.length} photos au même endroit` : undefined}
                 onClick={() => navigate(`/photo/${p.id}`)}
               />
             ))}

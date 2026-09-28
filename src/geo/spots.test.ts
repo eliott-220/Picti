@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fromENU } from './geodesy'
-import { groupBySpot } from './spots'
+import { cycle, groupBySpot } from './spots'
 
 const origin = { lat: 46.1558, lon: -1.1522 }
 const at = (east: number, north: number) => fromENU(origin, [east, north, 0])
@@ -42,5 +42,18 @@ describe('groupBySpot', () => {
       (p) => p.date,
     )
     expect(far).toHaveLength(2)
+  })
+})
+
+describe('cycle', () => {
+  it('passe à la photo suivante ou précédente', () => {
+    expect(cycle(0, 1, 3)).toBe(1)
+    expect(cycle(2, -1, 3)).toBe(1)
+  })
+
+  it('boucle aux extrémités de la pile', () => {
+    expect(cycle(2, 1, 3)).toBe(0)
+    expect(cycle(0, -1, 3)).toBe(2)
+    expect(cycle(1, 1, 2)).toBe(0)
   })
 })

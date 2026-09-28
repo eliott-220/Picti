@@ -5,12 +5,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Supercluster, { type ClusterFeature, type ClusterProperties, type PointFeature } from 'supercluster'
 import { Icon } from '../components/Icon'
+import { SwipeDeck } from '../components/SwipeDeck'
 import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
-import { registerThumbs } from '../data/imageUrls'
+import { registerThumbs, useImageUrl } from '../data/imageUrls'
 import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { formatDate } from '../data/types'
 import { distanceMeters, formatDistance } from '../geo/geodesy'
+import { groupBySpot } from '../geo/spots'
 import { goBack, navigate } from '../router'
 import { useGeolocation } from '../sensors/useGeolocation'
 
@@ -35,14 +37,20 @@ interface MapPhoto {
   thumbPath: string
 }
 
+/** Un point de la carte = un endroit (photos prises à quelques mètres près). */
 interface PointProps {
+  /** Photo la plus récente de l'endroit (affichée en vignette, identifie l'endroit). */
   id: string
   time: number
+  /** Nombre de photos prises à cet endroit. */
+  count: number
 }
 interface ClusterProps {
   /** Photo la plus récente du groupe (affichée en vignette). */
   id: string
   time: number
+  /** Nombre total de photos du groupe. */
+  count: number
 }
 
 type Feature = ClusterFeature<ClusterProps> | PointFeature<PointProps>
@@ -50,6 +58,8 @@ type Feature = ClusterFeature<ClusterProps> | PointFeature<PointProps>
 interface Selection {
   photos: MapPhoto[]
   clusterId: number | null
+  /** Toutes les photos ont été prises au même endroit : elles s'empilent. */
+  sameSpot: boolean
   lngLat: [number, number]
 }
 
@@ -81,6 +91,7 @@ export default function WorldMap() {
   const [view, setView] = useState<{ bbox: [number, number, number, number]; zoom: number } | null>(null)
   const [, setFrame] = useState(0)
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [deckIndex, setDeckIndex] = useState(0)
   const [loading, setLoading] = useState(false)
   const centeredOnUser = useRef(false)
 
@@ -175,13 +186,20 @@ export default function WorldMap() {
     }
   }, [view])
 
+  // Photos d'un même endroit, empilées : elles ne se séparent jamais, même au zoom maximal.
+  const spots = useMemo(() => {
+    const list = groupBySpot([...photos.values()], (p) => p, (p) => p.time)
+    return new Map(list.map((s) => [s.items[0].id, s]))
+  }, [photos])
+
   // Index de regroupement : chaque groupe retient sa photo la plus récente.
   const index = useMemo(() => {
     const sc = new Supercluster<PointProps, ClusterProps>({
       radius: 64,
       maxZoom: CLUSTER_MAX_ZOOM,
-      map: (p) => ({ id: p.id, time: p.time }),
+      map: (p) => ({ id: p.id, time: p.time, count: p.count }),
       reduce: (acc, p) => {
+        acc.count += p.count
         if (p.time > acc.time) {
           acc.time = p.time
           acc.id = p.id
@@ -189,14 +207,14 @@ export default function WorldMap() {
       },
     })
     sc.load(
-      [...photos.values()].map((p) => ({
+      [...spots.values()].map((s) => ({
         type: 'Feature' as const,
-        properties: { id: p.id, time: p.time },
-        geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] },
+        properties: { id: s.items[0].id, time: s.items[0].time, count: s.items.length },
+        geometry: { type: 'Point' as const, coordinates: [s.position.lon, s.position.lat] },
       })),
     )
     return sc
-  }, [photos])
+  }, [spots])
 
   const features: Feature[] = useMemo(
     () => (view ? index.getClusters(view.bbox, Math.floor(view.zoom)) : []),
@@ -205,23 +223,23 @@ export default function WorldMap() {
 
   function select(f: Feature) {
     const [lon, lat] = f.geometry.coordinates as [number, number]
+    setDeckIndex(0)
     if ('cluster' in f.properties && f.properties.cluster) {
       const clusterId = (f.properties as ClusterProperties).cluster_id
       const leaves = index
         .getLeaves(clusterId, Infinity)
-        .map((l) => photos.get(l.properties.id))
-        .filter((p): p is MapPhoto => !!p)
+        .flatMap((l) => spots.get(l.properties.id)?.items ?? [])
         .sort((a, b) => b.time - a.time)
-      setSelection({ photos: leaves, clusterId, lngLat: [lon, lat] })
+      setSelection({ photos: leaves, clusterId, sameSpot: false, lngLat: [lon, lat] })
     } else {
-      const p = photos.get((f.properties as PointProps).id)
-      if (p) setSelection({ photos: [p], clusterId: null, lngLat: [lon, lat] })
+      const spot = spots.get((f.properties as PointProps).id)
+      if (spot) setSelection({ photos: spot.items, clusterId: null, sameSpot: true, lngLat: [lon, lat] })
     }
   }
 
   function zoomInto(sel: Selection) {
     if (!map) return
-    const zoom = sel.clusterId != null ? Math.min(index.getClusterExpansionZoom(sel.clusterId), 20) : 17
+    const zoom = sel.clusterId != null ? Math.min(index.getClusterExpansionZoom(sel.clusterId), 20) : 19
     map.easeTo({ center: sel.lngLat, zoom })
     setSelection(null)
   }
@@ -244,20 +262,22 @@ export default function WorldMap() {
               const [lon, lat] = f.geometry.coordinates as [number, number]
               const pt = map.project([lon, lat])
               const isCluster = 'cluster' in f.properties && f.properties.cluster
-              const count = isCluster ? (f.properties as ClusterProperties).point_count : 1
+              const count = (f.properties as ClusterProps).count
               const latestId = (f.properties as ClusterProps).id
-              const single = !isCluster ? photos.get(latestId) : null
+              const single = !isCluster && count === 1 ? photos.get(latestId) : null
               return (
                 <div
                   key={isCluster ? `c${(f.properties as ClusterProperties).cluster_id}` : latestId}
-                  className={`map-marker ${single && mine(single.owner) ? 'mine' : ''}`}
+                  className={`map-marker ${single && mine(single.owner) ? 'mine' : ''} ${count > 1 ? 'stacked' : ''}`}
                   style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}
                 >
                   <PhotoTile
                     id={latestId}
                     size="mini"
                     onClick={() => select(f)}
-                    label={isCluster ? `${count} photos` : `Photo de ${single?.ownerName ?? ''}`}
+                    label={
+                      count > 1 ? `${count} photos${isCluster ? '' : ' au même endroit'}` : `Photo de ${single?.ownerName ?? ''}`
+                    }
                   />
                   {count > 1 && <span className="map-count">{count > 999 ? '999+' : count}</span>}
                   {single?.heading != null && (
@@ -294,11 +314,13 @@ export default function WorldMap() {
             <div>
               <strong>
                 {selection.photos.length > 1
-                  ? `${selection.photos.length} photos ici`
+                  ? `${selection.photos.length} photos ${selection.sameSpot ? 'au même endroit' : 'ici'}`
                   : `Photo de ${mine(selection.photos[0]?.owner ?? '') ? 'moi' : selection.photos[0]?.ownerName || 'quelqu’un'}`}
               </strong>
               <span>
-                De la plus récente à la plus ancienne
+                {selection.sameSpot && selection.photos.length > 1
+                  ? 'Faites glisser pour voir les autres'
+                  : 'De la plus récente à la plus ancienne'}
                 {fix &&
                   ` · ${formatDistance(distanceMeters(fix, { lat: selection.lngLat[1], lon: selection.lngLat[0] }))}`}
               </span>
@@ -307,7 +329,21 @@ export default function WorldMap() {
               <Icon name="close" />
             </button>
           </div>
-          {selection.photos.length ? (
+          {selection.sameSpot && selection.photos.length > 1 ? (
+            <SwipeDeck
+              className="map-deck"
+              items={selection.photos}
+              index={Math.min(deckIndex, selection.photos.length - 1)}
+              onIndexChange={setDeckIndex}
+              label="Photos prises à cet endroit"
+              renderCard={(p) => (
+                <MapDeckCard
+                  photo={p}
+                  caption={`${formatDate(p.time)}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
+                />
+              )}
+            />
+          ) : selection.photos.length ? (
             <div className="strip">
               {selection.photos.map((p) => (
                 <PhotoTile
@@ -327,7 +363,13 @@ export default function WorldMap() {
               <Icon name="zoom" /> Zoomer ici
             </button>
             {selection.photos[0] && (
-              <button type="button" className="btn" onClick={() => navigate(`/chasse/${selection.photos[0].id}`)}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  navigate(`/chasse/${selection.photos[selection.sameSpot ? Math.min(deckIndex, selection.photos.length - 1) : 0].id}`)
+                }
+              >
                 <Icon name="flag" /> Chasser
               </button>
             )}
@@ -335,5 +377,16 @@ export default function WorldMap() {
         </section>
       )}
     </main>
+  )
+}
+
+/** Carte de la pile : la photo entière (vignette), appui = détail. */
+function MapDeckCard({ photo, caption }: { photo: MapPhoto; caption: string }) {
+  const url = useImageUrl(photo.id, 'thumb')
+  return (
+    <button type="button" className="deck-photo" onClick={() => navigate(`/photo/${photo.id}`)} aria-label={caption}>
+      {url ? <img src={url} alt="" draggable={false} /> : <span className="tile-placeholder" />}
+      <span className="tile-caption">{caption}</span>
+    </button>
   )
 }

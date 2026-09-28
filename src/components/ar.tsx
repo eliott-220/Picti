@@ -1,9 +1,11 @@
 // Composants de réalité augmentée partagés par l'accueil (photos du lieu)
 // et la chasse : photo superposée, frise des photos prises au même endroit.
 
+import type { HTMLAttributes } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { formatDate, type GeoPhoto } from '../data/types'
 import { OVERLAY_W, overlayHeight, photoTime } from './arProjection'
+import { Dots } from './Dots'
 import { Icon } from './Icon'
 import { PhotoTile } from './ui'
 import { useSwipe } from './useSwipe'
@@ -14,11 +16,14 @@ export function ArPhoto({
   transform,
   opacity,
   onClick,
+  handlers,
 }: {
   photo: GeoPhoto
   transform: string
   opacity: number
   onClick?: () => void
+  /** Gestes sur la photo (ex. glissement pour passer à la suivante). */
+  handlers?: HTMLAttributes<HTMLImageElement>
 }) {
   const url = useImageUrl(photo.id, 'full')
   if (!url) return null
@@ -32,13 +37,14 @@ export function ArPhoto({
       style={{ transform, opacity }}
       draggable={false}
       onClick={onClick}
+      {...handlers}
     />
   )
 }
 
 /**
  * Frise des photos prises au même endroit : la plus récente d'abord,
- * flèches (ou glissement) pour remonter le temps.
+ * flèches (ou glissement) pour remonter le temps, points pour le nombre.
  */
 export function SpotTimeline({
   items,
@@ -46,12 +52,15 @@ export function SpotTimeline({
   onChange,
   isMine,
   action,
+  dots = true,
 }: {
   items: GeoPhoto[]
   index: number
   onChange: (index: number) => void
   isMine: (p: GeoPhoto) => boolean
   action?: { label: string; onClick: () => void }
+  /** Points du nombre de photos (sauf s'ils sont déjà affichés sous la photo). */
+  dots?: boolean
 }) {
   const photo = items[index]
   const step = (s: 1 | -1) => onChange(Math.min(items.length - 1, Math.max(0, index + s)))
@@ -80,11 +89,9 @@ export function SpotTimeline({
       </button>
       <PhotoTile id={photo.id} size="mini" />
       <div className="timeline-text">
-        <strong>
-          {items.length > 1 ? `${index + 1}/${items.length} · ` : ''}
-          {formatDate(photoTime(photo))}
-        </strong>
+        <strong>{formatDate(photoTime(photo))}</strong>
         <span>{index === 0 && items.length > 1 ? `${author} · la plus récente` : author}</span>
+        {dots && <Dots count={items.length} index={index} className="light" />}
       </div>
       {action && (
         <button type="button" className="btn small" onClick={action.onClick}>

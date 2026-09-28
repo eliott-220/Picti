@@ -41,3 +41,9 @@ export function groupBySpot<T>(
   }
   return spots
 }
+
+/**
+ * Rang de la photo voisine dans une pile, en boucle : après la plus
+ * ancienne, on revient à la plus récente (et inversement).
+ */
+export const cycle = (index: number, step: number, count: number) => (((index + step) % count) + count) % count

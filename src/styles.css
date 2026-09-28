@@ -1823,3 +1823,210 @@ img {
 .premium-gate {
   padding: calc(var(--safe-top) + 88px) var(--pad) var(--pad);
 }
+
+/* ---------- Photos empilées (même endroit) ---------- */
+
+/* Points façon Instagram : combien de photos, laquelle est affichée. */
+.dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.22);
+  transition: background 0.2s, width 0.2s, height 0.2s;
+}
+
+.dot.active {
+  background: var(--red);
+}
+
+.dot.small {
+  width: 4px;
+  height: 4px;
+}
+
+.dots.light .dot {
+  background: rgb(255 255 255 / 0.45);
+}
+
+.dots.light .dot.active {
+  background: #fff;
+}
+
+.timeline-text .dots {
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+
+/* Pile à faire glisser du doigt, comme sur Tinder. */
+.deck {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  outline: none;
+}
+
+.deck-cards {
+  position: relative;
+}
+
+.deck-card {
+  position: absolute;
+  inset: 0;
+  touch-action: pan-y;
+  user-select: none;
+  will-change: transform;
+}
+
+.deck-card.top {
+  cursor: grab;
+}
+
+.deck-card.top:active {
+  cursor: grabbing;
+}
+
+.deck-photo {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--paper-2);
+  box-shadow: var(--shadow);
+}
+
+.deck-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.map-deck .deck-cards {
+  width: min(62vw, 240px);
+  aspect-ratio: 3 / 4;
+  max-height: 42vh;
+  margin: 0 auto 10px;
+}
+
+/* Détail : la photo en grand, les autres du même endroit dessous. */
+.detail-deck {
+  position: absolute;
+  inset: 0;
+}
+
+.detail-deck .deck-cards {
+  height: 100%;
+}
+
+.detail-card {
+  width: 100%;
+  height: 100%;
+  background: #222 center / cover no-repeat;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.detail-deck .dots {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--r) + 4px);
+  transform: translateX(-50%);
+}
+
+.detail-deck .dot {
+  background: rgb(255 255 255 / 0.5);
+  box-shadow: 0 0 4px rgb(0 0 0 / 0.4);
+}
+
+.detail-deck .dot.active {
+  background: #fff;
+}
+
+/* Viseur : la photo du dessus s'envole, la suivante apparaît dessous. */
+.ar-card {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ar-card .overlay-photo.clickable {
+  touch-action: none;
+}
+
+.ar-dots {
+  position: absolute;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: var(--glass);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Vignette d'un endroit à plusieurs photos : les autres dépassent derrière. */
+.tile-stack {
+  position: relative;
+}
+
+.tile-stack::before,
+.tile-stack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-tile);
+  background: #d9dde0;
+}
+
+.tile-stack::before {
+  transform: rotate(5deg) translate(5px, 2px);
+}
+
+.tile-stack::after {
+  transform: rotate(-3deg) translate(-3px, 3px);
+  background: #e6e9eb;
+}
+
+.tile-stack .tile {
+  z-index: 1;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.15);
+}
+
+.tile-stack-strip {
+  flex: 0 0 140px;
+}
+
+.tile-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.35);
+  transform: translateX(-50%);
+}
+
+/* Carte : un endroit à plusieurs photos = une pile. */
+.map-marker.stacked::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: -40px;
+  width: 52px;
+  aspect-ratio: 3 / 4;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  background: #d9dde0;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  transform: rotate(8deg);
+}

@@ -4,6 +4,8 @@ import { Avatar, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { PremiumCard } from '../components/PremiumCard'
+import { SwipeDeck } from '../components/SwipeDeck'
+import { usePhotosHere } from '../data/usePhotosHere'
 import { canSaveOthersPhotos } from '../data/premium'
 import { savePhotoToDevice } from '../data/savePhoto'
 import { useStore } from '../data/storeContext'
@@ -41,6 +43,8 @@ export function PhotoDetail({ id }: { id: string }) {
 function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
   const { captures, isMine, profile, updatePhoto, removePhoto } = useStore()
   const url = useImageUrl(photo.id, 'full')
+  // Photos prises au même endroit : empilées, on les fait glisser.
+  const here = usePhotosHere(photo)
   const { fix } = useGeolocation()
   const toast = useToast()
   const [renaming, setRenaming] = useState(false)
@@ -95,7 +99,17 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
 
   return (
     <main className="screen page detail">
-      <div className="detail-photo" style={url ? { backgroundImage: `url(${url})` } : undefined}>
+      <div className="detail-photo" style={url && here.length < 2 ? { backgroundImage: `url(${url})` } : undefined}>
+        {here.length > 1 && (
+          <SwipeDeck
+            className="detail-deck"
+            items={here}
+            index={Math.max(0, here.findIndex((p) => p.id === photo.id))}
+            onIndexChange={(i) => navigate(`/photo/${here[i].id}`, { replace: true })}
+            label="Photos prises au même endroit"
+            renderCard={(p) => <DetailCard id={p.id} />}
+          />
+        )}
         <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
         <div className="detail-caption">
           {renaming ? (
@@ -243,4 +257,10 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
       </section>
     </main>
   )
+}
+
+/** Carte de la pile d'en-tête : la photo en grand. */
+function DetailCard({ id }: { id: string }) {
+  const url = useImageUrl(id, 'full')
+  return <div className="detail-card" style={url ? { backgroundImage: `url(${url})` } : undefined} />
 }

@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { useImageUrl } from '../data/imageUrls'
+import { Dots } from './Dots'
 import { Icon, type IconName } from './Icon'
 
 export function RoundButton({
@@ -49,6 +50,7 @@ export function PhotoTile({
   badge,
   size = 'grid',
   label,
+  stack = 1,
 }: {
   id: string
   /** Nom accessible (sinon la légende). */
@@ -57,15 +59,20 @@ export function PhotoTile({
   caption?: ReactNode
   badge?: ReactNode
   size?: 'grid' | 'strip' | 'mini'
+  /** Nombre de photos empilées (prises au même endroit) : points en bas. */
+  stack?: number
 }) {
   const url = useImageUrl(id, 'thumb')
-  return (
+  const tile = (
     <button type="button" className={`tile tile-${size}`} onClick={onClick} aria-label={label}>
       {url ? <img src={url} alt="" loading="lazy" /> : <span className="tile-placeholder" />}
       {badge && <span className="tile-badge">{badge}</span>}
       {caption && <span className="tile-caption">{caption}</span>}
+      {stack > 1 && <Dots count={stack} index={0} className="light tile-dots" />}
     </button>
   )
+  // Pile : les autres photos du même endroit dépassent derrière.
+  return stack > 1 ? <div className={`tile-stack tile-stack-${size}`}>{tile}</div> : tile
 }
 
 export function EmptyState({ icon, children }: { icon: IconName; children: ReactNode }) {

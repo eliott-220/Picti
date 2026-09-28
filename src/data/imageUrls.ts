@@ -11,6 +11,8 @@ const TTL = 3600
 
 const paths = new Map<string, { full: string; thumb: string }>()
 const cache = new Map<string, { url: Promise<string | null>; expires: number }>()
+// Adresses déjà obtenues : une image revue s'affiche dès le premier rendu (pas de clignement).
+const resolved = new Map<string, string>()
 const listeners = new Set<() => void>()
 
 /** Mémorise les chemins d'images des photos connues du store. */
@@ -38,11 +40,19 @@ export function registerThumbs(items: { id: string; thumbPath: string }[]) {
 
 /** Affiche tout de suite une image qui vient d'être prise, sans la retélécharger. */
 export function primeImage(path: string, blob: Blob) {
-  cache.set(path, { url: Promise.resolve(URL.createObjectURL(blob)), expires: Infinity })
+  const url = URL.createObjectURL(blob)
+  cache.set(path, { url: Promise.resolve(url), expires: Infinity })
+  resolved.set(path, url)
+}
+
+function knownUrl(path: string): string | null {
+  const hit = cache.get(path)
+  return hit && hit.expires > Date.now() ? (resolved.get(path) ?? null) : null
 }
 
 export function forgetImage(path: string) {
   cache.delete(path)
+  resolved.delete(path)
 }
 
 // Les demandes d'un même instant sont regroupées en une seule requête.
@@ -74,6 +84,10 @@ function signedUrl(path: string): Promise<string | null> {
     flushTimer ??= setTimeout(flush, 20)
   })
   cache.set(path, { url, expires: Date.now() + (TTL - 300) * 1000 })
+  resolved.delete(path)
+  void url.then((u) => {
+    if (u) resolved.set(path, u)
+  })
   return url
 }
 
@@ -101,5 +115,6 @@ export function useImageUrl(id: string | null | undefined, kind: ImageKind = 'th
     }
   }, [path])
 
-  return state && state.path === path ? state.url : null
+  if (state && state.path === path) return state.url
+  return path ? knownUrl(path) : null
 }
