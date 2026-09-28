@@ -101,6 +101,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.007.0 : selfies géocadrés (caméra avant), filtre « Selfies » dans la recherche.
 - 0.008.0 : photos d'un même endroit empilées, à faire glisser (Tinder) avec points (Instagram).
 - 0.008.1 : numéro de version au format x.xxx.x (menu, notification de mise à jour).
+- 0.008.2 : heure de prise de vue à côté de la date (`formatDateTime`, `photoTitleAndDate`).
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -111,3 +112,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Selfies géocadrés](claude/picti/2026-09-28-selfies.md)
 - [2026-09-28 — Photos d'un même endroit empilées](claude/picti/2026-09-28-photos-empilees.md)
 - [2026-09-28 — Numéro de version x.xxx.x](claude/picti/2026-09-28-numero-de-version.md)
+- [2026-09-28 — Heure des photos](claude/picti/2026-09-28-heure-des-photos.md)
