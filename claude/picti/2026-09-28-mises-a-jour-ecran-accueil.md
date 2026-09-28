@@ -38,7 +38,15 @@ petit bouton recharger / mettre à jour ».
   recharge et le bandeau disparaît ; aucune erreur JS.
 - Encart du menu non testé visuellement (nécessite un compte connecté).
 
+## Mise en ligne
+
+- Version de test (preview) lancée sur Vercel depuis cette branche :
+  https://picti-git-claude-practical-brahmagupta-qww1yp-dash-board4.vercel.app
+  (fin du build non vérifiée : lecture de l'état du déploiement refusée par les permissions).
+- **Pas encore sur https://picti.vercel.app** : la mise en production reste à faire
+  (Vercel → Deployments → ce déploiement → « Promote to Production »).
+
 ## À faire
 
-- Fusionner/déployer cette branche sur Vercel pour que la fonction soit en ligne.
+- Passer cette version en production sur Vercel.
 - Relier Vercel à GitHub pour les déploiements automatiques.
