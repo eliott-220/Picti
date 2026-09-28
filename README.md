@@ -44,7 +44,9 @@ npm run dev          # http://localhost:5173 (caméra OK sur localhost)
 npm run dev:https    # sert l'app en HTTPS sur le réseau local (certificat auto-signé)
 ```
 
-Ouvrir `https://<ip-de-l-ordinateur>:5173` depuis le téléphone (même Wi-Fi), accepter le
+**Version en ligne** : https://picti.vercel.app (accès réservé au compte Vercel du projet).
+
+En local, ouvrir `https://<ip-de-l-ordinateur>:5173` depuis le téléphone (même Wi-Fi), accepter le
 certificat, puis autoriser caméra, position et — sur iPhone — « mouvement et orientation »
 (bouton **Activer la boussole**). On peut aussi déployer tel quel sur Vercel (site
 statique, `npm run build` → `dist/`).

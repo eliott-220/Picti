@@ -40,6 +40,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   (f avant, r droite, u haut) ; angles en degrés.
 - Commandes : `npm run dev`, `npm run dev:https` (test sur téléphone), `npm test`,
   `npm run lint`, `npm run build` (inclut `tsc -b`).
+- Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, protégé
+  par Vercel Authentication sur toutes les adresses (connexion au compte Vercel requise).
+  Déployé depuis la branche `claude/upbeat-bell-330fij` via l'API Vercel.
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 

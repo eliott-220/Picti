@@ -56,3 +56,15 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
 2. Backend Supabase : comptes, amis, chasseurs/proies, partage, notifications de proximité.
 3. Calibration de la focale caméra par appareil ; correction de déclinaison magnétique.
 4. Piste précision : VPS (ARCore Geospatial API) / application native.
+
+## Suite : ouvrir l'app sur iPhone
+
+- Question : « comment l'ouvrir sur mon iPhone ».
+- Mise en ligne sur Vercel : projet `picti`, adresse https://picti.vercel.app, build OK
+  (commit `846befd`). Protection Vercel Authentication sur **toutes** les adresses
+  (y compris la production) : il faut se connecter à son compte Vercel dans Safari.
+- Réglages iPhone utiles : autoriser caméra et position dans Safari, activer « Position
+  exacte » pour les sites Safari, puis bouton « Activer la boussole » dans l'app.
+- À faire si besoin : rendre l'adresse publique pour la partager (Yannick, Denis), ou relier
+  le dépôt GitHub au projet pour redéployer à chaque push.
+
