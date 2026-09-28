@@ -67,7 +67,7 @@ export function ArSpotsLayer({
           key={s.key}
           photo={s.photo}
           transform={s.ar.transform!}
-          opacity={s === focus ? 0.9 : 0.55}
+          opacity={s === focus ? 1 : 0.8}
           onClick={() => onOpen(s.photo)}
         />
       ))}

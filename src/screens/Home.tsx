@@ -77,7 +77,8 @@ export function Home() {
 
   return (
     <main className="screen viewfinder" ref={stageRef}>
-      <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
+      {/* Monde en noir et blanc : seules les photos géocadrées gardent leur couleur. */}
+      <video ref={videoRef} className="camera-video mono" playsInline muted autoPlay />
       {cameraStatus === 'error' && (
         <div className="camera-fallback">
           <Icon name="image" size={40} />

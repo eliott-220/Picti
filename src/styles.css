@@ -293,6 +293,11 @@ img {
   object-fit: cover;
 }
 
+/* Filtre d'affichage seulement : la capture lit le flux brut, la photo reste en couleur. */
+.camera-video.mono {
+  filter: grayscale(1);
+}
+
 .camera-fallback {
   position: absolute;
   inset: 0;
