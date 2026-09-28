@@ -40,3 +40,8 @@ et la boussole. »
   réouverture → réactivée au premier appui n'importe où ; réouverture avec accord du
   système → active directement, sans bouton.
 - Pas testé sur un vrai iPhone.
+
+## Mise en ligne
+
+- 28/09/2026 : **0.009.0** en production sur https://picti.vercel.app (déploiement
+  `dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`, commit `0c0cc37`).

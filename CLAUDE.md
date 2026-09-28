@@ -68,8 +68,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). En production : **0.008.2**, branche
-  `claude/beautiful-edison-87l36d` (commit `20a6ad8`, 28/09/2026). `main` ne contient que le
+  (API Vercel, `create_deployment` + `deploymentId`). En production : **0.009.0**, branche
+  `claude/beautiful-edison-87l36d` (commit `0c0cc37`, 28/09/2026). `main` ne contient que le
   `.gitignore`.
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
