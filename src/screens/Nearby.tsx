@@ -1,28 +1,38 @@
 import { DirectionArrow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
+import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { isGeoframed } from '../data/types'
 import { bearingDeg, compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
 import { angleDiffDeg } from '../geo/math'
+import { NEARBY_RADIUS } from '../config'
 import { goBack, navigate } from '../router'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { useOrientation } from '../sensors/useOrientation'
 
-/** Photos géocadrées autour de soi, triées par distance, avec leur direction. */
+/**
+ * Photos géocadrées autour de soi (les miennes et celles des autres
+ * utilisateurs, selon leur visibilité), triées par distance.
+ */
 export function Nearby() {
-  const { photos } = useStore()
+  const { photos, nearby, captures, isMine } = useStore()
   const { fix, error } = useGeolocation()
+  useNearbyRefresh(fix)
   const orientation = useOrientation()
   const heading = orientation.absolute ? (orientation.angles?.heading ?? null) : null
+  const captured = new Set(captures.map((c) => c.photoId))
 
   const items = photos
+    // Photos trouvées par la recherche à proximité + mes photos à recaler.
+    .filter((p) => nearby.has(p.id) || (isMine(p) && !isGeoframed(p) && p.hintPosition))
     .map((p) => {
-      const position = p.geoframe?.position ?? p.hintPosition
-      const distance = fix && position ? distanceMeters(fix, position) : null
-      const bearing = fix && position && distance! > 1 ? bearingDeg(fix, position) : null
-      return { p, position, distance, bearing }
+      const position = p.geoframe?.position ?? p.hintPosition!
+      const distance = fix ? distanceMeters(fix, position) : (nearby.get(p.id) ?? null)
+      const bearing = fix && distance! > 1 ? bearingDeg(fix, position) : null
+      return { p, distance, bearing }
     })
-    .filter((x) => x.position)
     .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
+
+  const open = (id: string, geoframed: boolean) => navigate(geoframed ? `/chasse/${id}` : `/recaler/${id}`)
 
   return (
     <main className="screen page">
@@ -30,7 +40,7 @@ export function Nearby() {
         <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
         <h1 className="display">À proximité</h1>
         <p className="subtitle">
-          {fix ? `Position à ±${Math.round(fix.accuracy)} m` : (error ?? 'Recherche de votre position…')}
+          {fix ? `Dans un rayon de ${formatDistance(NEARBY_RADIUS)} · ±${Math.round(fix.accuracy)} m` : (error ?? 'Recherche de votre position…')}
           {heading == null && fix && ' · flèches orientées nord en haut'}
         </p>
       </header>
@@ -40,21 +50,13 @@ export function Nearby() {
           <ul className="nearby">
             {items.map(({ p, distance, bearing }) => (
               <li key={p.id}>
-                <PhotoTile
-                  id={p.id}
-                  size="strip"
-                  onClick={() => navigate(isGeoframed(p) ? `/chasse/${p.id}` : `/recaler/${p.id}`)}
-                />
-                <button
-                  type="button"
-                  className="nearby-text"
-                  onClick={() => navigate(isGeoframed(p) ? `/chasse/${p.id}` : `/recaler/${p.id}`)}
-                >
-                  <strong>{p.title}</strong>
+                <PhotoTile id={p.id} size="strip" onClick={() => open(p.id, isGeoframed(p))} />
+                <button type="button" className="nearby-text" onClick={() => open(p.id, isGeoframed(p))}>
+                  <strong>{isMine(p) ? p.title : `Photo de ${p.ownerName || 'quelqu’un'}`}</strong>
                   <span>
                     {distance != null ? formatDistance(distance) : '…'}
                     {bearing != null && ` · ${compassPoint(bearing)}`}
-                    {!isGeoframed(p) && ' · à géocadrer'}
+                    {!isGeoframed(p) ? ' · à géocadrer' : captured.has(p.id) ? ' · capturée ✓' : ''}
                   </span>
                 </button>
                 {bearing != null && <DirectionArrow deg={heading != null ? angleDiffDeg(heading, bearing) : bearing} />}
@@ -62,7 +64,11 @@ export function Nearby() {
             ))}
           </ul>
         ) : (
-          <EmptyState icon="pin">Aucune photo géolocalisée pour l’instant.</EmptyState>
+          <EmptyState icon="pin">
+            {fix
+              ? 'Aucune photo géocadrée autour de vous pour l’instant. Soyez le premier : prenez-en une !'
+              : 'Activez la localisation pour découvrir les photos autour de vous.'}
+          </EmptyState>
         )}
       </section>
     </main>

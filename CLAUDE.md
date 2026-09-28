@@ -34,15 +34,22 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 
 ## Technique
 
-- Vite + React 19 + TypeScript, PWA statique (routage par ancre `#/…`), données locales IndexedDB.
+- Vite + React 19 + TypeScript, PWA statique (routage par ancre `#/…`).
+- Backend **Supabase** (projet `picti`, ref `fiybbfiyrnptnpwqkrji`, Paris) : compte obligatoire
+  (e-mail + mot de passe), tables `profiles`, `friendships`, `photos`, `captures`, RPC
+  `nearby_photos`, bucket privé `photos` (dossier par utilisateur, URLs signées). Toutes les
+  règles d'accès sont en RLS : voir `supabase/migrations/`. Visibilité par photo :
+  `public` (défaut) / `amis` / `prive`. Config client : `src/config.ts`.
+- Modèle économique : géocadrage en direct gratuit ; différé (import) préparé pour devenir
+  payant (`DIFFERE_PREMIUM_REQUIRED` dans `src/config.ts`, colonne `profiles.plan`).
 - `src/geo/` = moteur pur, couvert par Vitest : **toute modification de la géométrie doit
   garder `npm test` vert**. Repère monde ENU (x Est, y Nord, z Haut) ; caméra = base
   (f avant, r droite, u haut) ; angles en degrés.
 - Commandes : `npm run dev`, `npm run dev:https` (test sur téléphone), `npm test`,
   `npm run lint`, `npm run build` (inclut `tsc -b`).
-- Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, protégé
-  par Vercel Authentication sur toutes les adresses (connexion au compte Vercel requise).
-  Déployé depuis la branche `claude/upbeat-bell-330fij` via l'API Vercel.
+- Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
+  (le compte PICTI protège l'accès). Déployé depuis la branche `claude/upbeat-bell-330fij`
+  via l'API Vercel.
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
@@ -50,9 +57,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 
 - v0.1 (sept. 2026) : prototype complet local (direct, différé EXIF, recalage sur place,
   chasse AR avec capture, profil, chasses, proximité, recherche, mode démo).
-- Prochaines étapes : backend Supabase (comptes, amis, chasseurs/proies, partage,
-  notifications de proximité) ; test terrain sur iPhone et Android ; calibration de la
-  focale caméra ; piste VPS/native pour la précision.
+- v0.2 : Supabase (comptes, publication des photos, photos des autres à proximité,
+  visibilité publique/amis/privée, amis par code, chasseurs/proies, captures partagées).
+- Prochaines étapes : test terrain à plusieurs ; mot de passe oublié ; notifications de
+  proximité ; paiement du différé ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
 

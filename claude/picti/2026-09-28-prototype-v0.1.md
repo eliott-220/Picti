@@ -68,3 +68,23 @@ Projet : [PICTI](../../CLAUDE.md) · Dépôt `eliott-220/picti` · Branche `clau
 - À faire si besoin : rendre l'adresse publique pour la partager (Yannick, Denis), ou relier
   le dépôt GitHub au projet pour redéployer à chaque push.
 
+## Suite : réseau social avec Supabase (v0.2)
+
+- Demande : publier les photos pour que les autres utilisateurs les retrouvent sur place.
+- Décisions d'Eliott : photos **publiques par défaut**, option « amis uniquement » ou
+  « privée » par photo ; géocadrage en direct gratuit, import (différé) **payant plus tard** ;
+  **compte obligatoire**.
+- Réalisé :
+  - Projet Supabase `picti` (Paris, offre gratuite) : profils, amitiés, photos, captures,
+    recherche `nearby_photos` (500 m), bucket privé `photos` ; tout protégé par RLS ;
+    alertes de sécurité Supabase : aucune.
+  - App : écran de création de compte / connexion, publication à la prise de vue, photos
+    des autres dans « À proximité » (pastille sur le bouton), choix de visibilité, amis par
+    code à 6 caractères, chasseurs et proies réels, déconnexion, verrou Premium prêt
+    (désactivé) pour le différé.
+- Vérifié : 14 scénarios de règles d'accès testés en base (visibilité, amis, proximité,
+  captures, images) puis annulés ; 52 tests unitaires ; build OK. Test de l'app contre
+  Supabase impossible depuis l'environnement cloud (réseau bloqué) : à tester sur iPhone.
+- À régler par Eliott dans Supabase : Authentication → URL Configuration → Site URL =
+  https://picti.vercel.app (sinon le lien de confirmation renvoie vers localhost).
+

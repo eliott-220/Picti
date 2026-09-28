@@ -19,8 +19,24 @@ export interface Geoframe extends CameraAngles {
   pitchAssumed?: boolean
 }
 
+/** Qui peut voir la photo (et donc la chasser). */
+export type Visibility = 'public' | 'amis' | 'prive'
+
+export const VISIBILITY_LABEL: Record<Visibility, string> = {
+  public: 'Publique',
+  amis: 'Amis uniquement',
+  prive: 'Privée',
+}
+
 export interface GeoPhoto {
   id: string
+  /** Auteur de la photo. */
+  owner: string
+  ownerName: string
+  visibility: Visibility
+  /** Chemins des images dans le stockage Supabase. */
+  imagePath: string
+  thumbPath: string
   title: string
   /** Date d'ajout dans PICTI. */
   addedAt: number
@@ -43,14 +59,31 @@ export interface GeoPhoto {
 export interface Capture {
   id: string
   photoId: string
+  hunter: string
+  hunterName: string
   capturedAt: number
   /** Qualité de l'alignement au moment de la capture (0 à 1). */
   score: number
 }
 
 export interface Profile {
+  id: string
   name: string
   city: string
+  /** Code à partager pour être ajouté en ami. */
+  friendCode: string
+  plan: 'free' | 'premium'
+}
+
+/** Lien d'amitié vu depuis l'utilisateur connecté. */
+export interface Friendship {
+  /** L'autre personne. */
+  userId: string
+  name: string
+  city: string
+  status: 'pending' | 'accepted'
+  /** La demande vient de moi (en attente de sa réponse). */
+  outgoing: boolean
 }
 
 export const DEFAULT_DEPTH = 6
@@ -75,8 +108,12 @@ export function photoDate(p: GeoPhoto): string | null {
   return d === p.title ? null : d
 }
 
+/** Identifiant UUID v4 (clé primaire des photos en base). */
 export function newId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }

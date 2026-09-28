@@ -1,6 +1,10 @@
 import { Logo } from './components/Icon'
+import { useSession } from './data/auth'
+import { StoreProvider } from './data/store'
 import { useStore } from './data/storeContext'
+import { supabase } from './data/supabase'
 import { useRoute } from './router'
+import { Auth } from './screens/Auth'
 import { Home } from './screens/Home'
 import { Hunt } from './screens/Hunt'
 import { Hunts } from './screens/Hunts'
@@ -9,29 +13,44 @@ import { PhotoDetail } from './screens/PhotoDetail'
 import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
 import { Search } from './screens/Search'
-import { Welcome } from './screens/Welcome'
 
 export default function App() {
-  const route = useRoute()
-  const { ready, profile, error } = useStore()
+  const session = useSession()
+  if (session === undefined) return <Splash />
+  // Un compte est obligatoire pour utiliser PICTI.
+  if (!session) return <Auth />
+  return (
+    <StoreProvider key={session.user.id} userId={session.user.id}>
+      <Screens />
+    </StoreProvider>
+  )
+}
 
-  if (!ready) {
-    return (
-      <div className="splash">
-        <Logo size={72} />
-      </div>
-    )
-  }
+function Splash({ message }: { message?: string }) {
+  return (
+    <div className="splash">
+      <Logo size={72} />
+      {message && <p>{message}</p>}
+    </div>
+  )
+}
+
+function Screens() {
+  const route = useRoute()
+  const { ready, error } = useStore()
+
+  if (!ready) return <Splash />
   if (error) {
     return (
       <div className="splash">
         <Logo size={56} />
         <p>{error}</p>
+        <button type="button" className="btn ghost" onClick={() => void supabase.auth.signOut()}>
+          Se déconnecter
+        </button>
       </div>
     )
   }
-  // Première connexion
-  if (!profile) return <Welcome />
 
   switch (route.name) {
     case 'profil':

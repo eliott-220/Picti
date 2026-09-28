@@ -1,42 +1,72 @@
-import { useEffect, useState } from 'react'
-import * as db from './db'
+// URLs d'affichage des images : URLs signées (bucket privé), mises en cache.
 
-// --- URLs d'images (object URLs mises en cache) ---------------------------
+import { useEffect, useState } from 'react'
+import { PHOTO_BUCKET, supabase } from './supabase'
+import type { GeoPhoto } from './types'
 
 type ImageKind = 'thumb' | 'full'
-const urlCache = new Map<string, Promise<string | null>>()
 
-export function forgetImageUrls(id: string) {
-  for (const kind of ['thumb', 'full'] as const) {
-    const key = `${id}:${kind}`
-    urlCache.get(key)?.then((u) => u && URL.revokeObjectURL(u))
-    urlCache.delete(key)
+/** Durée de validité des URLs signées (s). */
+const TTL = 3600
+
+const paths = new Map<string, { full: string; thumb: string }>()
+const cache = new Map<string, { url: Promise<string | null>; expires: number }>()
+const listeners = new Set<() => void>()
+
+/** Mémorise les chemins d'images des photos connues du store. */
+export function registerImagePaths(photos: GeoPhoto[]) {
+  let changed = false
+  for (const p of photos) {
+    if (!paths.has(p.id)) changed = true
+    paths.set(p.id, { full: p.imagePath, thumb: p.thumbPath })
   }
+  if (changed) listeners.forEach((l) => l())
 }
 
-function imageUrl(id: string, kind: ImageKind): Promise<string | null> {
-  const key = `${id}:${kind}`
-  let p = urlCache.get(key)
-  if (!p) {
-    p = db
-      .getImages(id)
-      .then((img) => (img ? URL.createObjectURL(img[kind]) : null))
-      .catch(() => null)
-    urlCache.set(key, p)
-  }
-  return p
+/** Affiche tout de suite une image qui vient d'être prise, sans la retélécharger. */
+export function primeImage(path: string, blob: Blob) {
+  cache.set(path, { url: Promise.resolve(URL.createObjectURL(blob)), expires: Infinity })
+}
+
+export function forgetImage(path: string) {
+  cache.delete(path)
+}
+
+function signedUrl(path: string): Promise<string | null> {
+  const hit = cache.get(path)
+  if (hit && hit.expires > Date.now()) return hit.url
+  const url = supabase.storage
+    .from(PHOTO_BUCKET)
+    .createSignedUrl(path, TTL)
+    .then(({ data }) => data?.signedUrl ?? null)
+    .catch(() => null)
+  cache.set(path, { url, expires: Date.now() + (TTL - 300) * 1000 })
+  return url
 }
 
 export function useImageUrl(id: string | null | undefined, kind: ImageKind = 'thumb'): string | null {
-  const [url, setUrl] = useState<{ key: string; url: string | null } | null>(null)
-  const key = id ? `${id}:${kind}` : null
+  const [, setVersion] = useState(0)
+  const [state, setState] = useState<{ path: string; url: string | null } | null>(null)
+  const path = id ? paths.get(id)?.[kind] : undefined
+
+  // Réagit à l'arrivée tardive des chemins (photo chargée après le rendu).
   useEffect(() => {
-    if (!id || !key) return
+    if (path) return
+    const onChange = () => setVersion((v) => v + 1)
+    listeners.add(onChange)
+    return () => {
+      listeners.delete(onChange)
+    }
+  }, [path])
+
+  useEffect(() => {
+    if (!path) return
     let alive = true
-    imageUrl(id, kind).then((u) => alive && setUrl({ key, url: u }))
+    signedUrl(path).then((url) => alive && setState({ path, url }))
     return () => {
       alive = false
     }
-  }, [id, kind, key])
-  return url && url.key === key ? url.url : null
+  }, [path])
+
+  return state && state.path === path ? state.url : null
 }

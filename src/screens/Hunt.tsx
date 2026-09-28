@@ -4,6 +4,7 @@ import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
 import { useImageUrl } from '../data/imageUrls'
 import { useStore } from '../data/storeContext'
+import { usePhoto } from '../data/usePhoto'
 import { isGeoframed, photoDate, type GeoPhoto } from '../data/types'
 import { ALIGN_TOLERANCE, computeAlignment, guidance, parallaxEye } from '../geo/alignment'
 import { formatDistance, toENU, type GeoFix } from '../geo/geodesy'
@@ -22,13 +23,12 @@ const HOLD_MS = 1500
 const OVERLAY_W = 1000
 
 export function Hunt({ id }: { id: string }) {
-  const { photos } = useStore()
-  const photo = photos.find((p) => p.id === id)
+  const { photo, loading } = usePhoto(id)
   if (!photo || !isGeoframed(photo)) {
     return (
       <main className="screen page missing">
         <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
-        <p>Cette photo n’est pas (encore) géocadrée.</p>
+        <p>{loading ? 'Chargement…' : 'Cette photo n’est pas (encore) géocadrée ou ne vous est pas accessible.'}</p>
       </main>
     )
   }
@@ -42,7 +42,7 @@ export function Hunt({ id }: { id: string }) {
  * retrouvé — la photo est alors « capturée ».
  */
 function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhoto['geoframe']> } }) {
-  const { captures, addCapture } = useStore()
+  const { captures, addCapture, isMine } = useStore()
   const url = useImageUrl(photo.id, 'full')
   const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
   const geo = useGeolocation()
@@ -123,7 +123,7 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
       setPhase('captured')
       setFirstCapture(!alreadyCaptured)
       navigator.vibrate?.([60, 40, 120])
-      if (!alreadyCaptured) void addCapture(photo.id, scoreRef.current)
+      if (!alreadyCaptured) void addCapture(photo.id, scoreRef.current).catch(() => undefined)
     }, HOLD_MS)
     return () => clearTimeout(t)
   }, [al.aligned, phase, alreadyCaptured, addCapture, photo.id])
@@ -175,7 +175,11 @@ function HuntView({ photo }: { photo: GeoPhoto & { geoframe: NonNullable<GeoPhot
           {approachArrow != null && <DirectionArrow deg={approachArrow} />}
           <div>
             <strong>{message}</strong>
-            <span>{[photo.title, photoDate(photo)].filter(Boolean).join(' · ')}</span>
+            <span>
+              {[isMine(photo) ? photo.title : `Photo de ${photo.ownerName || 'quelqu’un'}`, photoDate(photo)]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
           </div>
         </div>
       </header>

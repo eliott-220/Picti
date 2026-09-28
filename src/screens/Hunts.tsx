@@ -1,21 +1,30 @@
-import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
+import { AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
-import { formatDate, isGeoframed, type Capture } from '../data/types'
+import { formatDate, isGeoframed } from '../data/types'
 import { goBack, navigate } from '../router'
 
-/** « Mes chasses » : proies suivies et photos capturées in situ. */
+/** « Mes chasses » : mes proies (auteurs des photos retrouvées) et mes captures. */
 export function Hunts() {
-  const { photos, captures } = useStore()
+  const { photos, captures, nearby, isMine } = useStore()
   const byId = new Map(photos.map((p) => [p.id, p]))
-  // Une capture par photo : la plus récente.
-  const seen = new Set<string>()
-  const captured: Capture[] = []
-  for (const c of captures) {
-    if (!byId.has(c.photoId) || seen.has(c.photoId)) continue
-    seen.add(c.photoId)
-    captured.push(c)
+  const captured = captures.filter((c) => byId.has(c.photoId))
+  const capturedIds = new Set(captured.map((c) => c.photoId))
+
+  // Mes proies : les autres utilisateurs dont j'ai retrouvé des photos.
+  const prey = new Map<string, { id: string; name: string; count: number }>()
+  for (const c of captured) {
+    const p = byId.get(c.photoId)!
+    if (isMine(p)) continue
+    const entry = prey.get(p.owner) ?? { id: p.owner, name: p.ownerName, count: 0 }
+    entry.count++
+    prey.set(p.owner, entry)
   }
-  const toHunt = photos.filter((p) => isGeoframed(p) && !seen.has(p.id))
+  const proies = [...prey.values()].map((p) => ({ ...p, detail: `${p.count} prise${p.count > 1 ? 's' : ''}` }))
+
+  // À retrouver : photos à proximité (et les miennes) pas encore capturées.
+  const toHunt = photos.filter(
+    (p) => isGeoframed(p) && !capturedIds.has(p.id) && (nearby.has(p.id) || isMine(p)),
+  )
 
   return (
     <main className="screen page">
@@ -29,10 +38,16 @@ export function Hunts() {
       </header>
 
       <section className="card salmon">
-        <h2 className="section-title">Mes proies</h2>
-        <EmptyState icon="user">
-          Suivez vos amis pour chasser leurs photos : le partage entre comptes PICTI arrive dans une prochaine version.
-        </EmptyState>
+        <h2 className="section-title">
+          Mes {proies.length} proie{proies.length > 1 ? 's' : ''}
+        </h2>
+        {proies.length ? (
+          <AvatarRow people={proies} />
+        ) : (
+          <EmptyState icon="user">
+            Retrouvez sur place les photos des autres utilisateurs : leurs auteurs deviendront vos proies.
+          </EmptyState>
+        )}
       </section>
 
       <section className="card white">
@@ -41,14 +56,17 @@ export function Hunts() {
         </h2>
         {captured.length ? (
           <div className="grid">
-            {captured.map((c) => (
-              <PhotoTile
-                key={c.id}
-                id={c.photoId}
-                caption={formatDate(c.capturedAt)}
-                onClick={() => navigate(`/photo/${c.photoId}`)}
-              />
-            ))}
+            {captured.map((c) => {
+              const p = byId.get(c.photoId)!
+              return (
+                <PhotoTile
+                  key={c.id}
+                  id={c.photoId}
+                  caption={isMine(p) ? formatDate(c.capturedAt) : `${p.ownerName} · ${formatDate(c.capturedAt)}`}
+                  onClick={() => navigate(`/photo/${c.photoId}`)}
+                />
+              )
+            })}
           </div>
         ) : (
           <EmptyState icon="flag">
@@ -61,7 +79,12 @@ export function Hunts() {
             <h2 className="section-title">À retrouver in situ ({toHunt.length})</h2>
             <div className="grid">
               {toHunt.map((p) => (
-                <PhotoTile key={p.id} id={p.id} caption={p.title} onClick={() => navigate(`/chasse/${p.id}`)} />
+                <PhotoTile
+                  key={p.id}
+                  id={p.id}
+                  caption={isMine(p) ? p.title : p.ownerName}
+                  onClick={() => navigate(`/chasse/${p.id}`)}
+                />
               ))}
             </div>
           </>

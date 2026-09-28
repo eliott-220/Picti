@@ -7,8 +7,11 @@ import type { CameraAngles } from '../geo/orientation'
 import { decodeImage, makeThumbnail, type EncodedImage } from './images'
 import { DEFAULT_DEPTH, formatDate, newId, type GeoPhoto } from './types'
 
+/** Photo pas encore publiée : l'auteur et les chemins d'images sont fixés à l'envoi. */
+export type PhotoDraft = Omit<GeoPhoto, 'owner' | 'ownerName' | 'visibility' | 'imagePath' | 'thumbPath'>
+
 export interface NewPhoto {
-  photo: GeoPhoto
+  photo: PhotoDraft
   images: { full: Blob; thumb: Blob }
 }
 
@@ -33,7 +36,7 @@ export async function createDirectPhoto(
   const now = Date.now()
   const { fix, angles, absolute } = sensors
   const complete = fix != null && angles != null && absolute
-  const photo: GeoPhoto = {
+  const photo: PhotoDraft = {
     id: newId(),
     title: formatDate(now),
     addedAt: now,
@@ -72,7 +75,7 @@ export async function importPhotoFile(file: File): Promise<ImportResult> {
   try {
     const completeness = exifCompleteness(exif)
     const title = exif.takenAt ? formatDate(exif.takenAt) : file.name.replace(/\.[^.]+$/, '')
-    const photo: GeoPhoto = {
+    const photo: PhotoDraft = {
       id: newId(),
       title,
       addedAt: Date.now(),

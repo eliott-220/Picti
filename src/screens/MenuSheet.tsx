@@ -1,12 +1,13 @@
 import { Icon, Logo, type IconName } from '../components/Icon'
 import { Sheet } from '../components/ui'
 import { useStore } from '../data/storeContext'
+import { supabase } from '../data/supabase'
 import { isGeoframed } from '../data/types'
 import { navigate } from '../router'
 
 export function MenuSheet({ onClose }: { onClose: () => void }) {
-  const { photos, captures, profile } = useStore()
-  const geoframed = photos.filter(isGeoframed).length
+  const { myPhotos, captures, profile } = useStore()
+  const geoframed = myPhotos.filter(isGeoframed).length
   const hunted = new Set(captures.map((c) => c.photoId)).size
 
   const items: { icon: IconName; label: string; detail: string; to: string }[] = [
@@ -43,6 +44,9 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
+      <button type="button" className="btn ghost signout" onClick={() => void supabase.auth.signOut()}>
+        Se déconnecter
+      </button>
     </Sheet>
   )
 }

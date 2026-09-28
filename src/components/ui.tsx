@@ -8,16 +8,20 @@ export function RoundButton({
   onClick,
   dim = false,
   className = '',
+  badge,
 }: {
   icon: IconName
   label: string
   onClick?: () => void
   dim?: boolean
   className?: string
+  /** Pastille de compteur (ex. photos à chasser à proximité). */
+  badge?: number
 }) {
   return (
     <button type="button" className={`round-btn ${dim ? 'dim' : ''} ${className}`} onClick={onClick} aria-label={label} title={label}>
       <Icon name={icon} />
+      {!!badge && <span className="round-badge">{badge > 99 ? '99+' : badge}</span>}
     </button>
   )
 }
@@ -76,5 +80,29 @@ export function DirectionArrow({ deg, size = 20 }: { deg: number; size?: number 
     <span className="dir-arrow" style={{ transform: `rotate(${deg}deg)` }}>
       <Icon name="arrow" size={size} />
     </span>
+  )
+}
+
+/** Pastille d'un utilisateur : initiale du prénom (pas encore de photo de profil). */
+export function Avatar({ name, size = 64 }: { name: string; size?: number }) {
+  const initial = name.trim().charAt(0).toUpperCase() || '?'
+  return (
+    <span className="avatar" style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden="true">
+      {initial}
+    </span>
+  )
+}
+
+export function AvatarRow({ people }: { people: { id: string; name: string; detail?: string }[] }) {
+  return (
+    <div className="avatars">
+      {people.map((p) => (
+        <div className="avatar-item" key={p.id}>
+          <Avatar name={p.name} />
+          <strong>{p.name || 'Sans nom'}</strong>
+          {p.detail && <span>{p.detail}</span>}
+        </div>
+      ))}
+    </div>
   )
 }

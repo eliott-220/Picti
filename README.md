@@ -28,8 +28,12 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 Sur ordinateur (sans boussole), la chasse passe en **mode démo** : on se place au point de
 vue et on regarde autour de soi en faisant glisser l'image.
 
-Les photos restent **sur l'appareil** (IndexedDB) : le réseau social (comptes, amis,
-chasseurs/proies, partage) est la prochaine étape.
+**Réseau social (v0.2, Supabase)** : un compte est obligatoire. Chaque photo géocadrée est
+publiée — **publique** par défaut, ou réservée aux **amis**, ou **privée** — et quiconque passe
+au même endroit la voit apparaître dans « À proximité » et peut la chasser. Amis ajoutés par
+code, *chasseurs* (ceux qui ont capturé mes photos) et *proies* (ceux dont j'ai capturé les
+photos). Le géocadrage en direct est gratuit ; le géocadrage en différé (import) est prévu
+payant (`DIFFERE_PREMIUM_REQUIRED` dans `src/config.ts`).
 
 ## Démarrer
 
@@ -44,7 +48,7 @@ npm run dev          # http://localhost:5173 (caméra OK sur localhost)
 npm run dev:https    # sert l'app en HTTPS sur le réseau local (certificat auto-signé)
 ```
 
-**Version en ligne** : https://picti.vercel.app (accès réservé au compte Vercel du projet).
+**Version en ligne** : https://picti.vercel.app (création de compte à la première ouverture).
 
 En local, ouvrir `https://<ip-de-l-ordinateur>:5173` depuis le téléphone (même Wi-Fi), accepter le
 certificat, puis autoriser caméra, position et — sur iPhone — « mouvement et orientation »
@@ -80,7 +84,8 @@ statique, `npm run build` → `dist/`).
 src/
   geo/        moteur pur et testé : géodésie, orientation, optique, projection, alignement, EXIF
   sensors/    hooks React : caméra, géolocalisation, orientation
-  data/       modèle (GeoPhoto, Capture), IndexedDB, pipeline de création/import
+  data/       modèle, client Supabase, store (photos, amis, captures), pipeline de création/import
+supabase/migrations/  schéma, règles d'accès (RLS), recherche à proximité, stockage
   screens/    écrans (Accueil, Import, Profil, Mes chasses, Détail, Chasse, Recaler…)
   components/ icônes, boutons, feuilles, notifications
 ```

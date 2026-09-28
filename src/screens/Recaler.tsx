@@ -4,7 +4,9 @@ import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
+import { canUseDiffere } from '../data/premium'
 import { useStore } from '../data/storeContext'
+import { usePhoto } from '../data/usePhoto'
 import type { GeoPhoto } from '../data/types'
 import { bearingDeg, compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
 import { angleDiffDeg } from '../geo/math'
@@ -20,13 +22,22 @@ const toSlider = (f: number) => Math.log(f / FOCAL_MIN) / Math.log(FOCAL_MAX / F
 const fromSlider = (v: number) => FOCAL_MIN * (FOCAL_MAX / FOCAL_MIN) ** v
 
 export function Recaler({ id }: { id: string }) {
-  const { photos } = useStore()
-  const photo = photos.find((p) => p.id === id)
-  if (!photo) {
+  const { isMine, profile } = useStore()
+  const { photo, loading } = usePhoto(id)
+  const reason = !photo
+    ? loading
+      ? 'Chargement…'
+      : 'Cette photo n’existe plus.'
+    : !isMine(photo)
+      ? 'Seul l’auteur d’une photo peut la géocadrer.'
+      : !canUseDiffere(profile)
+        ? 'Le géocadrage en différé est réservé à PICTI Premium.'
+        : null
+  if (!photo || reason) {
     return (
       <main className="screen page missing">
         <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
-        <p>Cette photo n’existe plus.</p>
+        <p>{reason}</p>
       </main>
     )
   }
@@ -76,19 +87,24 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
 
   async function geoframeHere() {
     if (!fix || !angles || !orientation.absolute) return
-    await updatePhoto({
-      ...photo,
-      focal35: Math.round(focal * 10) / 10,
-      mode: 'differe-manuel',
-      geoframe: {
-        position: { lat: fix.lat, lon: fix.lon, alt: fix.alt ?? null },
-        accuracy: fix.accuracy,
-        heading: angles.heading,
-        pitch: angles.pitch,
-        roll: angles.roll,
-        headingSource: 'boussole',
-      },
-    })
+    try {
+      await updatePhoto({
+        ...photo,
+        focal35: Math.round(focal * 10) / 10,
+        mode: 'differe-manuel',
+        geoframe: {
+          position: { lat: fix.lat, lon: fix.lon, alt: fix.alt ?? null },
+          accuracy: fix.accuracy,
+          heading: angles.heading,
+          pitch: angles.pitch,
+          roll: angles.roll,
+          headingSource: 'boussole',
+        },
+      })
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Enregistrement impossible')
+      return
+    }
     navigator.vibrate?.(40)
     toast('Photo géocadrée en différé')
     navigate(`/photo/${photo.id}`, { replace: true })

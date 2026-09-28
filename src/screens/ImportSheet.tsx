@@ -2,10 +2,12 @@ import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { EmptyState, PhotoTile, Sheet } from '../components/ui'
 import { importPhotoFile } from '../data/pipeline'
+import { canUseDiffere } from '../data/premium'
 import { useStore } from '../data/storeContext'
 import { isGeoframed } from '../data/types'
 import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { navigate } from '../router'
+import { DIFFERE_PREMIUM_REQUIRED } from '../config'
 
 interface Summary {
   auto: number
@@ -23,7 +25,8 @@ function plural(n: number, word: string) {
  * attendent d'être recalées sur le lieu de la prise de vue.
  */
 export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix | null }) {
-  const { photos, addPhoto } = useStore()
+  const { myPhotos, addPhoto, profile } = useStore()
+  const allowed = canUseDiffere(profile)
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -47,7 +50,7 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
     if (input.current) input.current.value = ''
   }
 
-  const pending = photos.filter((p) => !isGeoframed(p))
+  const pending = myPhotos.filter((p) => !isGeoframed(p))
   const located = pending
     .filter((p) => p.hintPosition)
     .map((p) => ({ p, d: fix ? distanceMeters(fix, p.hintPosition!) : null }))
@@ -56,8 +59,14 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
 
   return (
     <Sheet onClose={onClose} label="Géocadrer en différé">
+      {!allowed && (
+        <div className="paywall">
+          <strong>Géocadrage en différé : PICTI Premium</strong>
+          <span>Importer des photos déjà prises est réservé aux comptes Premium. Le géocadrage en direct reste gratuit.</span>
+        </div>
+      )}
       <div className="sheet-head">
-        <button type="button" className="import-btn" onClick={() => input.current?.click()} disabled={busy}>
+        <button type="button" className="import-btn" onClick={() => input.current?.click()} disabled={busy || !allowed}>
           <Icon name={busy ? 'image' : 'plus'} />
           {busy ? 'Analyse des photos…' : 'Importer des photos'}
         </button>
@@ -73,6 +82,10 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
           onChange={(e) => void onFiles(e.target.files)}
         />
       </div>
+
+      {allowed && !DIFFERE_PREMIUM_REQUIRED && (
+        <p className="premium-hint">Gratuit pendant la version d’essai, bientôt réservé à PICTI Premium.</p>
+      )}
 
       {summary && (
         <p className="import-summary">

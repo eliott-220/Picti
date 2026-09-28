@@ -5,6 +5,7 @@ import { RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
+import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { navigate } from '../router'
 import { useCamera } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
@@ -20,8 +21,13 @@ export function Home() {
   const { videoRef, status: cameraStatus, error: cameraError, capture } = useCamera()
   const geo = useGeolocation()
   const orientation = useOrientation()
-  const { addPhoto } = useStore()
+  const { addPhoto, nearby, captures, isMine, photos } = useStore()
   const toast = useToast()
+  useNearbyRefresh(geo.fix)
+
+  // Photos d'autres utilisateurs à chasser autour de soi.
+  const captured = new Set(captures.map((c) => c.photoId))
+  const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
 
   async function shoot() {
     if (busy) return
@@ -48,7 +54,7 @@ export function Home() {
       await addPhoto(photo, images)
       navigator.vibrate?.(30)
       if (photo.geoframe) {
-        toast('Photo géocadrée', { label: 'Voir', to: `/photo/${photo.id}` })
+        toast('Photo géocadrée et publiée', { label: 'Voir', to: `/photo/${photo.id}` })
       } else {
         const missing = !geo.fix ? 'position GPS' : 'boussole'
         toast(`Photo gardée sans ${missing} : à géocadrer sur place`, { label: 'Voir', to: `/photo/${photo.id}` })
@@ -74,7 +80,13 @@ export function Home() {
       <SensorStatus geo={geo} orientation={orientation} />
 
       <nav className="rail" aria-label="Explorer">
-        <RoundButton icon="pin" label="Photos à proximité" onClick={() => navigate('/proximite')} dim={!!sheet} />
+        <RoundButton
+          icon="pin"
+          label="Photos à proximité"
+          onClick={() => navigate('/proximite')}
+          dim={!!sheet}
+          badge={toHunt}
+        />
         <RoundButton icon="filter" label="Filtrer" onClick={() => navigate('/recherche?filtres')} dim={!!sheet} />
         <RoundButton icon="search" label="Rechercher" onClick={() => navigate('/recherche')} dim={!!sheet} />
       </nav>
