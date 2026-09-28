@@ -50,6 +50,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Déployé depuis la branche `claude/upbeat-bell-330fij`
   via l'API Vercel.
+- Mises à jour : chaque build publie `version.json` ; `src/update.ts` le compare à la version
+  embarquée et affiche un bandeau « Mettre à jour » (bouton aussi dans le menu).
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
@@ -65,3 +67,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 ## Journal des discussions
 
 - [2026-09-28 — Reprise du projet et prototype v0.1](claude/picti/2026-09-28-prototype-v0.1.md)
+- [2026-09-28 — Mettre à jour l'app installée sur l'écran d'accueil](claude/picti/2026-09-28-mises-a-jour-ecran-accueil.md)

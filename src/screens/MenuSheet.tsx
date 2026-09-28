@@ -1,14 +1,22 @@
+import { useEffect } from 'react'
 import { Icon, Logo, type IconName } from '../components/Icon'
 import { Sheet } from '../components/ui'
 import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { isGeoframed } from '../data/types'
 import { navigate } from '../router'
+import { buildLabel, checkForUpdate, reloadApp, useUpdateAvailable } from '../update'
 
 export function MenuSheet({ onClose }: { onClose: () => void }) {
   const { myPhotos, captures, profile } = useStore()
   const geoframed = myPhotos.filter(isGeoframed).length
   const hunted = new Set(captures.map((c) => c.photoId)).size
+  const updateAvailable = useUpdateAvailable()
+
+  // Ouvrir le menu relance une vérification de version.
+  useEffect(() => {
+    void checkForUpdate()
+  }, [])
 
   const items: { icon: IconName; label: string; detail: string; to: string }[] = [
     { icon: 'user', label: 'Mon profil', detail: `${geoframed} photo${geoframed > 1 ? 's' : ''} géocadrée${geoframed > 1 ? 's' : ''}`, to: '/profil' },
@@ -44,6 +52,15 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
+      <div className="app-version">
+        <div className="menu-text">
+          <strong>{updateAvailable ? 'Nouvelle version disponible' : 'Application'}</strong>
+          <span>Version du {buildLabel()}</span>
+        </div>
+        <button type="button" className={updateAvailable ? 'btn small' : 'btn small ghost'} onClick={reloadApp}>
+          {updateAvailable ? 'Mettre à jour' : 'Recharger'}
+        </button>
+      </div>
       <button type="button" className="btn ghost signout" onClick={() => void supabase.auth.signOut()}>
         Se déconnecter
       </button>
