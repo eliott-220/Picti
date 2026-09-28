@@ -64,6 +64,7 @@ certificat, puis autoriser caméra, position et — sur iPhone — « mouvement 
 (bouton **Activer la boussole**). On peut aussi déployer tel quel sur Vercel (site
 statique, `npm run build` → `dist/`).
 
+Numéro de version au format x.xxx.x (ex. 0.008.1), visible en bas du menu.
 Quand une nouvelle version est en ligne, l'app affiche « Nouvelle version de PICTI
 disponible » ; le menu propose aussi un bouton **Recharger** (utile depuis l'écran d'accueil
 de l'iPhone, où Safari n'affiche pas de bouton de rechargement).

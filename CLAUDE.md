@@ -69,9 +69,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   (le compte PICTI protège l'accès). Déployé depuis la branche `claude/upbeat-bell-330fij`
   via l'API Vercel. Dernière branche de travail : `claude/beautiful-edison-87l36d` (à partir de
   `claude/blissful-maxwell-want4i` ; `main` ne contient que le `.gitignore`).
-- Mises à jour : le build publie `version.json` (commit Vercel) ; `UpdateBanner` affiche
-  « Nouvelle version disponible » (vérif. au retour dans l'app et toutes les 5 min) ;
-  bouton « Recharger » + version dans le menu.
+- Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
+  affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
+  toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
+- **Numéro de version** au format **x.xxx.x** (`src/data/versionNumber.ts`), tiré du champ
+  `version` de `package.json` (écrit en semver : `0.8.1` → affiché `0.008.1`). Premier chiffre =
+  grande version (1 = sortie officielle), trois du milieu = nouvelle fonctionnalité, dernier =
+  correction / petit ajustement. **À chaque changement livré, augmenter `version` dans
+  `package.json` (et `package-lock.json`)** : fonctionnalité → `0.9.0`, correction → `0.8.2`.
 - Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
   l'orientation de l'objectif avant (`frontCameraBasis` : cap +180°, inclinaison et roulis
   inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Ensuite, mêmes
@@ -82,17 +87,18 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 
 ## État et suite
 
-- v0.1 (sept. 2026) : prototype complet local (direct, différé EXIF, recalage sur place,
+- 0.001.0 (sept. 2026) : prototype complet local (direct, différé EXIF, recalage sur place,
   chasse AR avec capture, profil, chasses, proximité, recherche, mode démo).
-- v0.2 : Supabase (comptes, publication des photos, photos des autres à proximité,
+- 0.002.0 : Supabase (comptes, publication des photos, photos des autres à proximité,
   visibilité publique/amis/privée, amis par code, chasseurs/proies, captures partagées).
-- v0.3 : carte du monde, viseur augmenté (photos du lieu empilées), enregistrement Premium.
-- v0.4 : passage en Premium par code administrateur.
-- v0.5 : fin de l'essai gratuit (différé réservé à Premium, vérifié en base), notification
+- 0.003.0 : carte du monde, viseur augmenté (photos du lieu empilées), enregistrement Premium.
+- 0.004.0 : passage en Premium par code administrateur.
+- 0.005.0 : fin de l'essai gratuit (différé réservé à Premium, vérifié en base), notification
   de mise à jour et bouton « Recharger ».
-- Fond caméra en noir et blanc (accueil, chasse, recalage) ; photos géocadrées en couleur.
-- Selfies géocadrés (caméra avant), filtre « Selfies » dans la recherche.
-- Photos d'un même endroit empilées, à faire glisser (Tinder) avec points (Instagram).
+- 0.006.0 : fond caméra en noir et blanc (accueil, chasse, recalage) ; photos géocadrées en couleur.
+- 0.007.0 : selfies géocadrés (caméra avant), filtre « Selfies » dans la recherche.
+- 0.008.0 : photos d'un même endroit empilées, à faire glisser (Tinder) avec points (Instagram).
+- 0.008.1 : numéro de version au format x.xxx.x (menu, notification de mise à jour).
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -102,3 +108,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Fond caméra en noir et blanc](claude/picti/2026-09-28-fond-camera-noir-et-blanc.md)
 - [2026-09-28 — Selfies géocadrés](claude/picti/2026-09-28-selfies.md)
 - [2026-09-28 — Photos d'un même endroit empilées](claude/picti/2026-09-28-photos-empilees.md)
+- [2026-09-28 — Numéro de version x.xxx.x](claude/picti/2026-09-28-numero-de-version.md)
