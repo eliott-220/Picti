@@ -84,6 +84,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Ensuite, mêmes
   règles que toute photo : on la retrouve en visant, depuis la place du téléphone, l'endroit
   où se tenait l'auteur.
+- **Autorisations mémorisées** (`src/sensors/permissions.ts`, `localStorage`
+  `picti.autorisation.boussole`) : iOS redemande la boussole à chaque ouverture ; si elle a
+  déjà été accordée, `useOrientation` la réactive seul (sans geste si le système l'accepte,
+  sinon au premier appui n'importe où ; pastille « Boussole : touchez l'écran »). **Caméra** :
+  un seul flux partagé par toute l'app (`useCamera`), gardé 15 s après avoir quitté un écran
+  caméra (accueil ↔ chasse ↔ recalage sans redemande), coupé en arrière-plan et relancé au
+  retour. L'autorisation navigateur elle-même ne se règle que dans Safari (aA › Réglages du
+  site web › Caméra / Localisation › Autoriser) : message affiché en cas de refus.
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
@@ -102,6 +110,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.008.0 : photos d'un même endroit empilées, à faire glisser (Tinder) avec points (Instagram).
 - 0.008.1 : numéro de version au format x.xxx.x (menu, notification de mise à jour).
 - 0.008.2 : heure de prise de vue à côté de la date (`formatDateTime`, `photoTitleAndDate`).
+- 0.009.0 : autorisations caméra et boussole gardées en mémoire.
 - Prochaines étapes : test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -113,3 +122,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Photos d'un même endroit empilées](claude/picti/2026-09-28-photos-empilees.md)
 - [2026-09-28 — Numéro de version x.xxx.x](claude/picti/2026-09-28-numero-de-version.md)
 - [2026-09-28 — Heure des photos](claude/picti/2026-09-28-heure-des-photos.md)
+- [2026-09-28 — Autorisations caméra et boussole mémorisées](claude/picti/2026-09-28-autorisations-memorisees.md)

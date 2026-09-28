@@ -1,4 +1,5 @@
 import type { GeolocationState } from '../sensors/useGeolocation'
+import { isRemembered } from '../sensors/permissions'
 import type { OrientationState } from '../sensors/useOrientation'
 import { Icon } from './Icon'
 
@@ -14,7 +15,8 @@ export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orie
       compass = orientation.absolute ? { ok: true, text: 'Boussole' } : { ok: false, text: 'Boussole relative' }
       break
     case 'needs-permission':
-      compass = { ok: false, text: 'Activer la boussole' }
+      // Déjà autorisée lors d'une ouverture précédente : un appui n'importe où la réactive.
+      compass = { ok: false, text: isRemembered('boussole') ? 'Boussole : touchez l’écran' : 'Activer la boussole' }
       break
     case 'denied':
       compass = { ok: false, text: 'Boussole refusée' }

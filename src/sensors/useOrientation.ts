@@ -9,6 +9,7 @@ import {
   type CameraAngles,
   type CameraBasis,
 } from '../geo/orientation'
+import { isRemembered, remember } from './permissions'
 
 export type OrientationStatus = 'unsupported' | 'needs-permission' | 'denied' | 'waiting' | 'active'
 
@@ -37,6 +38,54 @@ const needsPermission = () => typeof permissionApi()?.requestPermission === 'fun
 
 // Accordée une fois par session (iOS), valable pour tous les écrans.
 let permissionGranted = false
+let pendingRequest: Promise<boolean> | null = null
+const grantListeners = new Set<() => void>()
+
+/** Demande (unique à la fois) l'accès à la boussole ; mémorise la réponse. */
+function requestCompass(): Promise<boolean> {
+  const api = permissionApi()
+  if (!api?.requestPermission) return Promise.resolve(true)
+  pendingRequest ??= api
+    .requestPermission()
+    .then((answer) => {
+      permissionGranted = answer === 'granted'
+      remember('boussole', permissionGranted)
+      if (permissionGranted) grantListeners.forEach((l) => l())
+      return permissionGranted
+    })
+    .catch(() => false)
+    .finally(() => {
+      pendingRequest = null
+    })
+  return pendingRequest
+}
+
+/**
+ * iOS redemande l'accès à la boussole à chaque ouverture. Si l'utilisateur
+ * l'a déjà accordé, on le réactive sans bouton : aussitôt si le système
+ * l'accepte, sinon au premier appui n'importe où dans l'app.
+ */
+function restoreCompass() {
+  if (!needsPermission() || permissionGranted || !isRemembered('boussole')) return
+  const onGesture = () => {
+    document.removeEventListener('touchend', onGesture, true)
+    document.removeEventListener('click', onGesture, true)
+    if (!permissionGranted) void requestCompass()
+  }
+  permissionApi()!
+    .requestPermission!()
+    .then((answer) => {
+      if (answer !== 'granted') return
+      permissionGranted = true
+      grantListeners.forEach((l) => l())
+    })
+    .catch(() => {
+      // Un geste est nécessaire : le premier appui suffira.
+      document.addEventListener('touchend', onGesture, true)
+      document.addEventListener('click', onGesture, true)
+    })
+}
+if (typeof window !== 'undefined') restoreCompass()
 
 function screenAngle(): number {
   return screen.orientation?.angle ?? (window as { orientation?: number }).orientation ?? 0
@@ -53,6 +102,15 @@ export function useOrientation(enabled = true): OrientationState {
   const [snapshot, setSnapshot] = useState<{ basis: CameraBasis; absolute: boolean } | null>(null)
 
   const listening = enabled && (status === 'waiting' || status === 'active')
+
+  // Accès accordé ailleurs (autre écran, ou réactivation automatique).
+  useEffect(() => {
+    const onGrant = () => setStatus((s) => (s === 'needs-permission' || s === 'denied' ? 'waiting' : s))
+    grantListeners.add(onGrant)
+    return () => {
+      grantListeners.delete(onGrant)
+    }
+  }, [])
 
   useEffect(() => {
     if (!listening) return
@@ -101,15 +159,9 @@ export function useOrientation(enabled = true): OrientationState {
   }, [listening])
 
   const requestPermission = useCallback(async () => {
-    const api = permissionApi()
-    if (!api?.requestPermission) return true
-    try {
-      permissionGranted = (await api.requestPermission()) === 'granted'
-    } catch {
-      permissionGranted = false
-    }
-    setStatus(permissionGranted ? 'waiting' : 'denied')
-    return permissionGranted
+    const granted = await requestCompass()
+    setStatus(granted ? 'waiting' : 'denied')
+    return granted
   }, [])
 
   const angles = useMemo(() => (snapshot ? anglesFromBasis(snapshot.basis) : null), [snapshot])
