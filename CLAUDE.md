@@ -50,7 +50,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   dans le dépôt ; gestion des codes : voir `supabase/migrations/20260928160000_premium_codes.sql`.
 - Carte du monde : `src/screens/WorldMap.tsx` (chargée à la demande), MapLibre GL 6 +
   fond OpenFreeMap (gratuit, sans clé), regroupement Supercluster (vignette = photo la plus
-  récente), RPC `photos_in_bounds`. Le processus de fond MapLibre est assemblé par Vite
+  récente), RPC `photos_in_bounds`. Carte **orientable** depuis 0.011.0 (rotation à deux doigts,
+  à plat : `touchPitch` coupé, `maxPitch: 0`) ; bouton boussole `.map-north` (visible dès que la
+  carte est tournée, remet le nord en haut) ; les cônes de direction des vignettes sont
+  compensés (`heading - bearing`). Le processus de fond MapLibre est assemblé par Vite
   (`?worker&url` + `setWorkerUrl`).
 - Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
   devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
@@ -140,6 +143,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.010.0 : mot de passe oublié (demande d'un lien par e-mail, écran « Nouveau mot de passe », lien expiré signalé).
 - 0.010.1 : photos stables et lointaines : cap iPhone gyroscope + recalage lent de la boussole,
   comptage des pas, position tenue à l'arrêt, photo réduite de loin (à 20 m : 12 % de l'écran).
+- 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
 - Prochaines étapes : test terrain de l'ancrage sur iPhone (0.010.1 : balayer, rester immobile,
   reculer de 20 m) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
   Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
@@ -161,3 +165,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — Objectifs du jour](claude/picti/2026-09-29-objectifs-du-jour.md)
 - [2026-09-29 — Mot de passe oublié (0.010.0)](claude/picti/2026-09-29-mot-de-passe-oublie.md)
 - [2026-09-29 — La photo bouge et reste trop grande de loin (0.010.1)](claude/picti/2026-09-29-photo-stable-et-lointaine.md)
+- [2026-09-29 — Carte orientable (0.011.0)](claude/picti/2026-09-29-carte-orientable.md)

@@ -27,7 +27,7 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
 
 | **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place et **y restent quand on se déplace** ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
-| **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne. |
+| **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut. |
 | Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
 
 Sur ordinateur (sans boussole), la chasse passe en **mode démo** : on se place au point de

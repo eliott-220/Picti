@@ -104,10 +104,11 @@ export default function WorldMap() {
       center: [2.35, 46.6],
       zoom: 2,
       attributionControl: { compact: true },
-      dragRotate: false,
+      // Carte à plat qu'on peut faire pivoter (deux doigts, ou clic droit glissé).
       pitchWithRotate: false,
+      touchPitch: false,
+      maxPitch: 0,
     })
-    map.touchZoomRotate.disableRotation()
     mapRef.current = map
     // Rendu des vignettes dès que la carte existe (même si le fond ne charge pas).
     const ready = setTimeout(() => setMap(map))
@@ -250,6 +251,9 @@ export default function WorldMap() {
 
   const me = fix && map ? map.project([fix.lon, fix.lat]) : null
 
+  // Orientation de la carte (°) : relue à chaque image, comme la position des vignettes.
+  const bearing = map?.getBearing() ?? 0
+
   return (
     <main className="screen world-map">
       <div ref={container} className="map-canvas" />
@@ -281,7 +285,7 @@ export default function WorldMap() {
                   />
                   {count > 1 && <span className="map-count">{count > 999 ? '999+' : count}</span>}
                   {single?.heading != null && (
-                    <span className="map-heading" style={{ transform: `rotate(${single.heading}deg)` }} />
+                    <span className="map-heading" style={{ transform: `rotate(${single.heading - bearing}deg)` }} />
                   )}
                 </div>
               )
@@ -304,6 +308,19 @@ export default function WorldMap() {
       </header>
 
       <nav className="map-actions" aria-label="Carte">
+        {Math.abs(bearing) > 0.5 && (
+          <button
+            type="button"
+            className="round-btn map-north"
+            onClick={() => map?.resetNorth({ duration: 300 })}
+            aria-label="Remettre le nord en haut"
+            title="Remettre le nord en haut"
+          >
+            <span style={{ transform: `rotate(${-bearing}deg)` }}>
+              <Icon name="arrow" />
+            </span>
+          </button>
+        )}
         <RoundButton icon="compass" label="Ma position" onClick={locate} />
         <RoundButton icon="grid" label="Liste à proximité" onClick={() => navigate('/proximite')} />
       </nav>

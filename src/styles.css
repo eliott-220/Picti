@@ -1668,6 +1668,13 @@ img {
   gap: 16px;
 }
 
+/* Boussole de la carte : le nord, à toucher pour le remettre en haut. */
+.map-north span {
+  display: flex;
+  color: var(--red);
+  transition: transform 0.1s linear;
+}
+
 .map-sheet {
   position: absolute;
   left: 0;
