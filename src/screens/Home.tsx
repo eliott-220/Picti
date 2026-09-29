@@ -9,11 +9,13 @@ import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
 import { isGeoframed } from '../data/types'
-import { DEFAULT_PHONE_FOCAL35, FRONT_PHONE_FOCAL35 } from '../geo/optics'
+import { FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { navigate } from '../router'
+import { useCameraFocal } from '../sensors/cameraFocal'
 import { useCamera, type CameraFacing } from '../sensors/useCamera'
+import { useFocalCalibration } from '../sensors/useFocalCalibration'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
@@ -33,6 +35,9 @@ export function Home() {
   // Position suivie image par image : les photos restent à leur place quand on marche.
   const position = useLivePosition(geo.track)
   const orientation = useOrientation()
+  // Focale de la caméra principale, mesurée en tournant le téléphone.
+  const { focal35 } = useCameraFocal()
+  useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)
   const { addPhoto, nearby, captures, isMine, photos } = useStore()
   const toast = useToast()
   useNearbyRefresh(geo.fix)
@@ -68,7 +73,7 @@ export function Home() {
       const { photo, images } = await createDirectPhoto(
         frame,
         { fix: position ?? geo.fix, angles, absolute: orientation.absolute },
-        { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : DEFAULT_PHONE_FOCAL35 },
+        { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : focal35 },
       )
       await addPhoto(photo, images)
       navigator.vibrate?.(30)
@@ -106,7 +111,7 @@ export function Home() {
           photos={arPhotos}
           fix={position}
           basis={orientation.absolute ? orientation.basis : null}
-          cam={viewportCamera(stage, cameraSize)}
+          cam={viewportCamera(stage, cameraSize, focal35)}
           isMine={isMine}
           onOpen={(p) => navigate(`/chasse/${p.id}`)}
         />

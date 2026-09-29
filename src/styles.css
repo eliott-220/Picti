@@ -1845,6 +1845,11 @@ img {
   flex-shrink: 0;
 }
 
+.menu-footer small {
+  display: block;
+  font-size: 12px;
+}
+
 .premium-gate {
   padding: calc(var(--safe-top) + 88px) var(--pad) var(--pad);
 }

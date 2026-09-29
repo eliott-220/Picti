@@ -24,15 +24,19 @@ export type GeoframedPhoto = GeoPhoto & { geoframe: Geoframe }
 /** Date de référence d'une photo : prise de vue, à défaut ajout. */
 export const photoTime = (p: GeoPhoto) => p.takenAt ?? p.addedAt
 
-/** Caméra de l'écran : le flux vidéo couvre la scène (object-fit: cover). */
+/**
+ * Caméra de l'écran : le flux vidéo couvre la scène (object-fit: cover).
+ * `focal35` : focale du flux, mesurée sur le téléphone (`useCameraFocal`).
+ */
 export function viewportCamera(
   stage: { width: number; height: number },
   cameraSize: { width: number; height: number } | null,
+  focal35 = DEFAULT_PHONE_FOCAL35,
 ): ViewportCamera | null {
   if (!stage.width) return null
   return cameraSize
-    ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, DEFAULT_PHONE_FOCAL35)
-    : { width: stage.width, height: stage.height, focal: focalPx(DEFAULT_PHONE_FOCAL35, stage.width, stage.height) }
+    ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, focal35)
+    : { width: stage.width, height: stage.height, focal: focalPx(focal35, stage.width, stage.height) }
 }
 
 export interface ArProjection {

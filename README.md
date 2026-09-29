@@ -136,8 +136,9 @@ supabase/migrations/  schéma, règles d'accès (RLS), recherche à proximité, 
   précision sub-métrique — piste pour une future version native.
 - Cap magnétique (boussole) et cap EXIF (souvent vrai nord) ne sont pas corrigés de la
   déclinaison (≈ 0 à 2° en France).
-- Champ de vision de la caméra supposé équivalent à un 26 mm (module principal) ; les
-  photos EXIF sans inclinaison sont supposées horizontales.
+- Champ de vision de la caméra : 26 mm supposés jusqu'à ce qu'il soit **mesuré** (quelques
+  balayages du téléphone suffisent, `src/geo/focalCalibration.ts`) ; les photos EXIF sans
+  inclinaison sont supposées horizontales.
 - Application verrouillée en portrait.
 
 ## Feuille de route

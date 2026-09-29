@@ -87,6 +87,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   au démarrage, après une pause, ou si un grand écart persiste. Ne jamais revenir à un suivi
   direct de la boussole : en retard quand on tourne, elle faisait « suivre la caméra » aux photos
   (17° d'erreur en balayant, 14° encore après l'arrêt, contre 3,5° et 0,2°).
+- **Focale mesurée** (depuis 0.011.1, `src/geo/focalCalibration.ts`, `useFocalCalibration`,
+  `cameraFocal.ts`) : en tournant le téléphone, glissement de l'image (profil de colonnes, moitié
+  centrale, image réduite à 240 px) comparé à la rotation du gyroscope, seulement en rotation
+  régulière (même vitesse sur deux demi-fenêtres de 250 ms : insensible au retard de la vidéo) ;
+  médiane de 15 mesures de 15°, biais de perspective corrigé ; gardée dans `localStorage`
+  `picti.focale`, utilisée par l'écran (accueil, chasse, recalage) et les nouvelles photos ;
+  affichée dans le menu (« Caméra 24 mm (mesurée) »). Sans elle (26 mm supposés), sur iPhone
+  Pro (24 mm) la photo défilait moins vite que le décor et restait décalée (2,7° à 30°).
 - **Taille de loin** (depuis 0.010.1, `displayScale` dans `src/geo/projection.ts`) : le plan-photo
   est réduit par `farScale` (1 au point de vue, ~⅓ à 20 m) avec une hauteur apparente minimale
   de 5° : à 20 m, ~12 % de la largeur de l'écran (37 % avant) ; au point de vue, inchangé.
@@ -144,10 +152,12 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.010.1 : photos stables et lointaines : cap iPhone gyroscope + recalage lent de la boussole,
   comptage des pas, position tenue à l'arrêt, photo réduite de loin (à 20 m : 12 % de l'écran).
 - 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
+- 0.011.1 : focale de la caméra mesurée automatiquement (iPhone Pro : la photo ne reste plus
+  décalée après avoir tourné) ; affichée dans le menu.
 - Prochaines étapes : test terrain de l'ancrage sur iPhone (0.010.1 : balayer, rester immobile,
   reculer de 20 m) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
   Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
-  notifications de proximité ; calibration de la focale ; piste VPS/native.
+  notifications de proximité ; piste VPS/native.
 
 ## Journal des discussions
 
@@ -166,3 +176,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — Mot de passe oublié (0.010.0)](claude/picti/2026-09-29-mot-de-passe-oublie.md)
 - [2026-09-29 — La photo bouge et reste trop grande de loin (0.010.1)](claude/picti/2026-09-29-photo-stable-et-lointaine.md)
 - [2026-09-29 — Carte orientable (0.011.0)](claude/picti/2026-09-29-carte-orientable.md)
+- [2026-09-29 — Photo encore un peu décalée sur iPhone Pro : focale mesurée (0.011.1)](claude/picti/2026-09-29-focale-mesuree.md)
