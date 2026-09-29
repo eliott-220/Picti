@@ -20,7 +20,8 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
     même à 20 m elle est trop grande ».
   - [x] Corrigé en 0.010.1 ([note](2026-09-29-photo-stable-et-lointaine.md)) : cap par le
     gyroscope, comptage des pas, position tenue à l'arrêt, photo réduite de loin.
-  - [ ] Mise en ligne de 0.010.1 et nouveau test terrain.
+  - [x] Mise en ligne de 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`).
+  - [ ] Nouveau test terrain.
   - Vérifier le numéro en bas du menu : doit afficher `0.009.2`.
   - Face à une photo, reculer de 5 à 10 m : elle doit **rétrécir et rester à sa place**.
   - La distance à la photo s'affiche dans le viseur (« · à 5 m »), « · marche » sur la
