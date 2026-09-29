@@ -24,6 +24,10 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
   - Tester dehors (en intérieur, le GPS ne voit pas 5 m).
 - [ ] **2. Rassembler tout le travail dans `main`** (pull request), pour que chaque nouvelle
   session reparte du bon code.
+  - [x] Branches comparées : tout est déjà dans `claude/nice-cori-zbpf7v`, sauf la note
+    « mises à jour écran d'accueil » (récupérée ; la fonction avait été refaite ailleurs).
+  - [x] Tests (92), lint, build : OK.
+  - [ ] Pull request vers `main` fusionnée.
 - [ ] **3. Ajouter « mot de passe oublié »** — indispensable avant de faire tester l'appli à
   de vraies personnes.
 - [ ] **4. Brancher le paiement Premium (Stripe)** — aujourd'hui, Premium ne s'obtient

@@ -80,7 +80,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.009.2** (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, commit `f0092fc`, confirmée READY sur picti.vercel.app le 29/09/2026). Retour arrière possible : 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). Le travail est éparpillé sur plusieurs branches `claude/*` ; la plus à jour est `claude/nice-cori-zbpf7v` (reprend `claude/wonderful-dirac-opn4nb`). `main` ne contient que le `.gitignore`.
+  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.009.2** (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, commit `f0092fc`, confirmée READY sur picti.vercel.app le 29/09/2026). Retour arrière possible : 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -131,6 +131,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 ## Journal des discussions
 
 - [2026-09-28 — Reprise du projet et prototype v0.1](claude/picti/2026-09-28-prototype-v0.1.md)
+- [2026-09-28 — Mettre à jour l'app installée sur l'écran d'accueil](claude/picti/2026-09-28-mises-a-jour-ecran-accueil.md)
 - [2026-09-28 — Fond caméra en noir et blanc](claude/picti/2026-09-28-fond-camera-noir-et-blanc.md)
 - [2026-09-28 — Selfies géocadrés](claude/picti/2026-09-28-selfies.md)
 - [2026-09-28 — Photos d'un même endroit empilées](claude/picti/2026-09-28-photos-empilees.md)
