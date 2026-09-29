@@ -36,7 +36,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 
 - Vite + React 19 + TypeScript, PWA statique (routage par ancre `#/…`).
 - Backend **Supabase** (projet `picti`, ref `fiybbfiyrnptnpwqkrji`, Paris) : compte obligatoire
-  (e-mail + mot de passe), tables `profiles`, `friendships`, `photos`, `captures`, RPC
+  (e-mail + mot de passe ; **mot de passe oublié** depuis 0.010.0 : `resetPasswordForEmail` → lien vers `window.location.origin` → écran `NewPassword`, repéré par `openedFromRecoveryLink` lu avant que Supabase n'efface l'adresse, et par l'événement `PASSWORD_RECOVERY`), tables `profiles`, `friendships`, `photos`, `captures`, RPC
   `nearby_photos`, bucket privé `photos` (dossier par utilisateur, URLs signées). Toutes les
   règles d'accès sont en RLS : voir `supabase/migrations/`. Visibilité par photo :
   `public` (défaut) / `amis` / `prive`. Config client : `src/config.ts`.
@@ -125,7 +125,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   du spectateur, suivi GPS + accéléromètre, recalage au moment de la capture.
 - 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
   rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
+- 0.010.0 : mot de passe oublié (demande d'un lien par e-mail, écran « Nouveau mot de passe », lien expiré signalé).
+- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèle d'e-mail Supabase en français, envoi d'e-mails : SMTP intégré limité) ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
@@ -142,3 +143,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Photo qui suit encore après 5 m (0.009.2)](claude/picti/2026-09-28-photo-suit-encore.md)
 - [2026-09-29 — Point d'étape : sur quoi se concentrer](claude/picti/2026-09-29-point-etape.md)
 - [2026-09-29 — Objectifs du jour](claude/picti/2026-09-29-objectifs-du-jour.md)
+- [2026-09-29 — Mot de passe oublié (0.010.0)](claude/picti/2026-09-29-mot-de-passe-oublie.md)

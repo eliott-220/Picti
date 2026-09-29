@@ -27,8 +27,8 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
   - [x] Branches comparées : tout est déjà dans `claude/nice-cori-zbpf7v`, sauf la note
     « mises à jour écran d'accueil » (récupérée ; la fonction avait été refaite ailleurs).
   - [x] Tests (92), lint, build : OK.
-  - [ ] Pull request vers `main` fusionnée.
-- [ ] **3. Ajouter « mot de passe oublié »** — indispensable avant de faire tester l'appli à
+  - [x] Pull request vers `main` fusionnée (eliott-220/Picti#1).
+- [ ] **3. Ajouter « mot de passe oublié »** — codé (0.010.0), reste à tester avec un vrai e-mail ; — indispensable avant de faire tester l'appli à
   de vraies personnes.
 - [ ] **4. Brancher le paiement Premium (Stripe)** — aujourd'hui, Premium ne s'obtient
   qu'avec un code administrateur.
