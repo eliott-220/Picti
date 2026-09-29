@@ -80,12 +80,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). Dernière version : **0.009.1**, branche
-  `claude/wonderful-dirac-opn4nb` (commit `97ac582`, partie de 0.009.0) ; redéploiement en
-  production lancé le 28/09/2026 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`), **non confirmé** (la
-  session n'a pas eu l'autorisation d'en vérifier l'état). Précédente production : 0.009.0,
-  branche `claude/beautiful-edison-87l36d` (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`, retour
-  arrière possible). `main` ne contient que le `.gitignore`.
+  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.009.1** (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`, commit `97ac582`, confirmée READY le 29/09/2026). **0.009.2** (commit `f0092fc`) n'existe qu'en aperçu (`dpl_FoCA8J6QvSsEFqhZEsTroqxv2LE3`), pas encore en production. Retour arrière possible : 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). Le travail est éparpillé sur plusieurs branches `claude/*` ; la plus à jour est `claude/nice-cori-zbpf7v` (reprend `claude/wonderful-dirac-opn4nb`). `main` ne contient que le `.gitignore`.
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -144,3 +139,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Autorisations caméra et boussole mémorisées](claude/picti/2026-09-28-autorisations-memorisees.md)
 - [2026-09-28 — Photos ancrées dans le décor (géolocalisation)](claude/picti/2026-09-28-photos-ancrees.md)
 - [2026-09-28 — Photo qui suit encore après 5 m (0.009.2)](claude/picti/2026-09-28-photo-suit-encore.md)
+- [2026-09-29 — Point d'étape : sur quoi se concentrer](claude/picti/2026-09-29-point-etape.md)
