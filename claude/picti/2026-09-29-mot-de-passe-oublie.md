@@ -35,9 +35,10 @@ Ajouter « mot de passe oublié », indispensable avant de faire tester l'app à
 
 - **Test réel avec un vrai e-mail** : demander le lien, l'ouvrir sur l'iPhone.
 - Tableau de bord Supabase › Authentication :
-  - *URL Configuration* : `https://picti.vercel.app` dans les adresses de redirection
-    autorisées (sinon le lien renvoie vers l'adresse par défaut du projet).
-  - *Email Templates › Reset Password* : texte en français.
+  - *URL Configuration* : fait par Eliott (29/09).
+  - *Emails › Reset Password* et *Confirm signup* : textes français prêts dans
+    `supabase/templates/` (objet en commentaire en tête de fichier), à coller dans le tableau
+    de bord — l'outil Supabase de la session n'a pas accès aux réglages Auth.
   - *SMTP* : l'envoi intégré de Supabase est limité (quelques e-mails par heure) ; pour de
     vrais testeurs, brancher un service d'envoi (Resend, Brevo…).
 - Si le lien est ouvert dans une autre app que celle où PICTI est installée (ex. e-mail ouvert

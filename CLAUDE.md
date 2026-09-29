@@ -126,7 +126,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
   rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
 - 0.010.0 : mot de passe oublié (demande d'un lien par e-mail, écran « Nouveau mot de passe », lien expiré signalé).
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèle d'e-mail Supabase en français, envoi d'e-mails : SMTP intégré limité) ;
+- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
+  Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
