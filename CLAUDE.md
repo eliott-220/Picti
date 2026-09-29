@@ -103,7 +103,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.010.1** (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`, commit `e77b925`, branche `claude/nice-cori-zbpf7v`, mise en ligne le 29/09/2026 ; PR eliott-220/Picti#2 pas encore fusionnée dans `main`). Retour arrière possible : 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.011.1** (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`, commit `4322b70`, branche `claude/nice-cori-zbpf7v`, mise en ligne le 29/09/2026 ; PR eliott-220/Picti#2 pas encore fusionnée dans `main`). Retour arrière possible : 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -154,8 +154,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
 - 0.011.1 : focale de la caméra mesurée automatiquement (iPhone Pro : la photo ne reste plus
   décalée après avoir tourné) ; affichée dans le menu.
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.010.1 : balayer, rester immobile,
-  reculer de 20 m) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
+- Prochaines étapes : test terrain de 0.011.1 sur iPhone Pro (focale mesurée dans le menu, photo
+  plus décalée après avoir tourné ; carte orientable) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
   Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
   notifications de proximité ; piste VPS/native.
 
