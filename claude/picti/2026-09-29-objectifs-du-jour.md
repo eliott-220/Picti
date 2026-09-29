@@ -15,6 +15,8 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
 ## Objectifs (par ordre de priorité)
 
 - [ ] **1. Mettre la 0.009.2 en ligne et la tester dehors avec l'iPhone**
+  - [x] En ligne sur picti.vercel.app (29/09, `dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, confirmée).
+  - [ ] Test terrain.
   - Vérifier le numéro en bas du menu : doit afficher `0.009.2`.
   - Face à une photo, reculer de 5 à 10 m : elle doit **rétrécir et rester à sa place**.
   - La distance à la photo s'affiche dans le viseur (« · à 5 m »), « · marche » sur la

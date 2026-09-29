@@ -80,7 +80,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.009.1** (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`, commit `97ac582`, confirmée READY le 29/09/2026). **0.009.2** (commit `f0092fc`) n'existe qu'en aperçu (`dpl_FoCA8J6QvSsEFqhZEsTroqxv2LE3`), pas encore en production. Retour arrière possible : 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). Le travail est éparpillé sur plusieurs branches `claude/*` ; la plus à jour est `claude/nice-cori-zbpf7v` (reprend `claude/wonderful-dirac-opn4nb`). `main` ne contient que le `.gitignore`.
+  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.009.2** (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, commit `f0092fc`, confirmée READY sur picti.vercel.app le 29/09/2026). Retour arrière possible : 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). Le travail est éparpillé sur plusieurs branches `claude/*` ; la plus à jour est `claude/nice-cori-zbpf7v` (reprend `claude/wonderful-dirac-opn4nb`). `main` ne contient que le `.gitignore`.
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -125,7 +125,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   du spectateur, suivi GPS + accéléromètre, recalage au moment de la capture.
 - 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
   rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.1) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
+- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
