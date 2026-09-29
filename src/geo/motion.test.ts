@@ -35,9 +35,19 @@ describe('détection de la marche', () => {
     expect(motionState(d, 4000)).toBe('still')
   })
 
-  it('en marchant : en mouvement, dès le premier pas', () => {
-    const d = feed(feed(null, 0, 3, tremor), 3, 3.5, walking)
-    expect(motionState(d, 3500)).toBe('moving')
+  it('en marchant : en mouvement après quelques pas', () => {
+    const start = feed(null, 0, 3, tremor)
+    // Un seul pas ne suffit pas (ce peut être un geste isolé).
+    expect(motionState(feed(start, 3, 3.3, walking), 3300)).toBe('still')
+    const d = feed(start, 3, 4.5, walking)
+    expect(motionState(d, 4500)).toBe('moving')
+    expect(d!.total).toBeGreaterThanOrEqual(3)
+  })
+
+  it('reconnaît une marche douce, téléphone tenu devant soi', () => {
+    // Rebond de 0,8 m/s² seulement, 1,6 pas par seconde.
+    const gentle = (t: number): Vec3 => [0.1 * Math.sin(10 * t), 0.8 * Math.sin(2 * Math.PI * 1.6 * t), 0.3 * Math.cos(10 * t)]
+    expect(motionState(feed(feed(null, 0, 2, tremor), 2, 5, gentle), 5000)).toBe('moving')
   })
 
   it('à l’arrêt des pas : d’abord « vient de s’arrêter », puis immobile', () => {
@@ -45,6 +55,20 @@ describe('détection de la marche', () => {
     expect(motionState(walked, 5000)).toBe('moving')
     expect(motionState(feed(walked, 5, 6.5, tremor), 6500)).toBe('settling')
     expect(motionState(feed(walked, 5, 13, tremor), 13000)).toBe('still')
+  })
+
+  it('lever ou baisser le téléphone n’est pas marcher', () => {
+    // Un geste franc (1,5 m/s² vers le haut puis vers le bas), une seule fois.
+    const lift = (t: number): Vec3 => [0, t >= 3 && t < 4 ? 1.5 * Math.sin(2 * Math.PI * (t - 3)) : 0, 0]
+    const d = feed(null, 0, 6, (t) => add(tremor(t), lift(t)))
+    expect(motionState(d, 4000)).toBe('still')
+    expect(motionState(d, 6000)).toBe('still')
+  })
+
+  it('bouger lentement le téléphone en visant n’est pas marcher', () => {
+    // Va-et-vient vertical lent (0,6 par seconde) : trop espacé pour des pas.
+    const aiming = (t: number): Vec3 => [0.4 * Math.sin(3 * t), 1.2 * Math.sin(2 * Math.PI * 0.6 * t), 0.4 * Math.cos(2 * t)]
+    expect(motionState(feed(null, 0, 8, aiming), 8000)).toBe('still')
   })
 
   it('tourner sur soi-même pour regarder autour de soi n’est pas marcher', () => {
@@ -58,7 +82,7 @@ describe('détection de la marche', () => {
   it('retire lui-même la pesanteur quand le capteur ne le fait pas', () => {
     const still = feed(null, 0, 4, tremor, true)
     expect(motionState(still, 4000)).toBe('still')
-    expect(motionState(feed(still, 4, 5, walking, true), 5000)).toBe('moving')
+    expect(motionState(feed(still, 4, 6, walking, true), 6000)).toBe('moving')
   })
 
   it('sans mesure, l’état est inconnu', () => {

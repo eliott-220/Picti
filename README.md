@@ -80,12 +80,18 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
 
 - **Orientation** (`src/geo/orientation.ts`) : les angles W3C `alpha/beta/gamma` sont
   convertis en base caméra (avant, droite, haut) dans le repère Est-Nord-Haut, puis en cap /
-  inclinaison / roulis. Sur iOS, le cap est recalé en continu sur `webkitCompassHeading`.
+  inclinaison / roulis. Sur iOS, les mouvements viennent du gyroscope (`alpha`, sans retard) et
+  son écart avec le nord de `webkitCompassHeading` n'est recalé que lentement, téléphone stable et
+  objectif proche de l'horizon (`src/geo/heading.ts`) : la boussole, bruitée et en retard quand on
+  tourne, faisait traîner les photos derrière le téléphone.
 - **Plan-photo** (`src/geo/projection.ts`) : la photo est un rectangle placé devant le point
   de vue, à la « distance du sujet » (réglable, 6 m par défaut), orienté comme l'objectif et
   dimensionné d'après sa focale équivalente 24×36. Ses coins sont projetés dans la caméra du
   spectateur, et une homographie (CSS `matrix3d`) déforme l'image en conséquence. Vu du point
-  de vue exact, le plan-photo recouvre parfaitement le décor.
+  de vue exact, le plan-photo recouvre parfaitement le décor. En s'éloignant, il rapetisse plus
+  vite que ne le voudrait la seule perspective (`displayScale`) : la photo paraît lointaine (à
+  20 m, environ 12 % de la largeur de l'écran au lieu de 37 %) et garde de très loin une hauteur
+  minimale de 5°.
 - **Alignement** (`src/geo/alignment.ts`) : distance au point de vue, écarts de cap,
   d'inclinaison et de roulis, score global et consignes de guidage.
 - **Photo ancrée dans le décor** (`src/geo/alignment.ts`, `viewerEye`) : la projection part
@@ -95,11 +101,13 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
 - **Suivi de la position** (`src/geo/tracking.ts`, `src/geo/motion.ts`) : filtre de Kalman
   « vitesse constante » sur le GPS ; entre deux relevés (un par seconde), la position avance à
   la vitesse de marche et les corrections sont amorties à l'écran (`useLivePosition`).
-  L'accéléromètre dit si l'on marche : à l'arrêt, plus d'élan, le GPS rattrape son retard
-  quelques instants ; ensuite ses allers-retours sont amortis (les photos ne tremblent pas),
-  mais un écart qui persiste dans la même direction est rattrapé (marche non détectée, GPS en
-  retard) ; un saut confirmé ou une vitesse de véhicule sont suivis. Le viseur affiche la
-  distance à la photo visée ; « · marche » sur la pastille GPS quand les pas sont détectés.
+  L'accéléromètre compte les pas (au moins trois rebonds réguliers : viser, lever ou tourner le
+  téléphone n'est pas marcher). À l'arrêt, plus d'élan, le GPS rattrape son retard quelques
+  instants ; ensuite la position est tenue (une photo à 6 m se décalerait de près de 30° pour
+  3 m de dérive du GPS) : seul un écart moyen qui persiste (4 m, ou la moitié de la précision,
+  pendant quelques secondes) est rattrapé ; un saut confirmé ou une vitesse de véhicule sont
+  suivis. Sans accéléromètre, la vitesse GPS dit si l'on bouge. Le viseur affiche la distance à
+  la photo visée ; « · marche » sur la pastille GPS quand les pas sont détectés.
 - **Précision GPS et recalage** : un téléphone n'est précis qu'à quelques mètres. En chasse,
   quand la photo est alignée (sur place, bonne orientation, téléphone immobile) juste avant
   sa capture, l'écart restant avec le point de vue est attribué au GPS

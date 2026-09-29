@@ -16,7 +16,11 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
 
 - [ ] **1. Mettre la 0.009.2 en ligne et la tester dehors avec l'iPhone**
   - [x] En ligne sur picti.vercel.app (29/09, `dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, confirmée).
-  - [ ] Test terrain.
+  - [x] Test terrain de 0.009.2 : **raté** — « la photo bouge beaucoup en suivant la caméra, et
+    même à 20 m elle est trop grande ».
+  - [x] Corrigé en 0.010.1 ([note](2026-09-29-photo-stable-et-lointaine.md)) : cap par le
+    gyroscope, comptage des pas, position tenue à l'arrêt, photo réduite de loin.
+  - [ ] Mise en ligne de 0.010.1 et nouveau test terrain.
   - Vérifier le numéro en bas du menu : doit afficher `0.009.2`.
   - Face à une photo, reculer de 5 à 10 m : elle doit **rétrécir et rester à sa place**.
   - La distance à la photo s'affiche dans le viseur (« · à 5 m »), « · marche » sur la
@@ -45,4 +49,5 @@ Matin : **1** puis **2**. Après-midi : **3** si le test terrain est concluant.
 
 ## Notes du test terrain
 
-_(à remplir après le test : lieu, distance, la photo est-elle restée en place ?)_
+- 0.009.2 : la photo bouge beaucoup en suivant la caméra ; à 20 m, elle est encore trop grande.
+- 0.010.1 : _(à remplir : balayer, rester immobile 30 s, reculer de 20 m)_

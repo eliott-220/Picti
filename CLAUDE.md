@@ -68,13 +68,25 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   l'œil sur le point de vue selon la distance (l'ancien `parallaxEye` faisait suivre la photo
   au téléphone dans un rayon de 8 à 30 m). Position : un seul suivi GPS partagé
   (`useGeolocation`, filtre de Kalman `src/geo/tracking.ts`) + accéléromètre
-  (`src/geo/motion.ts`, `src/sensors/motion.ts` : marche / vient de s'arrêter / immobile) ;
-  à l'arrêt, les allers-retours du GPS sont amortis mais un écart **persistant** est rattrapé
-  (`persistentShift` : marche non détectée, GPS en retard) — ne jamais figer la position sans
-  cette porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
+  (`src/geo/motion.ts`, `src/sensors/motion.ts` : **comptage des pas**, au moins 3 rebonds
+  verticaux réguliers — viser ou bouger le téléphone n'est pas marcher ; marche / vient de
+  s'arrêter / immobile) ; à l'arrêt, la position est **tenue** (`holdGain`) : une photo à 6 m se
+  décale de ~30° pour 3 m de dérive GPS ; seul un écart moyen **persistant** (`persistentShift`
+  4 m ou ½ précision, ~5 s) est rattrapé (`catchUp`) — ne jamais figer la position sans cette
+  porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; sans
+  accéléromètre, la vitesse GPS dit si l'on bouge ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
   capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
+- **Cap sur iPhone** (depuis 0.010.1, `src/geo/heading.ts`) : les mouvements viennent du
+  gyroscope (`alpha`) ; le nord de `webkitCompassHeading` n'est recalé que **lentement**
+  (τ 2 s), téléphone stable (< 8°/s) et objectif à moins de 55° de l'horizon ; recalage rapide
+  au démarrage, après une pause, ou si un grand écart persiste. Ne jamais revenir à un suivi
+  direct de la boussole : en retard quand on tourne, elle faisait « suivre la caméra » aux photos
+  (17° d'erreur en balayant, 14° encore après l'arrêt, contre 3,5° et 0,2°).
+- **Taille de loin** (depuis 0.010.1, `displayScale` dans `src/geo/projection.ts`) : le plan-photo
+  est réduit par `farScale` (1 au point de vue, ~⅓ à 20 m) avec une hauteur apparente minimale
+  de 5° : à 20 m, ~12 % de la largeur de l'écran (37 % avant) ; au point de vue, inchangé.
 - Commandes : `npm run dev`, `npm run dev:https` (test sur téléphone), `npm test`,
   `npm run lint`, `npm run build` (inclut `tsc -b`).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
@@ -126,7 +138,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
   rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
 - 0.010.0 : mot de passe oublié (demande d'un lien par e-mail, écran « Nouveau mot de passe », lien expiré signalé).
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
+- 0.010.1 : photos stables et lointaines : cap iPhone gyroscope + recalage lent de la boussole,
+  comptage des pas, position tenue à l'arrêt, photo réduite de loin (à 20 m : 12 % de l'écran).
+- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.010.1 : balayer, rester immobile,
+  reculer de 20 m) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
   Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
@@ -145,3 +160,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — Point d'étape : sur quoi se concentrer](claude/picti/2026-09-29-point-etape.md)
 - [2026-09-29 — Objectifs du jour](claude/picti/2026-09-29-objectifs-du-jour.md)
 - [2026-09-29 — Mot de passe oublié (0.010.0)](claude/picti/2026-09-29-mot-de-passe-oublie.md)
+- [2026-09-29 — La photo bouge et reste trop grande de loin (0.010.1)](claude/picti/2026-09-29-photo-stable-et-lointaine.md)
