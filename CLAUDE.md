@@ -77,7 +77,18 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   décale de ~30° pour 3 m de dérive GPS ; seul un écart moyen **persistant** (`persistentShift`
   4 m ou ½ précision, ~5 s) est rattrapé (`catchUp`) — ne jamais figer la position sans cette
   porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; sans
-  accéléromètre, la vitesse GPS dit si l'on bouge ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
+  accéléromètre, la vitesse GPS dit si l'on bouge ; `useLivePosition` la fait avancer à chaque image (accueil, chasse).
+  **Pas à pas** (depuis 0.011.3) : le GPS ne voit pas quelques mètres (±5 m), la photo gardait
+  sa taille et suivait le téléphone en avançant ou en reculant. Chaque pas d'une marche reconnue
+  (`MotionDetector.walked`) avance la position de `MOTION.stepLength` (0,65 m) dans le sens de la
+  marche : `direction`, tirée de l'élan des 3 premiers pas (vitesse horizontale intégrée dans le
+  repère de l'objectif : avant, arrière, côté ; à défaut droit devant), tournée sur le terrain
+  par `stepDirection` (orientation du téléphone), appliquée par `walkPosition` → `walkTrack` ;
+  signe de l'accéléromètre vérifié contre l'orientation (`accelerometerSign` : certains
+  navigateurs l'inversent, ce qui inverserait avant/arrière).
+  Tant qu'un écran avance ainsi (`keepStepping`, `updateTrack(…, stepping)`), le GPS (en retard)
+  ne tire pas la position pendant la marche ni juste après ; seul un écart qui persiste une fois
+  arrêté la corrige (pas comptés dans le mauvais sens). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
   capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
@@ -114,7 +125,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `package.json` (et `package-lock.json`)** : fonctionnalité → `0.9.0`, correction → `0.8.2`.
 - Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
   l'orientation de l'objectif avant (`frontCameraBasis` : cap +180°, inclinaison et roulis
-  inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Ensuite, mêmes
+  inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Distance du sujet
+  **0,6 m** (`SELFIE_DEPTH`, l'auteur à bout de bras) depuis 0.011.3 : à 6 m comme les autres, le
+  visage devenait un portrait géant ; les selfies enregistrés avant à 6 m sont lus à 0,6 m
+  (`rowToPhoto`). Ensuite, mêmes
   règles que toute photo : on la retrouve en visant, depuis la place du téléphone, l'endroit
   où se tenait l'auteur.
 - **Autorisations mémorisées** (`src/sensors/permissions.ts`, `localStorage`
@@ -159,6 +173,11 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `.back-btn` / `.detail-edit` gardent leur position absolue), recherche qui débordait à droite
   (`.search-field { min-width: 0 }`), titres « Mes proies (1) » au lieu de « Mes 1 proie »,
   étiquette du viseur sans l'année en cours (`formatDayTime`) pour ne plus couper l'heure.
+- 0.011.3 : selfies à taille réelle (sujet à 0,6 m au lieu de 6 m) ; position qui avance pas à pas
+  (accéléromètre + orientation) : en avançant ou en reculant de quelques mètres, la photo grandit
+  ou rapetisse à sa place au lieu de suivre le téléphone.
+- Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
+  la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
 - Prochaines étapes : test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
@@ -186,3 +205,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — Carte orientable (0.011.0)](claude/picti/2026-09-29-carte-orientable.md)
 - [2026-09-29 — Photo encore un peu décalée sur iPhone Pro : focale mesurée (0.011.1)](claude/picti/2026-09-29-focale-mesuree.md)
 - [2026-09-30 — Améliorer l'ergonomie de l'app](claude/picti/2026-09-30-ergonomie.md)
+- [2026-09-30 — Selfie trop grand, photo qui suit en avançant (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)

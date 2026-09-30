@@ -32,9 +32,9 @@ export function Home() {
   const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera(true, facing)
   const [stageRef, stage] = useElementSize<HTMLElement>()
   const geo = useGeolocation()
-  // Position suivie image par image : les photos restent à leur place quand on marche.
-  const position = useLivePosition(geo.track)
   const orientation = useOrientation()
+  // Position suivie image par image (et pas à pas) : les photos restent à leur place quand on marche.
+  const position = useLivePosition(geo.track, orientation.absolute ? orientation.basis : null)
   // Focale de la caméra principale, mesurée en tournant le téléphone.
   const { focal35 } = useCameraFocal()
   useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)

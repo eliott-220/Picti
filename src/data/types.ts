@@ -94,6 +94,13 @@ export interface Friendship {
 
 export const DEFAULT_DEPTH = 6
 
+/**
+ * Distance du sujet d'un selfie (m) : l'auteur, à bout de bras. Placée à 6 m comme les
+ * autres photos, son visage devenait un portrait géant de plusieurs mètres ; à 0,6 m il
+ * flotte à sa taille réelle, là où il se tenait.
+ */
+export const SELFIE_DEPTH = 0.6
+
 export const isGeoframed = (p: GeoPhoto): p is GeoPhoto & { geoframe: Geoframe; mode: GeoframeMode } =>
   p.geoframe != null && p.mode != null
 

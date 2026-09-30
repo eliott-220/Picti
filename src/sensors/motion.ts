@@ -38,3 +38,11 @@ export function watchMotion(): () => void {
 export function currentMotion(): MotionState {
   return motionState(detector, performance.now())
 }
+
+/**
+ * Pas comptés depuis le début (marches reconnues seulement), sens de la marche en cours dans
+ * le repère de l'objectif (avant, droite) et pesanteur mesurée ; null sans accéléromètre.
+ */
+export function walkedSteps() {
+  return detector ? { walked: detector.walked, direction: detector.direction, gravity: detector.gravity } : null
+}

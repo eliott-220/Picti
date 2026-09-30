@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { add, type Vec3 } from './math'
-import { feedMotion, motionState, type MotionDetector } from './motion'
+import { accelerometerSign, feedMotion, motionState, stepDirection, type MotionDetector } from './motion'
+import { basisFromAngles } from './orientation'
 
 /** Pesanteur, téléphone tenu droit devant soi. */
 const G: Vec3 = [0, 9.81, 0]
@@ -90,5 +91,96 @@ describe('détection de la marche', () => {
     const d = feed(null, 0, 2, tremor)
     expect(motionState(d, 5000)).toBe('unknown')
     expect(feedMotion(d, { acceleration: null, withGravity: null, t: 2100 })).toBe(d)
+  })
+})
+
+/** Marche qui démarre à `t0` s : l'élan des premiers pas (0,8 s) pousse le téléphone selon `push`. */
+const setOff = (t0: number, push: Vec3) => (t: number): Vec3 =>
+  t < t0 ? tremor(t) : add(walking(t - t0), t - t0 < 0.8 ? push : [0, 0, 0])
+
+describe('pas et sens de la marche', () => {
+  it('compte les pas d’une marche reconnue, les premiers compris', () => {
+    const d = feed(null, 0, 6, setOff(1, [0, 0, -1.2]))
+    // 5 s de marche à deux pas par seconde.
+    expect(d!.walked).toBeGreaterThanOrEqual(9)
+    expect(d!.walked).toBeLessThanOrEqual(11)
+    expect(d!.walked).toBe(d!.total)
+  })
+
+  it('un geste isolé ne fait pas avancer', () => {
+    const lift = (t: number): Vec3 => [0, t >= 3 && t < 4 ? 1.5 * Math.sin(2 * Math.PI * (t - 3)) : 0, 0]
+    const d = feed(null, 0, 6, (t) => add(tremor(t), lift(t)))
+    expect(d!.walked).toBe(0)
+  })
+
+  it('en avançant vers ce que vise la caméra : droit devant', () => {
+    // La caméra vise −z : l'élan vers l'avant est une accélération selon −z.
+    const [f, r] = feed(null, 0, 4, setOff(1, [0, 0, -1.2]))!.direction
+    expect(f).toBeGreaterThan(0.9)
+    expect(Math.abs(r)).toBeLessThan(0.4)
+  })
+
+  it('en reculant (face à la photo) : vers l’arrière', () => {
+    const [f, r] = feed(null, 0, 4, setOff(1, [0, 0, 1.2]))!.direction
+    expect(f).toBeLessThan(-0.9)
+    expect(Math.abs(r)).toBeLessThan(0.4)
+  })
+
+  it('en marchant de côté : vers la droite', () => {
+    const [f, r] = feed(null, 0, 4, setOff(1, [1.2, 0, 0]))!.direction
+    expect(r).toBeGreaterThan(0.9)
+    expect(Math.abs(f)).toBeLessThan(0.4)
+  })
+
+  it('sans élan net : droit devant', () => {
+    expect(feed(null, 0, 4, setOff(1, [0, 0, 0]))!.direction).toEqual([1, 0])
+  })
+})
+
+describe('sens de la marche sur le terrain', () => {
+  const east = basisFromAngles({ heading: 90, pitch: 0, roll: 0 })
+  const close = (v: [number, number] | null, e: number, n: number) => {
+    expect(v![0]).toBeCloseTo(e, 5)
+    expect(v![1]).toBeCloseTo(n, 5)
+  }
+
+  it('caméra vers l’est : avancer va à l’est, reculer à l’ouest, à droite au sud', () => {
+    close(stepDirection(east, [1, 0]), 1, 0)
+    close(stepDirection(east, [-1, 0]), -1, 0)
+    close(stepDirection(east, [0, 1]), 0, -1)
+  })
+
+  it('caméra levée vers le ciel : l’avant reste celui où l’on regarde', () => {
+    close(stepDirection(basisFromAngles({ heading: 0, pitch: 40, roll: 0 }), [1, 0]), 0, 1)
+  })
+
+  it('téléphone à plat : l’avant est le haut de l’écran', () => {
+    close(stepDirection(basisFromAngles({ heading: 180, pitch: -89, roll: 0 }), [1, 0]), 0, -1)
+  })
+})
+
+describe('convention de signe de l’accéléromètre', () => {
+  const upright = basisFromAngles({ heading: 90, pitch: 0, roll: 0 })
+
+  it('norme : pesanteur comprise vers le haut de l’écran, téléphone tenu droit', () => {
+    expect(accelerometerSign(upright, [0, 9.81, 0])).toBe(1)
+  })
+
+  it('capteur inversé : le sens de la marche doit l’être aussi', () => {
+    expect(accelerometerSign(upright, [0, -9.81, 0])).toBe(-1)
+  })
+
+  it('téléphone à plat : la pesanteur sort de l’écran', () => {
+    expect(accelerometerSign(basisFromAngles({ heading: 0, pitch: -90, roll: 0 }), [0, 0, 9.81])).toBe(1)
+  })
+
+  it('sans pesanteur connue, ou orientation qui ne colle pas : on ne tranche pas', () => {
+    expect(accelerometerSign(upright, null)).toBeNull()
+    expect(accelerometerSign(upright, [9.81, 0, 0])).toBeNull()
+  })
+
+  it('le détecteur mesure la pesanteur dans ce repère', () => {
+    const d = feed(null, 0, 1, tremor)
+    expect(accelerometerSign(upright, d!.gravity)).toBe(1)
   })
 })

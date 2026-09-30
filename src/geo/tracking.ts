@@ -7,6 +7,12 @@
 // suivre la dérive du GPS (quelques mètres, même immobile) : une photo à
 // 6 m se décalerait de près de 30° pour 3 m d'erreur. Seul un écart qui
 // persiste plusieurs secondes est un vrai déplacement, alors rattrapé.
+//
+// Estime à l'aveugle (« dead reckoning ») : quand l'accéléromètre compte les pas et que
+// l'orientation est connue, chaque pas fait avancer la position (`walkTrack`) — le GPS
+// ne voit pas quelques mètres de marche, noyés dans ses ±5 m. Pendant la marche et juste
+// après, il ne la tire alors plus en arrière (il est en retard) ; seul un écart qui
+// persiste une fois arrêté la corrige.
 
 import { fromENU, toENU, type GeoFix, type GeoPoint } from './geodesy'
 import type { MotionState } from './motion'
@@ -110,13 +116,19 @@ function start(fix: GpsFix, mode: TrackMode): Track {
   }
 }
 
-/** Intègre un relevé GPS ; `motion` dit si l'on marche (accéléromètre). */
-export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState): Track {
+/**
+ * Intègre un relevé GPS ; `motion` dit si l'on marche (accéléromètre). `stepping` : les pas
+ * font avancer la position (`walkTrack`) ; le GPS, en retard, ne la tire plus pendant la marche.
+ */
+export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState, stepping = false): Track {
   // Sans accéléromètre, la vitesse GPS dit si l'on bouge (à défaut, on suit le GPS) ;
   // immobile mais rapide d'après le GPS : en véhicule.
   const speed = fix.speed != null && fix.speed >= 0 ? fix.speed : null
-  const mode: TrackMode =
-    motion === 'unknown'
+  // À pied, position avancée pas à pas : pendant la marche et juste après, on tient la position.
+  const walking = stepping && (motion === 'moving' || motion === 'settling')
+  const mode: TrackMode = walking
+    ? 'still'
+    : motion === 'unknown'
       ? speed == null || speed > TRACKING.movingSpeed
         ? 'moving'
         : 'still'
@@ -132,11 +144,12 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   // Écart moyen récent à l'arrêt : les allers-retours du GPS s'annulent, un déplacement non.
   const still = mode === 'still'
   const w = TRACKING.shiftWeight
-  const se = still ? prev.se + (ze - e - prev.se) * w : 0
-  const sn = still ? prev.sn + (zn - n - prev.sn) * w : 0
-  const shifted = still && Math.hypot(se, sn) > Math.max(TRACKING.persistentShift, fix.accuracy / 2)
+  // En marchant, le GPS est en retard sur les pas : son écart ne compte qu'une fois arrêté.
+  const se = walking ? prev.se * (1 - w) : still ? prev.se + (ze - e - prev.se) * w : 0
+  const sn = walking ? prev.sn * (1 - w) : still ? prev.sn + (zn - n - prev.sn) * w : 0
+  const shifted = still && !walking && Math.hypot(se, sn) > Math.max(TRACKING.persistentShift, fix.accuracy / 2)
   const catchUntil = shifted ? fix.timestamp + TRACKING.catchUp : prev.catchUntil
-  const catching = still && fix.timestamp < catchUntil
+  const catching = still && !walking && fix.timestamp < catchUntil
 
   // Prédiction : on avance à la vitesse estimée ; à l'arrêt, on ne bouge pas.
   if (mode === 'moving') {
@@ -158,15 +171,16 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   const ye = ze - e
   const yn = zn - n
   const s = pp + r
-  if (mode === 'still' && Math.hypot(ye, yn) > Math.max(TRACKING.minJump, 3 * Math.sqrt(s))) {
+  if (mode === 'still' && !walking && Math.hypot(ye, yn) > Math.max(TRACKING.minJump, 3 * Math.sqrt(s))) {
     // Saut à l'arrêt : isolé (reflet du signal), on l'ignore ; confirmé, on s'y rend.
     if (prev.rejected >= 1) return start(fix, mode)
     return { ...prev, e, n, ve, vn, pp, pv, vv, t: fix.timestamp, mode, rejected: prev.rejected + 1, catchUntil }
   }
   const kp = pp / s
   const kv = pv / s
-  if (still && !catching && kp < TRACKING.holdGain) {
-    // Immobile : on tient la position ; seul l'écart moyen du GPS est suivi.
+  if (walking || (still && !catching && kp < TRACKING.holdGain)) {
+    // Immobile : on tient la position ; seul l'écart moyen du GPS est suivi. En marchant
+    // pas à pas, la position avance avec les pas, pas avec le GPS (en retard).
     return { ...prev, e, n, ve, vn, pp, pv, vv, accuracy: fix.accuracy, t: fix.timestamp, mode, rejected: 0, se, sn, catchUntil }
   }
   const track: Track = {
@@ -189,6 +203,22 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
     catchUntil,
   }
   return Math.hypot(track.e, track.n) > TRACKING.maxOffset ? recenter(track) : track
+}
+
+/** Fait avancer la position de `de`, `dn` m (Est, Nord) : pas comptés par l'accéléromètre. */
+export function walkTrack(track: Track, de: number, dn: number): Track {
+  // Sur quelques dizaines de mètres, les pas sont bien plus justes que le GPS : l'incertitude
+  // ne change pas ; une erreur (mauvais sens, pas plus courts) est rattrapée une fois arrêté,
+  // quand l'écart au GPS persiste.
+  const moved: Track = {
+    ...track,
+    e: track.e + de,
+    n: track.n + dn,
+    // L'écart moyen du GPS était mesuré depuis l'ancienne position.
+    se: track.se - de,
+    sn: track.sn - dn,
+  }
+  return Math.hypot(moved.e, moved.n) > TRACKING.maxOffset ? recenter(moved) : moved
 }
 
 /** Place l'origine du repère local sur la position estimée. */

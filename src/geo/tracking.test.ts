@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fromENU, toENU } from './geodesy'
 import type { MotionState } from './motion'
-import { trackFix, trackPosition, updateTrack, type GpsFix, type Track } from './tracking'
+import { trackFix, trackPosition, updateTrack, walkTrack, type GpsFix, type Track } from './tracking'
 
 const ORIGIN = { lat: 46.1557, lon: -1.1533 }
 
@@ -182,5 +182,50 @@ describe('suivi de la position', () => {
     const track = run(fixes, 'moving')[50]
     expect(where(track).e).toBeCloseTo(1500, -1)
     expect(Math.hypot(track.e, track.n)).toBeLessThan(1000)
+  })
+})
+
+describe('position avancée pas à pas', () => {
+  /** Immobile 10 s au point d'origine (GPS ±5 m qui dérive un peu). */
+  const settled = () => {
+    const rand = noise(7)
+    return run(Array.from({ length: 10 }, (_, i) => fixAt(rand(), rand(), i)), 'still').at(-1)!
+  }
+
+  it('reculer de 4 m : la position suit les pas, le GPS en retard ne la ramène pas', () => {
+    let track = settled()
+    // 6 pas de 0,65 m vers le sud en 3 s ; le GPS, lui, n'a pas encore bougé.
+    for (let i = 0; i < 6; i++) {
+      track = walkTrack(track, 0, -0.65)
+      if (i % 2 === 1) track = updateTrack(track, fixAt(0, 0, 10 + (i + 1) / 2), 'moving', true)
+    }
+    expect(where(track).n).toBeCloseTo(-3.9, 0)
+    // Arrêté : le GPS rattrape son retard (−4 m) en quelques secondes.
+    for (let t = 14; t < 20; t++) track = updateTrack(track, fixAt(0, t < 16 ? -2 : -4, t), t < 18 ? 'settling' : 'still', true)
+    expect(where(track).n).toBeCloseTo(-3.9, 0)
+  })
+
+  it('un GPS immobile ne défait pas quelques mètres de marche', () => {
+    let track = settled()
+    for (let i = 0; i < 5; i++) track = walkTrack(track, 0.65, 0)
+    // Le GPS ne voit rien (déplacement noyé dans sa précision).
+    for (let t = 11; t < 40; t++) {
+      const motion: MotionState = t < 15 ? 'settling' : 'still'
+      track = updateTrack(track, fixAt(0, 0, t), motion, true)
+    }
+    expect(where(track).e).toBeGreaterThan(2.5)
+  })
+
+  it('pas comptés dans le mauvais sens : le GPS finit par corriger', () => {
+    let track = settled()
+    // Les pas disent 5 m au nord, on est en fait allé 5 m au sud.
+    for (let i = 0; i < 8; i++) track = walkTrack(track, 0, 0.65)
+    for (let t = 11; t < 30; t++) track = updateTrack(track, fixAt(0, -5, t), t < 15 ? 'settling' : 'still', true)
+    expect(where(track).n).toBeLessThan(-2)
+  })
+
+  it('sans pas comptés (pas d’orientation), le suivi reste celui du GPS', () => {
+    const track = updateTrack(settled(), fixAt(0, 3, 11), 'moving', false)
+    expect(track.mode).toBe('moving')
   })
 })

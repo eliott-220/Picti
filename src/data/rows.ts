@@ -1,6 +1,6 @@
 // Conversion entre les lignes de la base Supabase et le modèle de l'application.
 
-import type { Capture, GeoPhoto, Profile, Visibility } from './types'
+import { DEFAULT_DEPTH, SELFIE_DEPTH, type Capture, type GeoPhoto, type Profile, type Visibility } from './types'
 
 export interface PhotoRow {
   id: string
@@ -53,7 +53,8 @@ export function rowToPhoto(r: PhotoRow): GeoPhoto {
     width: r.width,
     height: r.height,
     focal35: r.focal35,
-    depth: r.depth,
+    // Selfies enregistrés avant 0.011.3 avec la distance par défaut : l'auteur était à bout de bras.
+    depth: r.selfie && r.depth === DEFAULT_DEPTH ? SELFIE_DEPTH : r.depth,
     mode: geoframed ? r.mode : null,
     geoframe: geoframed
       ? {

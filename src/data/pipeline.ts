@@ -5,7 +5,7 @@ import type { GeoFix } from '../geo/geodesy'
 import { DEFAULT_PHONE_FOCAL35 } from '../geo/optics'
 import type { CameraAngles } from '../geo/orientation'
 import { decodeImage, makeThumbnail, type EncodedImage } from './images'
-import { DEFAULT_DEPTH, formatDate, newId, type GeoPhoto } from './types'
+import { DEFAULT_DEPTH, formatDate, newId, SELFIE_DEPTH, type GeoPhoto } from './types'
 
 /** Photo pas encore publiée : l'auteur et les chemins d'images sont fixés à l'envoi. */
 export type PhotoDraft = Omit<GeoPhoto, 'owner' | 'ownerName' | 'visibility' | 'imagePath' | 'thumbPath'>
@@ -51,7 +51,7 @@ export async function createDirectPhoto(
     width: frame.width,
     height: frame.height,
     focal35,
-    depth: DEFAULT_DEPTH,
+    depth: selfie ? SELFIE_DEPTH : DEFAULT_DEPTH,
     mode: complete ? 'direct' : null,
     geoframe: complete
       ? {
