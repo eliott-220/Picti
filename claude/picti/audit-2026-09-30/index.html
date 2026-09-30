@@ -51,7 +51,7 @@ section.group { display: grid; gap: 18px; margin-block: 40px 0 }
 @media (min-width: 720px) { .finding.has-shots { grid-template-columns: minmax(0, 1fr) auto } }
 .finding .text { display: grid; gap: 10px; align-content: start; min-width: 0 }
 .tag { justify-self: start; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; border: 1.5px solid currentColor }
-.tag.bug { color: var(--bug) } .tag.clarity { color: var(--clarity) } .tag.flow { color: var(--flow) } .tag.field { color: var(--field) }
+.tag.bug { color: var(--bug) } .tag.fixed { color: var(--field) } .tag.clarity { color: var(--clarity) } .tag.flow { color: var(--flow) } .tag.field { color: var(--field) }
 .prio { color: var(--muted); font-size: 13px }
 .fix { background: var(--salmon-soft); border-radius: 14px; padding: 10px 14px }
 .fix strong { color: var(--red) }
@@ -69,28 +69,28 @@ ul { margin: 0; padding-left: 20px; display: grid; gap: 4px }
 
 <div class="wrap">
   <header class="top">
-    <span class="eyebrow">PICTI 0.009.2 · revue du 30 septembre 2026</span>
+    <span class="eyebrow">PICTI 0.009.2, revérifiée sur 0.011.1 · revue du 30 septembre 2026</span>
     <h1>Revue ergonomique de PICTI</h1>
     <p class="lead">Chaque écran a été ouvert à la taille d’un iPhone (390 × 844), avec un compte fictif, des photos fictives autour du Vieux-Port de La Rochelle, une caméra et une boussole simulées. Les constats sont classés par type, du plus urgent au plus discutable.</p>
   </header>
 
   <div class="summary">
-    <div class="sum bug"><b>4</b><span>Défauts d’affichage à corriger sans débat</span></div>
+    <div class="sum field"><b>4</b><span>Défauts d’affichage : corrigés en 0.011.2</span></div>
     <div class="sum clarity"><b>6</b><span>Points de clarté : on ne comprend pas tout de suite</span></div>
     <div class="sum flow"><b>5</b><span>Parcours et hiérarchie des écrans</span></div>
-    <div class="sum field"><b>4</b><span>À vérifier sur le terrain, téléphone en main</span></div>
+    <div class="sum clarity"><b>4</b><span>À vérifier sur le terrain, téléphone en main</span></div>
   </div>
 
   <!-- ============ DÉFAUTS ============ -->
   <section class="group">
     <div class="group-head">
       <h2>Défauts d’affichage</h2>
-      <p class="lead">Des erreurs de mise en page, sans question de goût. Elles se corrigent vite et sans changer le design.</p>
+      <p class="lead">Des erreurs de mise en page, sans question de goût. Toujours présentes en 0.011.1, <strong>corrigées en 0.011.2</strong> (captures « après » à droite).</p>
     </div>
 
     <article class="finding has-shots">
       <div class="text">
-        <span class="tag bug">Défaut · priorité 1</span>
+        <span class="tag fixed">Corrigé en 0.011.2</span>
         <h3>Le bouton retour chevauche les titres, et le crayon « Renommer » a disparu</h3>
         <p>Sur « Mes chasses » et « À proximité », le bouton retour est posé sur le titre. Sur l’écran Premium du recalage, il flotte au milieu de la page. Sur le détail d’une de mes photos, le crayon pour la renommer n’est pas visible du tout.</p>
         <p class="fix"><strong>Cause trouvée :</strong> dans <code>src/styles.css</code>, la règle <code>.round-btn { position: relative }</code> (ligne 1275, ajoutée pour la pastille de compteur en 0.002) passe après <code>.back-btn</code> et <code>.detail-edit</code> et annule leur <code>position: absolute</code>. Une ligne à corriger.</p>
@@ -98,38 +98,43 @@ ul { margin: 0; padding-left: 20px; display: grid; gap: 4px }
       <div class="shots">
         <figure><img src="07-mes-chasses.png" alt="Écran Mes chasses : le bouton retour recouvre le mot Mes"><figcaption>Mes chasses</figcaption></figure>
         <figure><img src="14-recaler.png" alt="Écran Premium du recalage : bouton retour au milieu de l'écran"><figcaption>Recalage, compte gratuit</figcaption></figure>
+        <figure><img src="07-mes-chasses-apres.png" alt="Mes chasses corrigé : bouton retour en haut à gauche, titre dégagé"><figcaption>Après : Mes chasses</figcaption></figure>
+        <figure><img src="11-detail-photo-apres.png" alt="Détail photo corrigé : crayon Renommer visible"><figcaption>Après : crayon « Renommer »</figcaption></figure>
       </div>
     </article>
 
     <article class="finding has-shots">
       <div class="text">
-        <span class="tag bug">Défaut · priorité 1</span>
+        <span class="tag fixed">Corrigé en 0.011.2</span>
         <h3>La recherche déborde à droite</h3>
         <p>La page de recherche est 19 px plus large que l’écran : le champ de recherche est coupé sur la droite et la page glisse de côté sous le doigt. La rangée de filtres (Toutes, En direct, Selfies, En différé…) en est la cause.</p>
-        <p class="fix"><strong>Piste :</strong> faire défiler les filtres dans leur propre rangée, ou les passer sur deux lignes.</p>
+        <p class="fix"><strong>Corrigé :</strong> le champ de recherche peut maintenant rétrécir (<code>min-width: 0</code>) ; la page fait 390 px, les filtres défilent dans leur rangée.</p>
       </div>
       <div class="shots">
-        <figure><img src="09-recherche.png" alt="Recherche : champ coupé à droite"><figcaption>Recherche</figcaption></figure>
+        <figure><img src="09-recherche.png" alt="Recherche : champ coupé à droite"><figcaption>Avant</figcaption></figure>
+        <figure><img src="09-recherche-apres.png" alt="Recherche corrigée : champ entier"><figcaption>Après</figcaption></figure>
       </div>
     </article>
 
     <article class="finding">
       <div class="text">
-        <span class="tag bug">Défaut · priorité 2</span>
+        <span class="tag fixed">Corrigé en 0.011.2</span>
         <h3>« Mes 1 chasseur », « Mes 1 ami », « Mes 1 proie »</h3>
         <p>Les titres de section mettent le nombre après « Mes », ce qui donne des phrases bancales dès qu’il n’y a qu’un élément (Profil, Mes chasses).</p>
-        <p class="fix"><strong>Piste :</strong> « Mes chasseurs · 1 », ou « 1 chasseur » tout court.</p>
+        <p class="fix"><strong>Corrigé :</strong> « Mes proies (1) », « Mes chasseurs (1) », « Mes amis (1) », comme « À géocadrer sur place (1) ».</p>
       </div>
     </article>
 
     <article class="finding has-shots">
       <div class="text">
-        <span class="tag bug">Défaut · priorité 2</span>
+        <span class="tag fixed">Corrigé en 0.011.2</span>
         <h3>Dans le viseur, l’étiquette de la photo visée est coupée</h3>
-        <p>L’étiquette affiche « 25 sept. 2026… » : l’heure disparaît, et c’est la date qui sert de nom à la photo. Les flèches gauche/droite sont très pâles.</p>
+        <p>L’étiquette affiche « 25 sept. 2026… » : l’heure disparaît, et c’est la date qui sert de nom à la photo.</p>
+        <p class="fix"><strong>Corrigé :</strong> sans l’année en cours, « 25 sept. · 16:35 » ; deux lignes permises plutôt que de couper.</p>
       </div>
       <div class="shots">
-        <figure><img src="02-accueil-viseur.png" alt="Accueil : étiquette de photo tronquée en bas"><figcaption>Accueil, photo visée</figcaption></figure>
+        <figure><img src="02-accueil-viseur.png" alt="Accueil : étiquette de photo tronquée en bas"><figcaption>Avant</figcaption></figure>
+        <figure><img src="02-accueil-viseur-apres.png" alt="Accueil corrigé : date et heure entières"><figcaption>Après</figcaption></figure>
       </div>
     </article>
   </section>
@@ -226,7 +231,7 @@ ul { margin: 0; padding-left: 20px; display: grid; gap: 4px }
       <div class="text">
         <span class="tag flow">Parcours · priorité 1</span>
         <h3>À l’ouverture, le formulaire est sous la ligne de flottaison</h3>
-        <p>Quelqu’un qui a déjà un compte doit faire défiler toute la présentation pour trouver « Se connecter ». Il manque aussi « Mot de passe oublié » (déjà dans tes objectifs).</p>
+        <p>Quelqu’un qui a déjà un compte doit faire défiler toute la présentation pour trouver « Se connecter ». (« Mot de passe oublié » existe depuis 0.010.0.)</p>
         <p class="fix"><strong>Piste :</strong> deux boutons visibles dès le premier écran (« Créer un compte », « J’ai déjà un compte »), la présentation en trois cartes que l’on fait glisser.</p>
       </div>
       <div class="shots">
@@ -302,7 +307,7 @@ ul { margin: 0; padding-left: 20px; display: grid; gap: 4px }
   <div class="ask">
     <h2>À toi : comment veux-tu voir les écrans ?</h2>
     <ol>
-      <li>Je corrige tout de suite les 4 défauts d’affichage (0.009.3) ?</li>
+      <li>Les 4 défauts d’affichage sont corrigés en 0.011.2 : à mettre en ligne ?</li>
       <li>Pour chaque point de clarté et de parcours : garder, changer comme proposé, ou autrement ?</li>
       <li>Tes envies écran par écran : maquettes V2 à suivre à la lettre, croquis, captures d’autres apps…</li>
     </ol>

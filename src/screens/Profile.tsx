@@ -75,7 +75,7 @@ export function Profile() {
 
       <section className="card salmon">
         <h2 className="section-title">
-          Mes {chasseurs.length} chasseur{chasseurs.length > 1 ? 's' : ''}
+          Mes chasseurs ({chasseurs.length})
         </h2>
         {chasseurs.length ? (
           <AvatarRow people={chasseurs} />
@@ -90,7 +90,7 @@ export function Profile() {
       <section className="card white">
         <PremiumCard />
         <h2 className="section-title">
-          Mes {geoframed.length} photo{geoframed.length > 1 ? 's' : ''} géocadrée{geoframed.length > 1 ? 's' : ''}
+          Mes photos géocadrées ({geoframed.length})
         </h2>
         {geoframed.length ? (
           <div className="grid">
@@ -160,7 +160,7 @@ function Friends() {
   return (
     <div className="friends">
       <h2 className="section-title">
-        Mes {accepted.length} ami{accepted.length > 1 ? 's' : ''}
+        Mes amis ({accepted.length})
       </h2>
 
       <div className="friend-code">

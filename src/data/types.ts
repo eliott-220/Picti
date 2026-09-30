@@ -125,6 +125,17 @@ export function formatDateTime(ts: number | null | undefined, { short = false } 
 }
 
 /**
+ * Version courte sans l'année quand c'est l'année en cours, ex. « 28 sept. · 17:05 » :
+ * tient dans l'étiquette étroite du viseur sans couper l'heure.
+ */
+export function formatDayTime(ts: number | null | undefined, now = Date.now()): string {
+  if (ts == null) return 'Date inconnue'
+  if (new Date(ts).getFullYear() !== new Date(now).getFullYear()) return formatDateTime(ts, { short: true })
+  const day = new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  return `${day} · ${formatTime(ts)}`
+}
+
+/**
  * Date et heure de prise de vue à afficher sous le titre ; seulement
  * l'heure si le titre est déjà cette date.
  */

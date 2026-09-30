@@ -154,10 +154,15 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
 - 0.011.1 : focale de la caméra mesurée automatiquement (iPhone Pro : la photo ne reste plus
   décalée après avoir tourné) ; affichée dans le menu.
+- 0.011.2 : défauts d'affichage de la revue ergonomique du 30/09 : bouton retour qui chevauchait
+  les titres et crayon « Renommer » invisible (`:where(.round-btn)` sans poids, pour que
+  `.back-btn` / `.detail-edit` gardent leur position absolue), recherche qui débordait à droite
+  (`.search-field { min-width: 0 }`), titres « Mes proies (1) » au lieu de « Mes 1 proie »,
+  étiquette du viseur sans l'année en cours (`formatDayTime`) pour ne plus couper l'heure.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
 - Prochaines étapes : test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
-  défauts d'affichage relevés par la revue ergonomique du 30/09 (voir sa note) ; test terrain à
+  choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
   plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
   d'e-mails français dans `supabase/templates/`, à coller dans Supabase › Authentication › Emails ;
   envoi d'e-mails : SMTP intégré limité) ; notifications de proximité ; piste VPS/native.

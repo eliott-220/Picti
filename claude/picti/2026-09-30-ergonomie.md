@@ -93,8 +93,26 @@ titre et sa description (0.011.0, 0.011.1, test terrain). **Fusionnée par Eliot
 12:57** ; `main` (0.011.1) ramené dans cette branche. Ensuite : refaire la revue sur 0.011.1
 et corriger les défauts d'affichage.
 
+## Revue refaite sur 0.011.1 et défauts corrigés (0.011.2)
+
+Captures refaites sur 0.011.1 : les 4 défauts d'affichage y étaient toujours. « Mot de passe
+oublié » existe désormais (0.010.0, en mode connexion). Le reste de la revue est inchangé.
+
+Corrections (0.011.2) :
+1. Bouton retour / crayon « Renommer » : la règle de la pastille devient `:where(.round-btn)
+   { position: relative }` (sans poids), `.back-btn` et `.detail-edit` retrouvent leur position
+   absolue. Vérifié : Mes chasses, À proximité, Profil, détail (crayon visible), Premium du
+   recalage, chasse.
+2. Recherche : `.search-field { min-width: 0 }` ; largeur de page 409 → 390 px.
+3. Titres : « Mes proies (1) », « Mes captures (1) », « Mes chasseurs (1) », « Mes amis (1) »,
+   « Mes photos géocadrées (6) », comme « À géocadrer sur place (1) ».
+4. Étiquette du viseur (et frise de la chasse) : `formatDayTime` (« 25 sept. · 16:35 », année
+   seulement si ce n'est pas l'année en cours) ; deux lignes permises au lieu de couper.
+
+Vérifié : 115 tests (1 nouveau : `formatDayTime`), lint, `tsc -b`, `npm run build` OK.
+
 ## Suite
 
 - [ ] Eliott : dire comment il veut voir les écrans (maquettes V2, croquis, exemples).
-- [ ] Corriger les 4 défauts d'affichage (0.009.3) si Eliott valide.
+- [x] Corriger les 4 défauts d'affichage : fait en 0.011.2.
 - [ ] Eliott : captures / vidéos du terrain.
