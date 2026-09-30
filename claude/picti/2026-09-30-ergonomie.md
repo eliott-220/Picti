@@ -111,6 +111,12 @@ Corrections (0.011.2) :
 
 Vérifié : 115 tests (1 nouveau : `formatDayTime`), lint, `tsc -b`, `npm run build` OK.
 
+## Mise en ligne de 0.011.2 (30/09)
+
+- Production : `dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE` (redéploiement de l'aperçu
+  `dpl_7C8ET1fZyQzJGUP1A9Frj24Hohkg`, commit `277837f`), READY sur picti.vercel.app.
+- Pull request vers `main` : https://github.com/eliott-220/Picti/pull/3 (à valider par Eliott).
+
 ## Suite
 
 - [ ] Eliott : dire comment il veut voir les écrans (maquettes V2, croquis, exemples).
