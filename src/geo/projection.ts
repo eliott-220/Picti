@@ -7,7 +7,7 @@
 // parfaitement le décor réel ; vu d'ailleurs, il apparaît de biais,
 // plus petit ou décalé — c'est l'effet « fenêtre sur le passé ».
 
-import { add, dot, scale, sub, type Vec3 } from './math'
+import { add, DEG, dot, norm, scale, sub, type Vec3 } from './math'
 import { focalPx, type ViewportCamera } from './optics'
 import type { CameraBasis } from './orientation'
 
@@ -25,12 +25,18 @@ export type Quad<T> = [T, T, T, T]
 
 /**
  * Coins du plan-photo dans le repère ENU, dans l'ordre
- * haut-gauche, haut-droit, bas-droit, bas-gauche.
+ * haut-gauche, haut-droit, bas-droit, bas-gauche. `size` réduit le plan
+ * autour de son centre (voir `displayScale`).
  */
-export function photoPlaneCorners(basis: CameraBasis, photo: PhotoGeometry, origin: Vec3 = [0, 0, 0]): Quad<Vec3> {
+export function photoPlaneCorners(
+  basis: CameraBasis,
+  photo: PhotoGeometry,
+  origin: Vec3 = [0, 0, 0],
+  size = 1,
+): Quad<Vec3> {
   const f = focalPx(photo.focal35, photo.width, photo.height)
-  const halfW = (photo.depth * photo.width) / (2 * f)
-  const halfH = (photo.depth * photo.height) / (2 * f)
+  const halfW = (size * photo.depth * photo.width) / (2 * f)
+  const halfH = (size * photo.depth * photo.height) / (2 * f)
   const center = add(origin, scale(basis.f, photo.depth))
   const right = scale(basis.r, halfW)
   const up = scale(basis.u, halfH)
@@ -40,6 +46,37 @@ export function photoPlaneCorners(basis: CameraBasis, photo: PhotoGeometry, orig
     sub(add(center, right), up),
     sub(sub(center, right), up),
   ]
+}
+
+/**
+ * Photo vue de loin : au point de vue, le plan-photo recouvre exactement le
+ * décor ; en s'éloignant, il rapetisse plus vite que ne le voudrait la seule
+ * perspective, pour que la photo paraisse lointaine — une carte posée à
+ * l'endroit de la prise de vue, qui grandit à mesure qu'on s'en approche.
+ * Sujet à 6 m, dans l'axe : à 20 m, 8 % de sa taille au point de vue (23 %
+ * sans réduction), à 10 m 21 % (38 %), à 5 m 44 % (55 %).
+ */
+export const FAR = {
+  /** Distance au point de vue (m) qui règle la réduction. */
+  distance: 7,
+  /** Hauteur apparente minimale (°) : de très loin, la photo reste repérable. */
+  minAngle: 5,
+}
+
+/** Réduction du plan-photo quand le spectateur est à `distance` m du point de vue. */
+export const farScale = (distance: number) => 1 / Math.hypot(1, distance / FAR.distance)
+
+/**
+ * Taille du plan-photo vu depuis `eye` (repère centré sur le point de vue) :
+ * `farScale`, sans descendre sous la hauteur apparente minimale (quitte, de
+ * très loin, à agrandir le plan).
+ */
+export function displayScale(basis: CameraBasis, photo: PhotoGeometry, eye: Vec3): number {
+  const f = focalPx(photo.focal35, photo.width, photo.height)
+  const halfH = (photo.depth * photo.height) / (2 * f)
+  const toCenter = norm(sub(scale(basis.f, photo.depth), eye))
+  const min = (toCenter * Math.tan((FAR.minAngle * DEG) / 2)) / halfH
+  return Math.max(farScale(Math.hypot(eye[0], eye[1])), min)
 }
 
 /**

@@ -11,8 +11,9 @@ import { usePhoto } from '../data/usePhoto'
 import type { GeoPhoto } from '../data/types'
 import { bearingDeg, compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
 import { angleDiffDeg } from '../geo/math'
-import { coverViewport, DEFAULT_PHONE_FOCAL35, focalPx } from '../geo/optics'
+import { coverViewport, focalPx } from '../geo/optics'
 import { goBack, navigate } from '../router'
+import { useCameraFocal } from '../sensors/cameraFocal'
 import { useCamera } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { useOrientation } from '../sensors/useOrientation'
@@ -62,6 +63,7 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
   const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
   const geo = useGeolocation()
   const orientation = useOrientation()
+  const { focal35: cameraFocal35 } = useCameraFocal()
   const toast = useToast()
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
   const [opacity, setOpacity] = useState(0.55)
@@ -70,8 +72,8 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
   // La photo est affichée avec son champ de vision réel : même focale
   // apparente que la caméra, centrée, sans rotation par rapport à l'écran.
   const camFocal = cameraSize
-    ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, DEFAULT_PHONE_FOCAL35).focal
-    : focalPx(DEFAULT_PHONE_FOCAL35, stage.width, stage.height)
+    ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, cameraFocal35).focal
+    : focalPx(cameraFocal35, stage.width, stage.height)
   const k = camFocal / focalPx(focal, photo.width, photo.height)
   const w = photo.width * k
   const h = photo.height * k

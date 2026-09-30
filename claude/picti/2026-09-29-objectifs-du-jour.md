@@ -16,7 +16,13 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
 
 - [ ] **1. Mettre la 0.009.2 en ligne et la tester dehors avec l'iPhone**
   - [x] En ligne sur picti.vercel.app (29/09, `dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, confirmée).
-  - [~] Test terrain (30/09) : 0.011.1, rotation sur place à 3-4 m « pratiquement parfaite » ; marche encore à tester.
+  - [x] Test terrain de 0.009.2 : **raté** — « la photo bouge beaucoup en suivant la caméra, et
+    même à 20 m elle est trop grande ».
+  - [x] Corrigé en 0.010.1 ([note](2026-09-29-photo-stable-et-lointaine.md)) : cap par le
+    gyroscope, comptage des pas, position tenue à l'arrêt, photo réduite de loin.
+  - [x] Mise en ligne de 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`).
+  - [~] Test terrain (30/09) : 0.011.1, rotation sur place à 3-4 m « pratiquement parfaite » ;
+    marche encore à tester.
   - Vérifier le numéro en bas du menu : doit afficher `0.009.2`.
   - Face à une photo, reculer de 5 à 10 m : elle doit **rétrécir et rester à sa place**.
   - La distance à la photo s'affiche dans le viseur (« · à 5 m »), « · marche » sur la
@@ -27,8 +33,8 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
   - [x] Branches comparées : tout est déjà dans `claude/nice-cori-zbpf7v`, sauf la note
     « mises à jour écran d'accueil » (récupérée ; la fonction avait été refaite ailleurs).
   - [x] Tests (92), lint, build : OK.
-  - [ ] Pull request vers `main` fusionnée.
-- [ ] **3. Ajouter « mot de passe oublié »** — indispensable avant de faire tester l'appli à
+  - [x] Pull request vers `main` fusionnée (eliott-220/Picti#1).
+- [ ] **3. Ajouter « mot de passe oublié »** — codé (0.010.0), reste à tester avec un vrai e-mail ; — indispensable avant de faire tester l'appli à
   de vraies personnes.
 - [ ] **4. Brancher le paiement Premium (Stripe)** — aujourd'hui, Premium ne s'obtient
   qu'avec un code administrateur.
@@ -45,4 +51,5 @@ Matin : **1** puis **2**. Après-midi : **3** si le test terrain est concluant.
 
 ## Notes du test terrain
 
-_(à remplir après le test : lieu, distance, la photo est-elle restée en place ?)_
+- 0.009.2 : la photo bouge beaucoup en suivant la caméra ; à 20 m, elle est encore trop grande.
+- 0.010.1 : _(à remplir : balayer, rester immobile 30 s, reculer de 20 m)_

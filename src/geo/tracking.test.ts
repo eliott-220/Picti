@@ -94,6 +94,34 @@ describe('suivi de la position', () => {
     }
   })
 
+  it('immobile, une dérive lente du GPS ne déplace pas la position (la photo reste en place)', () => {
+    const settled = run(
+      Array.from({ length: 10 }, (_, i) => fixAt(0, 0, i)),
+      'still',
+    )[9]
+    // Le GPS glisse de 3 m vers l'est en 20 s puis revient, avec ±1 m de bruit.
+    const rand = noise(11)
+    const fixes = Array.from({ length: 40 }, (_, i) => fixAt(3 * Math.sin((Math.PI * i) / 40) + rand(), rand(), 10 + i))
+    for (const t of run(fixes, 'still', settled)) expect(Math.hypot(where(t).e, where(t).n)).toBeLessThan(0.3)
+  })
+
+  it('sans accéléromètre, la vitesse GPS dit si l’on bouge', () => {
+    const settled = run(
+      Array.from({ length: 10 }, (_, i) => fixAt(0, 0, i, 5, 0)),
+      'unknown',
+    )[9]
+    // Vitesse nulle : les écarts du GPS sont ignorés comme à l'arrêt…
+    const jitter = run([fixAt(2, -2, 10, 5, 0), fixAt(-2, 2, 11, 5, 0)], 'unknown', settled)
+    expect(Math.hypot(where(jitter[1]).e, where(jitter[1]).n)).toBeLessThan(0.3)
+    // …en marche (1,3 m/s), le GPS est suivi.
+    const walk = run(
+      Array.from({ length: 6 }, (_, i) => fixAt(0, 1.3 * (i + 1), 10 + i, 5, 1.3)),
+      'unknown',
+      settled,
+    )
+    expect(where(walk[5]).n).toBeGreaterThan(6)
+  })
+
   it('rattrape en quelques secondes un déplacement que l’accéléromètre n’a pas vu', () => {
     // Téléphone tenu très stable : la marche n'est pas détectée, mais le GPS montre 5 m.
     const settled = run(

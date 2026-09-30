@@ -89,9 +89,9 @@ de 5 à 10 m en marchant (la photo doit rétrécir et rester à sa place).
 La pull request https://github.com/eliott-220/Picti/pull/2 (`claude/nice-cori-zbpf7v` → `main`),
 ouverte le 29/09 par une autre session, existait déjà. Claude a vérifié la tête de branche
 (`59d2363` : 114 tests, lint, `tsc -b` OK ; `main` inclus, donc aucun conflit) et mis à jour son
-titre et sa description (0.011.0, 0.011.1, test terrain). **À valider par Eliott sur GitHub.**
-Ensuite : ramener `main` dans cette branche, refaire la revue sur 0.011.1 et corriger les
-défauts d'affichage.
+titre et sa description (0.011.0, 0.011.1, test terrain). **Fusionnée par Eliott le 30/09 à
+12:57** ; `main` (0.011.1) ramené dans cette branche. Ensuite : refaire la revue sur 0.011.1
+et corriger les défauts d'affichage.
 
 ## Suite
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { angleDiffDeg } from '../geo/math'
+import { updateNorth, type NorthState } from '../geo/heading'
 import {
   anglesFromBasis,
   basisFromDeviceOrientation,
@@ -25,7 +25,11 @@ export interface OrientationState {
 
 interface CompassEvent extends DeviceOrientationEvent {
   webkitCompassHeading?: number
+  webkitCompassAccuracy?: number
 }
+
+/** Lissage de l'orientation (ms) : gomme le tremblement sans retarder les mouvements. */
+const SMOOTHING_MS = 40
 
 interface PermissionApi {
   requestPermission?: () => Promise<'granted' | 'denied'>
@@ -128,8 +132,9 @@ export function useOrientation(enabled = true): OrientationState {
   useEffect(() => {
     if (!listening) return
     let basis: CameraBasis | null = null
-    let northOffset: number | null = null
+    let north: NorthState | null = null
     let absolute = false
+    let last = 0
     let frame = 0
 
     const absoluteEvent = 'ondeviceorientationabsolute' in window
@@ -138,18 +143,29 @@ export function useOrientation(enabled = true): OrientationState {
     const onEvent = (e: Event) => {
       const ev = e as CompassEvent
       if (ev.alpha == null || ev.beta == null || ev.gamma == null) return
+      const now = performance.now()
       let raw = rotateForScreen(basisFromDeviceOrientation(ev.alpha, ev.beta, ev.gamma), screenAngle())
       if (typeof ev.webkitCompassHeading === 'number' && ev.webkitCompassHeading >= 0) {
-        // iOS : alpha est relatif à un repère arbitraire ; on estime en continu
-        // l'écart avec le cap magnétique fourni par la boussole.
-        const measured = angleDiffDeg(anglesFromBasis(raw).heading, ev.webkitCompassHeading)
-        northOffset = northOffset == null ? measured : northOffset + angleDiffDeg(northOffset, measured) * 0.1
-        raw = rotateAboutUp(raw, northOffset)
+        // iOS : alpha vient du gyroscope, relatif à un repère arbitraire ; son écart avec
+        // le nord de la boussole est recalé lentement (voir `geo/heading.ts`).
+        const { heading, pitch } = anglesFromBasis(raw)
+        north = updateNorth(north, {
+          gyroHeading: heading,
+          compass: ev.webkitCompassHeading,
+          accuracy: typeof ev.webkitCompassAccuracy === 'number' ? ev.webkitCompassAccuracy : null,
+          pitch,
+          t: now,
+        })
+        raw = rotateAboutUp(raw, north.offset)
         absolute = true
+      } else if (north) {
+        // Boussole momentanément muette : on garde le dernier recalage.
+        raw = rotateAboutUp(raw, north.offset)
       } else {
         absolute = absoluteEvent || ev.absolute
       }
-      basis = smoothBasis(basis, raw, 0.3)
+      basis = smoothBasis(basis, raw, last ? 1 - Math.exp(-Math.max(0, now - last) / SMOOTHING_MS) : 1)
+      last = now
       if (!frame) {
         frame = requestAnimationFrame(() => {
           frame = 0

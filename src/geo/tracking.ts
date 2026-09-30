@@ -3,8 +3,10 @@
 // Filtre de Kalman « vitesse constante » dans un repère local Est-Nord :
 // il lisse les relevés, estime la vitesse de marche pour faire avancer la
 // position entre deux relevés (le GPS n'en donne qu'un par seconde) et,
-// quand l'accéléromètre indique qu'on ne bouge pas, garde la position au
-// lieu de suivre la dérive du GPS. Les photos restent ainsi à leur place.
+// quand l'accéléromètre ne compte pas de pas, garde la position au lieu de
+// suivre la dérive du GPS (quelques mètres, même immobile) : une photo à
+// 6 m se décalerait de près de 30° pour 3 m d'erreur. Seul un écart qui
+// persiste plusieurs secondes est un vrai déplacement, alors rattrapé.
 
 import { fromENU, toENU, type GeoFix, type GeoPoint } from './geodesy'
 import type { MotionState } from './motion'
@@ -16,14 +18,22 @@ export const TRACKING = {
   walkSpeed: 1.5,
   /** Juste après l'arrêt (m²/s) : sans élan, la position rejoint encore le GPS, en retard. */
   settleDrift: 10,
-  /** Dérive admise à l'arrêt (m²/s) : les allers-retours du GPS sont amortis. */
-  stillDrift: 0.05,
+  /** Dérive admise à l'arrêt (m²/s) : les écarts du GPS sont presque ignorés. */
+  stillDrift: 0.01,
   /**
-   * À l'arrêt, un écart du GPS qui persiste dans la même direction au-delà de ce seuil
-   * (m, ou du quart de la précision) est un vrai déplacement — pas vu par l'accéléromètre,
-   * ou GPS en retard : il est rattrapé comme juste après un arrêt.
+   * À l'arrêt, un écart moyen du GPS qui persiste au-delà de ce seuil (m, ou de la moitié de
+   * la précision) est un vrai déplacement — pas vu par l'accéléromètre, ou GPS en retard :
+   * il est rattrapé comme juste après un arrêt, pendant `catchUp` ms.
    */
-  persistentShift: 2,
+  persistentShift: 4,
+  /** Poids de chaque relevé dans cet écart moyen (≈ 4 s de mémoire à un relevé par seconde). */
+  shiftWeight: 0.25,
+  catchUp: 4000,
+  /**
+   * À l'arrêt, la position est tenue : un relevé n'est pris en compte que s'il est bien plus
+   * précis que l'estimation (gain au-delà de ce seuil : démarrage, précision qui s'améliore).
+   */
+  holdGain: 0.3,
   /** Au-delà de cette vitesse GPS (m/s), on se déplace même sans secousse (voiture, tram…). */
   movingSpeed: 0.5,
   /** À l'arrêt, un relevé plus éloigné que ce seuil (m) et que 3 écarts-types est un saut. */
@@ -72,6 +82,8 @@ export interface Track {
   /** Écart moyen récent du GPS à l'arrêt (m, Est et Nord) : persistant, c'est un déplacement. */
   se: number
   sn: number
+  /** Jusqu'à cet instant (ms), un tel écart est en cours de rattrapage. */
+  catchUntil: number
 }
 
 /** Variance d'un relevé : `accuracy` est un rayon de confiance, plus large qu'un écart-type. */
@@ -94,14 +106,23 @@ function start(fix: GpsFix, mode: TrackMode): Track {
     rejected: 0,
     se: 0,
     sn: 0,
+    catchUntil: 0,
   }
 }
 
 /** Intègre un relevé GPS ; `motion` dit si l'on marche (accéléromètre). */
 export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState): Track {
-  // Sans accéléromètre, on suit le GPS ; immobile mais rapide d'après le GPS : en véhicule.
+  // Sans accéléromètre, la vitesse GPS dit si l'on bouge (à défaut, on suit le GPS) ;
+  // immobile mais rapide d'après le GPS : en véhicule.
+  const speed = fix.speed != null && fix.speed >= 0 ? fix.speed : null
   const mode: TrackMode =
-    motion === 'unknown' || (motion === 'still' && (fix.speed ?? 0) > TRACKING.movingSpeed) ? 'moving' : motion
+    motion === 'unknown'
+      ? speed == null || speed > TRACKING.movingSpeed
+        ? 'moving'
+        : 'still'
+      : motion === 'still' && (speed ?? 0) > TRACKING.movingSpeed
+        ? 'moving'
+        : motion
   if (!prev || fix.timestamp - prev.t > TRACKING.maxGap) return start(fix, mode)
   const dt = Math.max(0, (fix.timestamp - prev.t) / 1000)
   let { e, n, ve, vn, pp, pv, vv } = prev
@@ -110,9 +131,12 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   const [ze, zn] = toENU(prev.origin, fix)
   // Écart moyen récent à l'arrêt : les allers-retours du GPS s'annulent, un déplacement non.
   const still = mode === 'still'
-  const se = still ? (prev.se + ze - e) / 2 : 0
-  const sn = still ? (prev.sn + zn - n) / 2 : 0
-  const shifted = still && Math.hypot(se, sn) > Math.max(TRACKING.persistentShift, fix.accuracy / 4)
+  const w = TRACKING.shiftWeight
+  const se = still ? prev.se + (ze - e - prev.se) * w : 0
+  const sn = still ? prev.sn + (zn - n - prev.sn) * w : 0
+  const shifted = still && Math.hypot(se, sn) > Math.max(TRACKING.persistentShift, fix.accuracy / 2)
+  const catchUntil = shifted ? fix.timestamp + TRACKING.catchUp : prev.catchUntil
+  const catching = still && fix.timestamp < catchUntil
 
   // Prédiction : on avance à la vitesse estimée ; à l'arrêt, on ne bouge pas.
   if (mode === 'moving') {
@@ -127,7 +151,7 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   } else {
     // Arrêté : plus d'élan. Juste après l'arrêt, le GPS peut encore rattraper son retard.
     ve = vn = pv = vv = 0
-    pp += (mode === 'settling' || shifted ? TRACKING.settleDrift : TRACKING.stillDrift) * dt
+    pp += (mode === 'settling' || catching ? TRACKING.settleDrift : TRACKING.stillDrift) * dt
   }
 
   // Correction par le relevé.
@@ -137,10 +161,14 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   if (mode === 'still' && Math.hypot(ye, yn) > Math.max(TRACKING.minJump, 3 * Math.sqrt(s))) {
     // Saut à l'arrêt : isolé (reflet du signal), on l'ignore ; confirmé, on s'y rend.
     if (prev.rejected >= 1) return start(fix, mode)
-    return { ...prev, e, n, ve, vn, pp, pv, vv, t: fix.timestamp, mode, rejected: prev.rejected + 1, se: prev.se, sn: prev.sn }
+    return { ...prev, e, n, ve, vn, pp, pv, vv, t: fix.timestamp, mode, rejected: prev.rejected + 1, catchUntil }
   }
   const kp = pp / s
   const kv = pv / s
+  if (still && !catching && kp < TRACKING.holdGain) {
+    // Immobile : on tient la position ; seul l'écart moyen du GPS est suivi.
+    return { ...prev, e, n, ve, vn, pp, pv, vv, accuracy: fix.accuracy, t: fix.timestamp, mode, rejected: 0, se, sn, catchUntil }
+  }
   const track: Track = {
     origin: prev.origin,
     e: e + kp * ye,
@@ -155,9 +183,10 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
     t: fix.timestamp,
     mode,
     rejected: 0,
-    // Écart rattrapé : on repart de zéro.
+    // Écart en cours de rattrapage : on repart de zéro.
     se: shifted ? 0 : se,
     sn: shifted ? 0 : sn,
+    catchUntil,
   }
   return Math.hypot(track.e, track.n) > TRACKING.maxOffset ? recenter(track) : track
 }

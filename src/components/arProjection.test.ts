@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { fromENU } from '../geo/geodesy'
+import { DEG } from '../geo/math'
 import { focalPx } from '../geo/optics'
 import { basisFromAngles } from '../geo/orientation'
+import { farScale, FAR } from '../geo/projection'
 import { projectGeoPhoto, type GeoframedPhoto } from './arProjection'
 
 const spot = { lat: 46.1557, lon: -1.1533 }
@@ -42,8 +44,8 @@ const at = (east: number, north: number, alt: number | null = null) => ({
 /** Bords gauche et droit de la photo à l'écran (px). */
 function edges(east: number, north: number, alt: number | null = null, offset?: [number, number, number]) {
   const ar = projectGeoPhoto(photo, at(east, north, alt), looking, screen, offset)
-  const [tl, tr] = ar.projection.corners
-  return { left: tl.x, right: tr.x, ar }
+  const [tl, tr, br] = ar.projection.corners
+  return { left: tl.x, right: tr.x, height: br.y - tr.y, ar }
 }
 
 describe('photo ancrée dans le décor', () => {
@@ -54,18 +56,33 @@ describe('photo ancrée dans le décor', () => {
   })
 
   it('reste à sa place quand on s’écarte de quelques mètres (elle ne suit pas le téléphone)', () => {
-    // 3 m à droite : la photo, restée en place, part vers la gauche de l'écran.
+    // 3 m à droite : la photo, restée en place, part vers la gauche de l'écran
+    // (son centre, au milieu de l'écran au point de vue, passe sur le bord gauche).
     const { left, right, ar } = edges(3, 0)
-    expect(left).toBeCloseTo(-150, 0)
-    expect(right).toBeCloseTo(150, 0)
+    expect((left + right) / 2).toBeCloseTo(0, 0)
+    expect(right - left).toBeCloseTo(300 * farScale(3), 0)
     expect(ar.transform).not.toBeNull()
   })
 
   it('grandit quand on s’en approche, rapetisse quand on recule', () => {
     const near = edges(0, 3)
-    expect(near.right - near.left).toBeCloseTo(600, 0)
+    expect(near.right - near.left).toBeCloseTo(600 * farScale(3), 0)
     const far = edges(0, -6)
-    expect(far.right - far.left).toBeCloseTo(150, 0)
+    expect(far.right - far.left).toBeCloseTo(150 * farScale(6), 0)
+  })
+
+  it('de loin, paraît lointaine', () => {
+    // À 20 m derrière le point de vue : la perspective seule la laisserait à 6/26 de sa
+    // taille ; elle est trois fois plus petite : moins de 8 % de sa largeur au point de vue.
+    const { left, right } = edges(0, -20)
+    expect(right - left).toBeLessThan(0.08 * 300)
+    expect(right - left).toBeLessThan((300 * 6) / 26 / 2.5)
+  })
+
+  it('de très loin, reste repérable', () => {
+    const { height } = edges(0, -120)
+    const minHeight = 2 * screen.focal * Math.tan((FAR.minAngle * DEG) / 2)
+    expect(height).toBeCloseTo(minHeight, 0)
   })
 
   it('n’est plus affichée une fois dépassée', () => {
