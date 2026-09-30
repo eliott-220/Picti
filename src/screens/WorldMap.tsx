@@ -124,6 +124,21 @@ export default function WorldMap() {
       const b = map.getBounds()
       setView({ bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], zoom: map.getZoom() })
     }
+    // Vignettes et position replacées à chaque image, pendant le déplacement même : sur iPhone,
+    // le rendu React attend la fin du geste (les vignettes restaient en place 2 à 3 s).
+    const place = () => {
+      const layer = map.getCanvasContainer().querySelector('.map-markers')
+      if (!layer) return
+      const bearing = map.getBearing()
+      layer.querySelectorAll<HTMLElement>('[data-lon]').forEach((el) => {
+        const pt = map.project([Number(el.dataset.lon), Number(el.dataset.lat)])
+        el.style.transform = `translate(${pt.x}px, ${pt.y}px)`
+      })
+      layer.querySelectorAll<HTMLElement>('[data-heading]').forEach((el) => {
+        el.style.transform = `rotate(${Number(el.dataset.heading) - bearing}deg)`
+      })
+    }
+    map.on('move', place)
     map.on('move', redraw)
     map.on('moveend', updateView)
     map.on('load', updateView)
@@ -273,6 +288,8 @@ export default function WorldMap() {
                 <div
                   key={isCluster ? `c${(f.properties as ClusterProperties).cluster_id}` : latestId}
                   className={`map-marker ${single && mine(single.owner) ? 'mine' : ''} ${count > 1 ? 'stacked' : ''}`}
+                  data-lon={lon}
+                  data-lat={lat}
                   style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}
                 >
                   <PhotoTile
@@ -285,12 +302,23 @@ export default function WorldMap() {
                   />
                   {count > 1 && <span className="map-count">{count > 999 ? '999+' : count}</span>}
                   {single?.heading != null && (
-                    <span className="map-heading" style={{ transform: `rotate(${single.heading - bearing}deg)` }} />
+                    <span
+                      className="map-heading"
+                      data-heading={single.heading}
+                      style={{ transform: `rotate(${single.heading - bearing}deg)` }}
+                    />
                   )}
                 </div>
               )
             })}
-            {me && <span className="map-me" style={{ transform: `translate(${me.x}px, ${me.y}px)` }} />}
+            {me && fix && (
+              <span
+                className="map-me"
+                data-lon={fix.lon}
+                data-lat={fix.lat}
+                style={{ transform: `translate(${me.x}px, ${me.y}px)` }}
+              />
+            )}
           </div>,
           map.getCanvasContainer(),
         )}

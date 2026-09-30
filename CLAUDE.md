@@ -53,7 +53,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   récente), RPC `photos_in_bounds`. Carte **orientable** depuis 0.011.0 (rotation à deux doigts,
   à plat : `touchPitch` coupé, `maxPitch: 0`) ; bouton boussole `.map-north` (visible dès que la
   carte est tournée, remet le nord en haut) ; les cônes de direction des vignettes sont
-  compensés (`heading - bearing`). Le processus de fond MapLibre est assemblé par Vite
+  compensés (`heading - bearing`). Vignettes et point « moi » : éléments React (portail dans le
+  conteneur de la carte) **replacés directement à chaque événement `move`** (`place`, attributs
+  `data-lon`/`data-lat`/`data-heading`) : sur iPhone, le rendu React attend la fin du geste et
+  les vignettes restaient figées 2 à 3 s (corrigé en 0.011.3). Le processus de fond MapLibre est assemblé par Vite
   (`?worker&url` + `setWorkerUrl`).
 - Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
   devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
@@ -175,7 +178,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   étiquette du viseur sans l'année en cours (`formatDayTime`) pour ne plus couper l'heure.
 - 0.011.3 : selfies à taille réelle (sujet à 0,6 m au lieu de 6 m) ; position qui avance pas à pas
   (accéléromètre + orientation) : en avançant ou en reculant de quelques mètres, la photo grandit
-  ou rapetisse à sa place au lieu de suivre le téléphone.
+  ou rapetisse à sa place au lieu de suivre le téléphone ; carte : vignettes et position qui suivent
+  le doigt pendant le déplacement (elles restaient figées puis se replaçaient 2 à 3 s après).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -205,4 +209,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — Carte orientable (0.011.0)](claude/picti/2026-09-29-carte-orientable.md)
 - [2026-09-29 — Photo encore un peu décalée sur iPhone Pro : focale mesurée (0.011.1)](claude/picti/2026-09-29-focale-mesuree.md)
 - [2026-09-30 — Améliorer l'ergonomie de l'app](claude/picti/2026-09-30-ergonomie.md)
-- [2026-09-30 — Selfie trop grand, photo qui suit en avançant (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)
+- [2026-09-30 — Selfie trop grand, photo qui suit en avançant, carte figée (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)

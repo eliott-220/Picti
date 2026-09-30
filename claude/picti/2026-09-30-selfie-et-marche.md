@@ -1,4 +1,4 @@
-# Selfie trop grand, photo qui suit en avançant — 30 septembre 2026 (0.011.3)
+# Selfie trop grand, photo qui suit en avançant, carte figée — 30 septembre 2026 (0.011.3)
 
 Projet : [PICTI](../../CLAUDE.md) · Branche `claude/youthful-cannon-962c45`
 Voir aussi : [Améliorer l'ergonomie](2026-09-30-ergonomie.md) ·
@@ -11,6 +11,11 @@ Voir aussi : [Améliorer l'ergonomie](2026-09-30-ergonomie.md) ·
 > contre quand on avance et qu'on recule, elles gardent leur taille et bougent avec nous, alors
 > qu'en s'éloignant elles devraient rétrécir et rester à leur place.
 
+Ajouté ensuite :
+
+> Sur la carte, quand je me déplace dessus, les photos et mon pin ne restent pas à leur
+> emplacement jusqu'à ce que je relâche les doigts, et au bout de 2/3 secondes ça se remet.
+
 ## Causes
 
 1. **Selfie** : toute photo est un plan placé à la « distance du sujet » (6 m par défaut) devant
@@ -20,6 +25,10 @@ Voir aussi : [Améliorer l'ergonomie](2026-09-30-ergonomie.md) ·
    est tenue (0.010.1) et seul un écart persistant de 4 m est rattrapé. Quelques mètres de marche
    ne se voient donc pas : la position affichée ne bouge pas, la photo garde sa taille et reste
    collée à l'écran.
+
+3. **Carte** : les vignettes et le point « moi » sont des éléments React, replacés à chaque
+   déplacement par un nouveau rendu. Sur iPhone, Safari retarde ces rendus pendant le geste :
+   ils ne suivent qu'une fois la carte arrêtée (et les photos de la zone rechargées).
 
 ## Corrections (0.011.3)
 
@@ -40,6 +49,10 @@ Voir aussi : [Améliorer l'ergonomie](2026-09-30-ergonomie.md) ·
     position (il est en retard) ; une fois arrêté, seul un écart persistant (≥ 4 m) la corrige,
     par exemple si les pas ont été comptés dans le mauvais sens.
 
+- **Carte** (`WorldMap.tsx`) : à chaque événement `move`, les vignettes, les cônes de direction
+  et le point « moi » sont replacés directement (`place`, `data-lon`/`data-lat`/`data-heading`),
+  sans attendre React.
+
 ## Vérifications
 
 - `npm test` : 134 tests (nouveaux : pas et sens de la marche, sens sur le terrain, signe de
@@ -47,6 +60,8 @@ Voir aussi : [Améliorer l'ergonomie](2026-09-30-ergonomie.md) ·
 - Simulation dans Chromium (viseur, accéléromètre simulé, GPS immobile) : photo de 1622 px de
   large ; 6 pas en reculant → 830 px ; 8 s plus tard, immobile → 826 px (pas ramenée par le GPS) ;
   6 pas en avançant → 1610 px. Même résultat avec un accéléromètre aux signes inversés.
+- Carte, glissé au doigt simulé avec un rendu React retardé de 2,5 s (comme Safari) : avant, les
+  vignettes restaient figées puis sautaient 3 s après ; maintenant elles suivent le doigt.
 - **À confirmer sur iPhone** : vrais pas (téléphone tenu devant soi), sens détecté en reculant,
   longueur de pas (0,65 m).
 
@@ -56,5 +71,6 @@ Voir aussi : [Améliorer l'ergonomie](2026-09-30-ergonomie.md) ·
    (« · marche » sur la pastille GPS pendant la marche).
 2. Avancer de nouveau : elle regrandit.
 3. Faire un pas de côté : elle glisse sur le côté dans l'autre sens, sans changer de taille.
-4. Prendre un selfie, puis se placer là où était le téléphone et viser l'endroit où l'on se
+4. Carte : glisser, pincer, tourner à deux doigts : les vignettes et le point bleu suivent.
+5. Prendre un selfie, puis se placer là où était le téléphone et viser l'endroit où l'on se
    tenait : visage à taille réelle.
