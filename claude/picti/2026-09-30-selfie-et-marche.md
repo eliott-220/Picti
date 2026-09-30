@@ -71,6 +71,8 @@ Production : `dpl_DqK5cFg7S4rQjTvfyzb4j11gSdZA` (redéploiement de l'aperçu
 `dpl_GX7dpfAK85N2mWLKXRxHcMxT9m2e`, commit `bfc2431`). Retour arrière : 0.011.2
 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`).
 
+Fusionnée dans `main` le 30/09 (eliott-220/Picti#3).
+
 ## À tester dehors
 
 1. Face à une photo à 3-4 m, reculer de 4-5 pas : elle doit rapetisser et rester à sa place
