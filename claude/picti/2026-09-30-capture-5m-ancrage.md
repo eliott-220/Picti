@@ -72,5 +72,16 @@ convention d'axes (ENU, base f/r/u). Causes de décalage ou de mouvement trouvé
 
 ## Publication
 
-Autorisée par Eliott sans nouvelle validation : fusion dans `main` (mise en production
-automatique), avec 0.012.0 (vitre) et 0.013.0 (couleurs inversées, capture directe).
+Autorisée par Eliott sans nouvelle validation. Fusion d'eliott-220/Picti#6 dans `main` le 30/09
+(commit `f75bb68`, qui marque aussi #5 comme fusionnée) → mise en production automatique
+`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`, **READY sur picti.vercel.app** (0.013.1, avec 0.012.0 vitre
+et 0.013.0 couleurs inversées / capture directe). Retour arrière possible : 0.011.3
+(`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`).
+
+## À tester sur iPhone
+
+1. Menu : « Version 0.013.1 » (sinon « Recharger »).
+2. Face à une photo : se balancer sur place → elle ne bouge pas ; reculer / avancer → elle
+   rapetisse / grandit à sa place ; passer du viseur à la chasse → elle reste au même endroit.
+3. Photo d'un autre à plus de 5 m : « Chasser » ; en chasse, « Capturer à moins de 5 m : encore
+   X m » ; à moins de 5 m, « Capturer » → la couleur envahit la photo.
