@@ -72,6 +72,14 @@ bandeau selfie trop long.
 **Terrain** : portée du pouce (boutons en haut à droite), lisibilité des pastilles au soleil,
 temps pour trouver une photo, glissement de la pile deviné ou non.
 
+## Test terrain de l'ancrage (30/09)
+
+Retour d'Eliott sur iPhone : « pratiquement parfait, la photo ne bouge pratiquement plus
+lorsque je pivote le téléphone et que je me situe à 3/4 mètres d'elle ». Il parlait de
+« 11.1 », mais cette version n'existe pas : la version en ligne est la **0.009.2** (c'est
+sans doute celle-là ; vérifier le numéro en bas du menu). Reste à vérifier : s'éloigner
+de 5 à 10 m en marchant (la photo doit rétrécir et rester à sa place).
+
 ## Suite
 
 - [ ] Eliott : dire comment il veut voir les écrans (maquettes V2, croquis, exemples).

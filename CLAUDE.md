@@ -125,7 +125,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   du spectateur, suivi GPS + accéléromètre, recalage au moment de la capture.
 - 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
   rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
+- Test terrain du 30/09 (iPhone, version en ligne 0.009.2) : ancrage « pratiquement parfait » — la photo ne
+  bouge pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (s'éloigner de 5-10 m).
+- Prochaines étapes : test terrain en marchant (0.009.2) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
