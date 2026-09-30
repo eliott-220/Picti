@@ -1,0 +1,310 @@
+<title>Revue ergonomique PICTI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+<style>
+/* Mise en page : une colonne de lecture ; chaque constat = capture d'écran iPhone + texte. Couleurs de la charte PICTI. */
+:root {
+  --bg: #fbf7f6;
+  --paper: #ffffff;
+  --ink: #1d1414;
+  --muted: #6d5b5a;
+  --line: #eadcdb;
+  --red: #eb0c0c;
+  --salmon: #ff8484;
+  --salmon-soft: #ffe9e7;
+  --bug: #c40a0a;
+  --clarity: #b25b00;
+  --flow: #3f5fa8;
+  --field: #3b7a4b;
+  --font: 'Outfit', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171112; --paper: #221a1b; --ink: #f6eeee; --muted: #bba7a6; --line: #3a2d2e;
+    --red: #ff4a4a; --salmon: #ff9a9a; --salmon-soft: #3a2224;
+    --bug: #ff6b6b; --clarity: #f0a24a; --flow: #8fa9ec; --field: #7cc68f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171112; --paper: #221a1b; --ink: #f6eeee; --muted: #bba7a6; --line: #3a2d2e;
+  --red: #ff4a4a; --salmon: #ff9a9a; --salmon-soft: #3a2224;
+  --bug: #ff6b6b; --clarity: #f0a24a; --flow: #8fa9ec; --field: #7cc68f; color-scheme: dark;
+}
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55; padding-inline: 16px; padding-block: 0 64px }
+.wrap { max-width: 960px; margin: 0 auto }
+header.top { padding-block: 40px 24px; display: grid; gap: 10px }
+.eyebrow { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--red); font-weight: 600 }
+h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.1; margin: 0; font-weight: 700; text-wrap: balance }
+h2 { font-size: 24px; margin: 0; font-weight: 600; text-wrap: balance }
+h3 { font-size: 19px; margin: 0; font-weight: 600; text-wrap: balance }
+p { margin: 0 }
+.lead { color: var(--muted); max-width: 65ch }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-block: 8px 32px }
+.sum { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 4px }
+.sum b { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums }
+.sum span { color: var(--muted); font-size: 14px }
+.sum.bug b { color: var(--bug) } .sum.clarity b { color: var(--clarity) } .sum.flow b { color: var(--flow) } .sum.field b { color: var(--field) }
+section.group { display: grid; gap: 18px; margin-block: 40px 0 }
+.group-head { display: grid; gap: 6px; border-top: 2px solid var(--line); padding-top: 20px }
+.finding { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 22px; padding: 18px }
+@media (min-width: 720px) { .finding.has-shots { grid-template-columns: minmax(0, 1fr) auto } }
+.finding .text { display: grid; gap: 10px; align-content: start; min-width: 0 }
+.tag { justify-self: start; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; border: 1.5px solid currentColor }
+.tag.bug { color: var(--bug) } .tag.clarity { color: var(--clarity) } .tag.flow { color: var(--flow) } .tag.field { color: var(--field) }
+.prio { color: var(--muted); font-size: 13px }
+.fix { background: var(--salmon-soft); border-radius: 14px; padding: 10px 14px }
+.fix strong { color: var(--red) }
+code { font-family: var(--mono); font-size: 13px; background: var(--salmon-soft); padding: 1px 5px; border-radius: 6px; overflow-wrap: anywhere }
+.shots { display: flex; gap: 10px; flex-wrap: wrap }
+.shots figure { margin: 0; display: grid; gap: 4px; width: 170px; max-width: 100% }
+.shots img { width: 100%; border-radius: 16px; border: 1px solid var(--line); display: block }
+.shots figcaption { font-size: 12px; color: var(--muted) }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 4px }
+.note { background: var(--paper); border: 1px dashed var(--line); border-radius: 18px; padding: 16px; color: var(--muted); font-size: 14px }
+.ask { display: grid; gap: 10px; background: var(--red); color: #fff; border-radius: 24px; padding: 22px; margin-top: 40px }
+.ask h2 { color: #fff }
+.ask ol { margin: 0; padding-left: 22px; display: grid; gap: 6px }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">PICTI 0.009.2 · revue du 30 septembre 2026</span>
+    <h1>Revue ergonomique de PICTI</h1>
+    <p class="lead">Chaque écran a été ouvert à la taille d’un iPhone (390 × 844), avec un compte fictif, des photos fictives autour du Vieux-Port de La Rochelle, une caméra et une boussole simulées. Les constats sont classés par type, du plus urgent au plus discutable.</p>
+  </header>
+
+  <div class="summary">
+    <div class="sum bug"><b>4</b><span>Défauts d’affichage à corriger sans débat</span></div>
+    <div class="sum clarity"><b>6</b><span>Points de clarté : on ne comprend pas tout de suite</span></div>
+    <div class="sum flow"><b>5</b><span>Parcours et hiérarchie des écrans</span></div>
+    <div class="sum field"><b>4</b><span>À vérifier sur le terrain, téléphone en main</span></div>
+  </div>
+
+  <!-- ============ DÉFAUTS ============ -->
+  <section class="group">
+    <div class="group-head">
+      <h2>Défauts d’affichage</h2>
+      <p class="lead">Des erreurs de mise en page, sans question de goût. Elles se corrigent vite et sans changer le design.</p>
+    </div>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag bug">Défaut · priorité 1</span>
+        <h3>Le bouton retour chevauche les titres, et le crayon « Renommer » a disparu</h3>
+        <p>Sur « Mes chasses » et « À proximité », le bouton retour est posé sur le titre. Sur l’écran Premium du recalage, il flotte au milieu de la page. Sur le détail d’une de mes photos, le crayon pour la renommer n’est pas visible du tout.</p>
+        <p class="fix"><strong>Cause trouvée :</strong> dans <code>src/styles.css</code>, la règle <code>.round-btn { position: relative }</code> (ligne 1275, ajoutée pour la pastille de compteur en 0.002) passe après <code>.back-btn</code> et <code>.detail-edit</code> et annule leur <code>position: absolute</code>. Une ligne à corriger.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="07-mes-chasses.png" alt="Écran Mes chasses : le bouton retour recouvre le mot Mes"><figcaption>Mes chasses</figcaption></figure>
+        <figure><img src="14-recaler.png" alt="Écran Premium du recalage : bouton retour au milieu de l'écran"><figcaption>Recalage, compte gratuit</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag bug">Défaut · priorité 1</span>
+        <h3>La recherche déborde à droite</h3>
+        <p>La page de recherche est 19 px plus large que l’écran : le champ de recherche est coupé sur la droite et la page glisse de côté sous le doigt. La rangée de filtres (Toutes, En direct, Selfies, En différé…) en est la cause.</p>
+        <p class="fix"><strong>Piste :</strong> faire défiler les filtres dans leur propre rangée, ou les passer sur deux lignes.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="09-recherche.png" alt="Recherche : champ coupé à droite"><figcaption>Recherche</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="text">
+        <span class="tag bug">Défaut · priorité 2</span>
+        <h3>« Mes 1 chasseur », « Mes 1 ami », « Mes 1 proie »</h3>
+        <p>Les titres de section mettent le nombre après « Mes », ce qui donne des phrases bancales dès qu’il n’y a qu’un élément (Profil, Mes chasses).</p>
+        <p class="fix"><strong>Piste :</strong> « Mes chasseurs · 1 », ou « 1 chasseur » tout court.</p>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag bug">Défaut · priorité 2</span>
+        <h3>Dans le viseur, l’étiquette de la photo visée est coupée</h3>
+        <p>L’étiquette affiche « 25 sept. 2026… » : l’heure disparaît, et c’est la date qui sert de nom à la photo. Les flèches gauche/droite sont très pâles.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="02-accueil-viseur.png" alt="Accueil : étiquette de photo tronquée en bas"><figcaption>Accueil, photo visée</figcaption></figure>
+      </div>
+    </article>
+  </section>
+
+  <!-- ============ CLARTÉ ============ -->
+  <section class="group">
+    <div class="group-head">
+      <h2>Clarté</h2>
+      <p class="lead">Ce qu’un nouvel utilisateur ne comprend pas sans explication.</p>
+    </div>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag clarity">Clarté · priorité 1</span>
+        <h3>En chasse, on ne sait pas où aller</h3>
+        <p>L’écran donne trois chiffres (Distance 35 m, Cap +170°, Inclinaison +0°), une jauge vide et un curseur avec un œil, sans texte. « Cap +170° » ne dit pas s’il faut tourner à gauche ou à droite. C’est pourtant le cœur de PICTI.</p>
+        <p class="fix"><strong>Piste :</strong> une grande flèche au centre qui montre la direction, et une consigne en phrase qui change selon l’étape : « Marchez 35 m vers le sud », puis « Tournez-vous vers la droite », puis « Levez un peu le téléphone », puis « Ne bougez plus… capturée ! ». Garder les chiffres en petit, pour les curieux.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="15-chasse.png" alt="Écran de chasse : trois chiffres en bas, pas de flèche"><figcaption>Chasse</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag clarity">Clarté · priorité 1</span>
+        <h3>Quatre boutons ronds sans texte sur l’accueil</h3>
+        <ul>
+          <li>« Filtrer » et « Rechercher » ouvrent le même écran.</li>
+          <li>L’épingle ouvre la carte ici, mais désigne « À proximité » dans le menu, où la carte a une boussole.</li>
+          <li>La pastille rouge « 2 » sur l’épingle ne dit pas ce qu’elle compte (des photos à chasser autour de moi).</li>
+        </ul>
+        <p class="fix"><strong>Piste :</strong> garder deux boutons (Carte, Selfie), une icône par destination partout, et une petite étiquette « 2 à chasser ».</p>
+      </div>
+      <div class="shots">
+        <figure><img src="02-accueil-viseur.png" alt="Accueil : colonne de quatre boutons ronds à droite"><figcaption>Accueil</figcaption></figure>
+        <figure><img src="03-menu.png" alt="Menu : icônes différentes pour la carte et la proximité"><figcaption>Menu</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag clarity">Clarté · priorité 2</span>
+        <h3>On ne reconnaît pas ses photos</h3>
+        <p>Une photo prise en direct porte la date comme titre. La grille « Mes photos géocadrées » n’a aucune légende, « À proximité » affiche « Photo de Camille » trois fois, et sur le détail d’une photo d’un autre, le grand titre est le nom de l’auteur alors que sur les miennes c’est le titre.</p>
+        <p class="fix"><strong>Piste :</strong> nommer la photo d’après le lieu (rue ou quartier), puis choisir une seule règle d’affichage « titre + auteur + date » partout.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="06-profilb-bas.png" alt="Grille de mes photos sans légende"><figcaption>Profil, mes photos</figcaption></figure>
+        <figure><img src="08-proximite.png" alt="À proximité : Photo de Camille répété"><figcaption>À proximité</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag clarity">Clarté · priorité 2</span>
+        <h3>Le détail d’une photo montre toute la technique</h3>
+        <p>Cap, inclinaison, roulis, coordonnées, focale équivalent 24×36, et un réglage « Distance du sujet » qui « règle la parallaxe » : utile pour toi, opaque pour un visiteur.</p>
+        <p class="fix"><strong>Piste :</strong> replier tout cela dans « Détails techniques », fermé par défaut.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="11-detail-photob-bas.png" alt="Détail photo : liste de données techniques"><figcaption>Détail, bas de page</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="text">
+        <span class="tag clarity">Clarté · priorité 3</span>
+        <h3>Des mots qui varient ou qui intimident</h3>
+        <ul>
+          <li>« Chasser in situ », « Revoir in situ », « À retrouver in situ » : « sur place » est plus direct, et déjà utilisé ailleurs.</li>
+          <li>« Mes photos géolocalisées à proximité » dans l’import, alors que partout ailleurs on dit « géocadrées ».</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="text">
+        <span class="tag clarity">Clarté · priorité 3</span>
+        <h3>Les badges de visibilité sont en rouge vif</h3>
+        <p>« Privée » et « Amis uniquement » sont en pastille rouge sur les vignettes, la couleur des alertes et du bouton principal. Un petit cadenas ou une icône « amis » discrète suffirait.</p>
+      </div>
+    </article>
+  </section>
+
+  <!-- ============ PARCOURS ============ -->
+  <section class="group">
+    <div class="group-head">
+      <h2>Parcours et hiérarchie</h2>
+      <p class="lead">Ce qui est bien présent, mais pas au bon endroit ou pas à la bonne taille.</p>
+    </div>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag flow">Parcours · priorité 1</span>
+        <h3>À l’ouverture, le formulaire est sous la ligne de flottaison</h3>
+        <p>Quelqu’un qui a déjà un compte doit faire défiler toute la présentation pour trouver « Se connecter ». Il manque aussi « Mot de passe oublié » (déjà dans tes objectifs).</p>
+        <p class="fix"><strong>Piste :</strong> deux boutons visibles dès le premier écran (« Créer un compte », « J’ai déjà un compte »), la présentation en trois cartes que l’on fait glisser.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="01-inscription.png" alt="Première ouverture : formulaire en bas, à peine visible"><figcaption>Première ouverture</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag flow">Parcours · priorité 2</span>
+        <h3>Géocadrage en différé pour un compte gratuit</h3>
+        <p>La carte Premium s’affiche, mais le bouton « Importer des photos » reste en dessous, comme s’il marchait. « Payer (bientôt) » ressemble à un bouton cassé. La croix de fermeture est collée au bouton d’import.</p>
+        <p class="fix"><strong>Piste :</strong> pour un compte gratuit, n’afficher que la carte Premium, avec « Paiement bientôt disponible » en texte et « J’ai un code » en bouton ; la croix en haut à droite du panneau.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="04-import-differe.png" alt="Panneau d'import : carte Premium et bouton Importer"><figcaption>Bouton « + » de l’accueil</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag flow">Parcours · priorité 2</span>
+        <h3>« Se déconnecter » est le plus gros bouton du menu</h3>
+        <p>C’est l’action la moins fréquente et la plus gênante par erreur. La ligne de version passe sur deux lignes.</p>
+        <p class="fix"><strong>Piste :</strong> un lien discret tout en bas, sous la version.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="03-menu.png" alt="Menu : gros bouton Se déconnecter"><figcaption>Menu</figcaption></figure>
+      </div>
+    </article>
+
+    <article class="finding">
+      <div class="text">
+        <span class="tag flow">Parcours · priorité 3</span>
+        <h3>Beaucoup de place perdue en haut des pages</h3>
+        <p>« Mes chasses » et « À proximité » ouvrent sur un bandeau rouge d’un tiers d’écran, avec un titre coupé en deux lignes. Le contenu utile commence à mi-hauteur.</p>
+      </div>
+    </article>
+
+    <article class="finding has-shots">
+      <div class="text">
+        <span class="tag flow">Parcours · priorité 3</span>
+        <h3>Le mode selfie explique trop, trop haut</h3>
+        <p>La phrase « on le retrouvera en visant, depuis la place du téléphone, l’endroit où vous vous tenez » occupe trois lignes au-dessus de l’image. Une fois suffit : à afficher la première fois seulement.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="05-selfie.png" alt="Mode selfie : bandeau d'explication de trois lignes"><figcaption>Selfie</figcaption></figure>
+      </div>
+    </article>
+  </section>
+
+  <!-- ============ TERRAIN ============ -->
+  <section class="group">
+    <div class="group-head">
+      <h2>À vérifier sur le terrain</h2>
+      <p class="lead">Ce que le navigateur ne peut pas montrer. À regarder lors de ton prochain test dehors.</p>
+    </div>
+    <article class="finding">
+      <div class="text">
+        <span class="tag field">Terrain</span>
+        <ul>
+          <li><b>Pouce :</b> les boutons Carte et Recherche sont en haut à droite, hors de portée d’une main sur un grand iPhone.</li>
+          <li><b>Soleil :</b> les pastilles « GPS » et « Boussole » (texte blanc sur gris transparent) sont-elles lisibles en plein jour ?</li>
+          <li><b>Chasse :</b> combien de temps pour trouver une photo à 30 m sans aide ? Où hésites-tu ?</li>
+          <li><b>Pile de photos :</b> sans essayer, devine-t-on qu’on peut faire glisser la photo du dessus ?</li>
+        </ul>
+      </div>
+    </article>
+  </section>
+
+  <p class="note" style="margin-top:32px">Limites de cette revue : les photos sont des images fictives (le texte écrit dessus fait partie de l’image, pas de l’app), le fond de la carte du monde n’a pas pu se charger ici, la caméra et la boussole sont simulées. Ce qui va bien : tailles des boutons (48 px au moins), confirmation avant de supprimer, charte rouge, saumon et blanc respectée partout, pile de photos lisible sur la carte.</p>
+
+  <div class="ask">
+    <h2>À toi : comment veux-tu voir les écrans ?</h2>
+    <ol>
+      <li>Je corrige tout de suite les 4 défauts d’affichage (0.009.3) ?</li>
+      <li>Pour chaque point de clarté et de parcours : garder, changer comme proposé, ou autrement ?</li>
+      <li>Tes envies écran par écran : maquettes V2 à suivre à la lettre, croquis, captures d’autres apps…</li>
+    </ol>
+  </div>
+</div>
