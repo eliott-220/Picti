@@ -53,7 +53,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   récente), RPC `photos_in_bounds`. Carte **orientable** depuis 0.011.0 (rotation à deux doigts,
   à plat : `touchPitch` coupé, `maxPitch: 0`) ; bouton boussole `.map-north` (visible dès que la
   carte est tournée, remet le nord en haut) ; les cônes de direction des vignettes sont
-  compensés (`heading - bearing`). Le processus de fond MapLibre est assemblé par Vite
+  compensés (`heading - bearing`). Vignettes et point « moi » : éléments React (portail dans le
+  conteneur de la carte) **replacés directement à chaque événement `move`** (`place`, attributs
+  `data-lon`/`data-lat`/`data-heading`) : sur iPhone, le rendu React attend la fin du geste et
+  les vignettes restaient figées 2 à 3 s (corrigé en 0.011.3). Le processus de fond MapLibre est assemblé par Vite
   (`?worker&url` + `setWorkerUrl`).
 - Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
   devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
@@ -77,7 +80,18 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   décale de ~30° pour 3 m de dérive GPS ; seul un écart moyen **persistant** (`persistentShift`
   4 m ou ½ précision, ~5 s) est rattrapé (`catchUp`) — ne jamais figer la position sans cette
   porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; sans
-  accéléromètre, la vitesse GPS dit si l'on bouge ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
+  accéléromètre, la vitesse GPS dit si l'on bouge ; `useLivePosition` la fait avancer à chaque image (accueil, chasse).
+  **Pas à pas** (depuis 0.011.3) : le GPS ne voit pas quelques mètres (±5 m), la photo gardait
+  sa taille et suivait le téléphone en avançant ou en reculant. Chaque pas d'une marche reconnue
+  (`MotionDetector.walked`) avance la position de `MOTION.stepLength` (0,65 m) dans le sens de la
+  marche : `direction`, tirée de l'élan des 3 premiers pas (vitesse horizontale intégrée dans le
+  repère de l'objectif : avant, arrière, côté ; à défaut droit devant), tournée sur le terrain
+  par `stepDirection` (orientation du téléphone), appliquée par `walkPosition` → `walkTrack` ;
+  signe de l'accéléromètre vérifié contre l'orientation (`accelerometerSign` : certains
+  navigateurs l'inversent, ce qui inverserait avant/arrière).
+  Tant qu'un écran avance ainsi (`keepStepping`, `updateTrack(…, stepping)`), le GPS (en retard)
+  ne tire pas la position pendant la marche ni juste après ; seul un écart qui persiste une fois
+  arrêté la corrige (pas comptés dans le mauvais sens). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
   capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
@@ -103,7 +117,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.011.1** (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`, commit `4322b70`, branche `claude/nice-cori-zbpf7v`, mise en ligne le 29/09/2026 ; PR eliott-220/Picti#2 pas encore fusionnée dans `main`). Retour arrière possible : 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.011.3** (`dpl_DqK5cFg7S4rQjTvfyzb4j11gSdZA`, commit `bfc2431`, branche `claude/youthful-cannon-962c45`, confirmée READY sur picti.vercel.app le 30/09/2026 ; pull request eliott-220/Picti#3 vers `main`). Retour arrière possible : 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -114,7 +128,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `package.json` (et `package-lock.json`)** : fonctionnalité → `0.9.0`, correction → `0.8.2`.
 - Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
   l'orientation de l'objectif avant (`frontCameraBasis` : cap +180°, inclinaison et roulis
-  inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Ensuite, mêmes
+  inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Distance du sujet
+  **0,6 m** (`SELFIE_DEPTH`, l'auteur à bout de bras) depuis 0.011.3 : à 6 m comme les autres, le
+  visage devenait un portrait géant ; les selfies enregistrés avant à 6 m sont lus à 0,6 m
+  (`rowToPhoto`). Ensuite, mêmes
   règles que toute photo : on la retrouve en visant, depuis la place du téléphone, l'endroit
   où se tenait l'auteur.
 - **Autorisations mémorisées** (`src/sensors/permissions.ts`, `localStorage`
@@ -154,10 +171,24 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
 - 0.011.1 : focale de la caméra mesurée automatiquement (iPhone Pro : la photo ne reste plus
   décalée après avoir tourné) ; affichée dans le menu.
-- Prochaines étapes : test terrain de 0.011.1 sur iPhone Pro (focale mesurée dans le menu, photo
-  plus décalée après avoir tourné ; carte orientable) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
-  Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
-  notifications de proximité ; piste VPS/native.
+- 0.011.2 : défauts d'affichage de la revue ergonomique du 30/09 : bouton retour qui chevauchait
+  les titres et crayon « Renommer » invisible (`:where(.round-btn)` sans poids, pour que
+  `.back-btn` / `.detail-edit` gardent leur position absolue), recherche qui débordait à droite
+  (`.search-field { min-width: 0 }`), titres « Mes proies (1) » au lieu de « Mes 1 proie »,
+  étiquette du viseur sans l'année en cours (`formatDayTime`) pour ne plus couper l'heure.
+- 0.011.3 : selfies à taille réelle (sujet à 0,6 m au lieu de 6 m) ; position qui avance pas à pas
+  (accéléromètre + orientation) : en avançant ou en reculant de quelques mètres, la photo grandit
+  ou rapetisse à sa place au lieu de suivre le téléphone ; carte : vignettes et position qui suivent
+  le doigt pendant le déplacement (elles restaient figées puis se replaçaient 2 à 3 s après).
+- Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
+  la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
+- Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
+  pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
+- Prochaines étapes : test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
+  choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
+  plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
+  d'e-mails français dans `supabase/templates/`, à coller dans Supabase › Authentication › Emails ;
+  envoi d'e-mails : SMTP intégré limité) ; notifications de proximité ; piste VPS/native.
 
 ## Journal des discussions
 
@@ -177,3 +208,5 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — La photo bouge et reste trop grande de loin (0.010.1)](claude/picti/2026-09-29-photo-stable-et-lointaine.md)
 - [2026-09-29 — Carte orientable (0.011.0)](claude/picti/2026-09-29-carte-orientable.md)
 - [2026-09-29 — Photo encore un peu décalée sur iPhone Pro : focale mesurée (0.011.1)](claude/picti/2026-09-29-focale-mesuree.md)
+- [2026-09-30 — Améliorer l'ergonomie de l'app](claude/picti/2026-09-30-ergonomie.md)
+- [2026-09-30 — Selfie trop grand, photo qui suit en avançant, carte figée (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)

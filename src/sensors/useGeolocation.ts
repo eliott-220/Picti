@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { GeoFix } from '../geo/geodesy'
-import { trackFix, updateTrack, type Track } from '../geo/tracking'
+import { trackFix, updateTrack, walkTrack, type Track } from '../geo/tracking'
 import { currentMotion, watchMotion } from './motion'
 
 export interface GeolocationState {
@@ -31,6 +31,9 @@ const UNSUPPORTED: GeolocationState = { fix: null, track: null, error: 'Géoloca
 const KEEP_ALIVE_MS = 10_000
 
 let state = IDLE
+let track: Track | null = null
+/** Jusqu'à cet instant (ms), un écran fait avancer la position pas à pas (`walkPosition`). */
+let steppingUntil = 0
 const listeners = new Set<() => void>()
 let watch: { id: number; stopMotion: () => void } | null = null
 let users = 0
@@ -52,7 +55,7 @@ function startWatching() {
   clearTimeout(stopTimer)
   if (watch) return
   const stopMotion = watchMotion()
-  let track: Track | null = null
+  track = null
   const id = navigator.geolocation.watchPosition(
     (pos) => {
       track = updateTrack(
@@ -67,6 +70,7 @@ function startWatching() {
           speed: pos.coords.speed,
         },
         currentMotion(),
+        Date.now() < steppingUntil,
       )
       publish({ fix: trackFix(track), track, error: null })
     },
@@ -81,7 +85,21 @@ function stopWatching() {
   navigator.geolocation.clearWatch(watch.id)
   watch.stopMotion()
   watch = null
+  track = null
   publish(IDLE)
+}
+
+/** Un écran fait avancer la position pas à pas : le GPS ne la tire plus pendant la marche. */
+export function keepStepping() {
+  steppingUntil = Date.now() + 2000
+}
+
+/** Fait avancer la position de `de`, `dn` m (Est, Nord), selon les pas comptés ; false sans position. */
+export function walkPosition(de: number, dn: number): boolean {
+  if (!track) return false
+  track = walkTrack(track, de, dn)
+  publish({ ...state, fix: trackFix(track), track })
+  return true
 }
 
 /**

@@ -1065,6 +1065,7 @@ img {
 
 .search-field {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1290,7 +1291,9 @@ img {
 
 /* ---------- Personnes ---------- */
 
-.round-btn {
+/* Repère de la pastille. Sans poids (:where) : les boutons placés en absolu
+   (.back-btn, .detail-edit…) gardent leur position, quel que soit l'ordre des règles. */
+:where(.round-btn) {
   position: relative;
 }
 
@@ -1489,11 +1492,13 @@ img {
 }
 
 .timeline-text strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: 15px;
   font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .timeline-text span {

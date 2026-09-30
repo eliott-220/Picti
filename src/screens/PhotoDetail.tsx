@@ -10,12 +10,14 @@ import { canSaveOthersPhotos } from '../data/premium'
 import { savePhotoToDevice } from '../data/savePhoto'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
-import { isGeoframed, MODE_LABEL, photoDate, photoTitleAndDate, VISIBILITY_LABEL, type GeoPhoto, type Visibility } from '../data/types'
+import { isGeoframed, MODE_LABEL, photoDate, photoTitleAndDate, SELFIE_DEPTH, VISIBILITY_LABEL, type GeoPhoto, type Visibility } from '../data/types'
 import { compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { goBack, navigate } from '../router'
 
 const DEPTHS = [2, 4, 6, 10, 20, 50]
+/** Selfie : l'auteur à bout de bras, en plus des distances habituelles. */
+const SELFIE_DEPTHS = [SELFIE_DEPTH, ...DEPTHS]
 const VISIBILITIES: Visibility[] = ['public', 'amis', 'prive']
 const VISIBILITY_HELP: Record<Visibility, string> = {
   public: 'Tous les utilisateurs de PICTI qui passent sur place peuvent la découvrir.',
@@ -228,9 +230,9 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
           <label className="field">
             Distance du sujet
             <select value={photo.depth} onChange={(e) => void saveChanges({ depth: Number(e.target.value) })}>
-              {DEPTHS.map((d) => (
+              {(photo.selfie ? SELFIE_DEPTHS : DEPTHS).map((d) => (
                 <option key={d} value={d}>
-                  {d} m
+                  {d.toLocaleString('fr-FR')} m{d === SELFIE_DEPTH ? ' (à bout de bras)' : ''}
                 </option>
               ))}
             </select>

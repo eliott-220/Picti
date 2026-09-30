@@ -21,7 +21,8 @@ Voir aussi : [Point d'étape du 29/09](2026-09-29-point-etape.md)
   - [x] Corrigé en 0.010.1 ([note](2026-09-29-photo-stable-et-lointaine.md)) : cap par le
     gyroscope, comptage des pas, position tenue à l'arrêt, photo réduite de loin.
   - [x] Mise en ligne de 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`).
-  - [ ] Nouveau test terrain.
+  - [~] Test terrain (30/09) : 0.011.1, rotation sur place à 3-4 m « pratiquement parfaite » ;
+    marche encore à tester.
   - Vérifier le numéro en bas du menu : doit afficher `0.009.2`.
   - Face à une photo, reculer de 5 à 10 m : elle doit **rétrécir et rester à sa place**.
   - La distance à la photo s'affiche dans le viseur (« · à 5 m »), « · marche » sur la

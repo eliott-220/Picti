@@ -39,7 +39,7 @@ export function Hunts() {
 
       <section className="card salmon">
         <h2 className="section-title">
-          Mes {proies.length} proie{proies.length > 1 ? 's' : ''}
+          Mes proies ({proies.length})
         </h2>
         {proies.length ? (
           <AvatarRow people={proies} />
@@ -52,7 +52,7 @@ export function Hunts() {
 
       <section className="card white">
         <h2 className="section-title">
-          Mes {captured.length} capture{captured.length > 1 ? 's' : ''}
+          Mes captures ({captured.length})
         </h2>
         {captured.length ? (
           <div className="grid">

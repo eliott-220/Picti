@@ -94,6 +94,13 @@ export interface Friendship {
 
 export const DEFAULT_DEPTH = 6
 
+/**
+ * Distance du sujet d'un selfie (m) : l'auteur, à bout de bras. Placée à 6 m comme les
+ * autres photos, son visage devenait un portrait géant de plusieurs mètres ; à 0,6 m il
+ * flotte à sa taille réelle, là où il se tenait.
+ */
+export const SELFIE_DEPTH = 0.6
+
 export const isGeoframed = (p: GeoPhoto): p is GeoPhoto & { geoframe: Geoframe; mode: GeoframeMode } =>
   p.geoframe != null && p.mode != null
 
@@ -121,6 +128,17 @@ export function formatDateTime(ts: number | null | undefined, { short = false } 
   if (ts == null) return 'Date inconnue'
   if (!short) return `${formatDate(ts)} à ${formatTime(ts)}`
   const day = new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${day} · ${formatTime(ts)}`
+}
+
+/**
+ * Version courte sans l'année quand c'est l'année en cours, ex. « 28 sept. · 17:05 » :
+ * tient dans l'étiquette étroite du viseur sans couper l'heure.
+ */
+export function formatDayTime(ts: number | null | undefined, now = Date.now()): string {
+  if (ts == null) return 'Date inconnue'
+  if (new Date(ts).getFullYear() !== new Date(now).getFullYear()) return formatDateTime(ts, { short: true })
+  const day = new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   return `${day} · ${formatTime(ts)}`
 }
 

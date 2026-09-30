@@ -55,7 +55,7 @@ describe('conversion photo ⇄ ligne', () => {
   })
 
   it('fait l’aller-retour d’un selfie', () => {
-    const selfie: GeoPhoto = { ...photo, selfie: true, focal35: 23 }
+    const selfie: GeoPhoto = { ...photo, selfie: true, focal35: 23, depth: 0.6 }
     expect(rowToPhoto(asRow(selfie))).toEqual(selfie)
     expect(photoToRow(selfie).selfie).toBe(true)
   })
@@ -74,5 +74,11 @@ describe('storagePaths', () => {
       thumbPath: 'u1/p1_vignette.jpg',
     })
     expect(storagePaths('u1', 'p1', 'image/png').imagePath).toBe('u1/p1.png')
+  })
+
+  it('selfie enregistré à la distance par défaut : l’auteur était à bout de bras', () => {
+    expect(rowToPhoto(asRow({ ...photo, selfie: true })).depth).toBe(0.6)
+    expect(rowToPhoto(asRow({ ...photo, selfie: true, depth: 2 })).depth).toBe(2)
+    expect(rowToPhoto(asRow(photo)).depth).toBe(6)
   })
 })
