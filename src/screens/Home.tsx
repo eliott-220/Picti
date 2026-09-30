@@ -96,9 +96,9 @@ export function Home() {
 
   return (
     <main className="screen viewfinder" ref={stageRef}>
-      {/* Monde en noir et blanc : seules les photos géocadrées gardent leur couleur.
+      {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
           Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
-      <video ref={videoRef} className={`camera-video mono ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
+      <video ref={videoRef} className={`camera-video ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
       {cameraStatus === 'error' && (
         <div className="camera-fallback">
           <Icon name="image" size={40} />

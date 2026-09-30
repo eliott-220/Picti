@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useColorRule } from '../data/photoColor'
 import type { GeoPhoto } from '../data/types'
 import { distanceMeters, type GeoFix } from '../geo/geodesy'
 import type { ViewportCamera } from '../geo/optics'
@@ -44,6 +45,8 @@ export function ArSpotsLayer({
 }) {
   // Photo du dessus choisie pour chaque lieu.
   const [selection, setSelection] = useState<Record<string, string>>({})
+  // Photos des autres pas encore capturées : noir et blanc.
+  const inColor = useColorRule()
 
   const spots = useMemo(() => {
     if (!fix) return []
@@ -94,6 +97,7 @@ export function ArSpotsLayer({
             photo={s.cards[s.index].photo}
             transform={s.cards[s.index].ar.transform!}
             opacity={0.8 * s.cards[s.index].ar.fade}
+            saturation={inColor(s.cards[s.index].photo) ? 1 : 0}
             glass={!s.cards[s.index].ar.facing}
             onClick={() => onOpen(s.cards[s.index].photo)}
           />
@@ -145,6 +149,7 @@ function ArDeck({
   onOpen: (photo: GeoPhoto) => void
 }) {
   const n = cards.length
+  const inColor = useColorRule()
   const swipe = useCardSwipe((step) => onSelect(cards[cycle(index, step, n)].photo))
   const top = cards[index]
   const box = screenBox(top.ar)
@@ -168,6 +173,7 @@ function ArDeck({
             photo={below.photo}
             transform={below.ar.transform!}
             opacity={0.9 * below.ar.fade}
+            saturation={inColor(below.photo) ? 1 : 0}
             glass={!below.ar.facing}
           />
         </div>
@@ -181,6 +187,7 @@ function ArDeck({
           photo={top.photo}
           transform={top.ar.transform!}
           opacity={top.ar.fade}
+          saturation={inColor(top.photo) ? 1 : 0}
           glass={!top.ar.facing}
           onClick={() => onOpen(top.photo)}
           handlers={n > 1 ? swipe.handlers : undefined}

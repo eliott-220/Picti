@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { Avatar, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
+import { usePhotoInColor } from '../data/photoColor'
 import { PremiumCard } from '../components/PremiumCard'
 import { SwipeDeck } from '../components/SwipeDeck'
 import { usePhotosHere } from '../data/usePhotosHere'
@@ -264,5 +265,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
 /** Carte de la pile d'en-tête : la photo en grand. */
 function DetailCard({ id }: { id: string }) {
   const url = useImageUrl(id, 'full')
-  return <div className="detail-card" style={url ? { backgroundImage: `url(${url})` } : undefined} />
+  // Photo d'un autre pas encore capturée : noir et blanc (la capture lui rend ses couleurs).
+  const inColor = usePhotoInColor(id)
+  return <div className={`detail-card ${inColor ? '' : 'mono'}`} style={url ? { backgroundImage: `url(${url})` } : undefined} />
 }

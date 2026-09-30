@@ -136,6 +136,18 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   grande version (1 = sortie officielle), trois du milieu = nouvelle fonctionnalité, dernier =
   correction / petit ajustement. **À chaque changement livré, augmenter `version` dans
   `package.json` (et `package-lock.json`)** : fonctionnalité → `0.9.0`, correction → `0.8.2`.
+- **Couleurs inversées** (depuis 0.013.0, remplace le fond noir et blanc de 0.006.0) : caméra en
+  couleur partout ; une photo est en couleur si j'en suis l'auteur ou si je l'ai capturée, en noir
+  et blanc sinon — règle unique `photoInColor` / `useColorRule` / `usePhotoInColor`
+  (`src/data/photoColor.ts`), appliquée au viseur et aux piles (`ArPhoto saturation`), à la chasse,
+  aux vignettes (`PhotoTile` : classe `.mono`), à la carte (vignettes et pile, auteur fourni par la
+  carte) et à l'en-tête du détail. En chasse, la saturation suit le score d'alignement existant :
+  `huntSaturation` = 0 sous 0,15, courbe douce jusqu'à 40 % au score atteint à la limite des
+  tolérances de capture (`TOLERANCE_SCORE`, calculé depuis `ALIGN_TOLERANCE` et `ALIGN_SCORE`).
+  Première capture d'une photo d'un autre : copie en couleur révélée depuis le centre en 600 ms
+  (`.overlay-reveal`, `clip-path`), immédiate avec `prefers-reduced-motion`. Filtres CSS sur les
+  images seulement (`--sat`, `--glass-sat` pour la vitre), jamais sur la vidéo ; liseré clair fin +
+  ombre légère sur les photos en noir et blanc du viseur (`.overlay-photo.tinted`).
 - Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
   l'orientation de l'objectif avant (`frontCameraBasis` : cap +180°, inclinaison et roulis
   inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Distance du sujet
@@ -192,6 +204,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   le doigt pendant le déplacement (elles restaient figées puis se replaçaient 2 à 3 s après).
 - 0.012.0 : photos vues de dos, comme sur une vitre dépolie (floues, en miroir, avec un reflet) au lieu
   de disparaître une fois dépassées ; effacement en douceur quand on les voit par la tranche.
+- 0.013.0 : couleurs inversées — caméra en couleur, photos des autres en noir et blanc jusqu'à leur
+  capture (couleur progressive en s'alignant, jusqu'à 40 %, puis la couleur envahit la photo) ;
+  même règle partout (profil, chasses, listes, carte, piles). Combinée à la vitre (0.012.0).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -223,3 +238,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-30 — Améliorer l'ergonomie de l'app](claude/picti/2026-09-30-ergonomie.md)
 - [2026-09-30 — Selfie trop grand, photo qui suit en avançant, carte figée (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)
 - [2026-09-30 — Photos vues de dos, comme sur une vitre dépolie (0.012.0)](claude/picti/2026-09-30-photos-de-dos-vitre.md)
+- [2026-09-30 — Couleurs inversées : la couleur, récompense de la chasse (0.013.0)](claude/picti/2026-09-30-couleurs-inversees.md)

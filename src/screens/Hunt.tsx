@@ -6,6 +6,7 @@ import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
 import { useSpotCalibration } from '../components/useSpotCalibration'
 import { useStore } from '../data/storeContext'
+import { HUNT_COLOR, huntSaturation, usePhotoInColor } from '../data/photoColor'
 import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
 import { ALIGN_TOLERANCE, computeAlignment, guidance, viewerEye } from '../geo/alignment'
@@ -83,6 +84,10 @@ function HuntView({
   const firstCapture = phaseState.id === photo.id && phaseState.first
   const setPhase = (next: Phase, first = firstCapture) => setPhaseState({ id: photo.id, phase: next, first })
   const alreadyCaptured = captures.some((c) => c.photoId === photo.id)
+  // Couleurs inversées : une photo d'un autre pas encore capturée est en noir et blanc.
+  const inColor = usePhotoInColor(photo.id, photo.owner)
+  // En chassant, la couleur revient à mesure qu'on s'aligne (jusqu'à 40 %). Première capture
+  // d'une photo d'un autre : la couleur envahit la photo depuis son centre, par-dessus.
 
   const g = photo.geoframe
   const target = useMemo(
@@ -152,6 +157,7 @@ function HuntView({
 
   const hasOrientation = demo || (orientation.status === 'active' && orientation.absolute)
   const message = phase === 'hunting' ? guidance(al, hasOrientation) : 'Photo retrouvée ✓'
+  const revealing = phase !== 'hunting' && firstCapture && !isMine(photo)
   const approachArrow =
     !al.onSpot && al.bearing != null && viewerAngles ? angleDiffDeg(viewerAngles.heading, al.bearing) : null
 
@@ -164,7 +170,7 @@ function HuntView({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <video ref={videoRef} className="camera-video mono" playsInline muted autoPlay />
+      <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
       {transform && (
@@ -172,6 +178,8 @@ function HuntView({
           photo={photo}
           transform={transform}
           opacity={(al.aligned ? Math.max(opacity, 0.95) : opacity) * (ar?.fade ?? 1)}
+          saturation={revealing ? HUNT_COLOR.max : inColor || phase !== 'hunting' ? 1 : huntSaturation(al.score)}
+          reveal={revealing}
           glass={ar ? !ar.facing : false}
         />
       )}

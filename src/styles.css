@@ -298,12 +298,6 @@ img {
   object-fit: cover;
 }
 
-/* Fond caméra en noir et blanc (accueil, chasse, recalage) : seules les photos restent en couleur.
-   Filtre d'affichage seulement : la capture lit le flux brut, la photo prise reste en couleur. */
-.camera-video.mono {
-  filter: grayscale(1);
-}
-
 /* Selfie : aperçu en miroir, comme un reflet (la capture lit le flux brut, non inversé). */
 .camera-video.mirror {
   transform: scaleX(-1);
@@ -1467,10 +1461,47 @@ img {
   pointer-events: none;
 }
 
-/* Photo vue de dos : imprimée sur une vitre dépolie. */
-.overlay-photo.glass {
-  filter: blur(12px) saturate(0.55) brightness(1.08);
+/* Photo d'un autre pas encore capturée : noir et blanc (ou couleur partielle pendant la chasse,
+   `--sat`), détachée du décor en couleur par un liseré clair fin et une ombre légère. */
+.overlay-photo.tinted {
+  filter: saturate(var(--sat, 0));
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.9),
+    0 4px 14px rgb(0 0 0 / 0.3);
+}
+
+/* Capture : la couleur envahit la photo depuis son centre. */
+.overlay-reveal {
   box-shadow: none;
+  animation: color-reveal 0.6s ease-out forwards;
+}
+
+@keyframes color-reveal {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(75% at 50% 50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-reveal {
+    animation: none;
+  }
+}
+
+/* Photo vue de dos : imprimée sur une vitre dépolie (saturation réduite, noir et blanc compris). */
+.overlay-photo.glass {
+  filter: blur(12px) saturate(var(--glass-sat, 0.55)) brightness(1.08);
+  box-shadow: none;
+}
+
+/* Vignettes et images des photos des autres pas encore capturées (profil, listes, carte, piles). */
+.mono,
+.tile img.mono,
+.deck-photo img.mono {
+  filter: grayscale(1);
 }
 
 .overlay-glass {
