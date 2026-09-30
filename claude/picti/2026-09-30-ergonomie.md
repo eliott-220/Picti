@@ -74,10 +74,14 @@ temps pour trouver une photo, glissement de la pile deviné ou non.
 
 ## Test terrain de l'ancrage (30/09)
 
-Retour d'Eliott sur iPhone : « pratiquement parfait, la photo ne bouge pratiquement plus
-lorsque je pivote le téléphone et que je me situe à 3/4 mètres d'elle ». Il parlait de
-« 11.1 », mais cette version n'existe pas : la version en ligne est la **0.009.2** (c'est
-sans doute celle-là ; vérifier le numéro en bas du menu). Reste à vérifier : s'éloigner
+Retour d'Eliott sur iPhone, version **0.011.1** (en production depuis le 29/09, branche
+`claude/nice-cori-zbpf7v`) : « pratiquement parfait, la photo ne bouge pratiquement plus
+lorsque je pivote le téléphone et que je me situe à 3/4 mètres d'elle ».
+
+Erreur de Claude corrigée : Claude avait d'abord répondu que 0.011.1 n'existait pas, en ne
+regardant que `main` (0.009.2). Cette branche n'a jamais été fusionnée dans `main` ; la
+revue ergonomique ci-dessus a donc été faite sur **0.009.2**. À revoir sur 0.011.1 :
+« mot de passe oublié » existe déjà (0.010.0), la carte a changé (0.011.0). Reste à vérifier : s'éloigner
 de 5 à 10 m en marchant (la photo doit rétrécir et rester à sa place).
 
 ## Suite
