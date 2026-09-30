@@ -8,7 +8,8 @@ import { RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
-import { isGeoframed } from '../data/types'
+import { isGeoframed, type GeoPhoto } from '../data/types'
+import { CAPTURE_RADIUS, computeAlignment, withinCaptureRadius } from '../geo/alignment'
 import { FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
@@ -21,6 +22,9 @@ import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
+
+/** Précision GPS (m) au-delà de laquelle une photo prise risque d'être mal placée. */
+const PRECISE_FIX = 15
 
 /** Accueil : le viseur, point de départ du géocadrage en direct. */
 export function Home() {
@@ -38,7 +42,7 @@ export function Home() {
   // Focale de la caméra principale, mesurée en tournant le téléphone.
   const { focal35 } = useCameraFocal()
   useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)
-  const { addPhoto, nearby, captures, isMine, photos } = useStore()
+  const { addPhoto, addCapture, nearby, captures, isMine, photos } = useStore()
   const toast = useToast()
   useNearbyRefresh(geo.fix)
 
@@ -48,6 +52,28 @@ export function Home() {
   // Toutes les photos géocadrées connues (le viseur ne garde que celles d'alentour) :
   // une photo qu'on vient de prendre y apparaît aussitôt, sans attendre la recherche à proximité.
   const arPhotos = useMemo(() => photos.filter((p): p is GeoframedPhoto => isGeoframed(p)), [photos])
+
+  /** Capture directe depuis le viseur : la photo visée, d'un autre, passe en couleur. */
+  async function captureHere(p: GeoPhoto) {
+    if (!isGeoframed(p)) return
+    const g = p.geoframe
+    // Score conservé avec la capture : l'alignement du moment, comme en chasse.
+    const { score, distance } = computeAlignment(
+      { position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } },
+      { position: position ?? geo.fix, angles: orientation.angles },
+    )
+    if (!withinCaptureRadius(distance)) {
+      toast(`Approchez-vous à moins de ${CAPTURE_RADIUS} m de l’endroit de la prise de vue`)
+      return
+    }
+    navigator.vibrate?.([60, 40, 120])
+    try {
+      await addCapture(p.id, score)
+      toast('Photo capturée', { label: 'Voir', to: `/photo/${p.id}` })
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Capture impossible')
+    }
+  }
 
   async function shoot() {
     if (busy) return
@@ -78,10 +104,17 @@ export function Home() {
       await addPhoto(photo, images)
       navigator.vibrate?.(30)
       if (photo.geoframe) {
-        toast(selfie ? 'Selfie géocadré et publié' : 'Photo géocadrée et publiée', {
-          label: 'Voir',
-          to: `/photo/${photo.id}`,
-        })
+        const accuracy = photo.geoframe.accuracy
+        // GPS encore imprécis (premières secondes, intérieur) : la photo pourra paraître décalée.
+        const vague = accuracy != null && accuracy > PRECISE_FIX
+        toast(
+          vague
+            ? `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'}, mais GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée`
+            : selfie
+              ? 'Selfie géocadré et publié'
+              : 'Photo géocadrée et publiée',
+          { label: 'Voir', to: `/photo/${photo.id}` },
+        )
       } else {
         const missing = !geo.fix ? 'position GPS' : 'boussole'
         const kind = selfie ? 'Selfie gardé' : 'Photo gardée'
@@ -96,9 +129,9 @@ export function Home() {
 
   return (
     <main className="screen viewfinder" ref={stageRef}>
-      {/* Monde en noir et blanc : seules les photos géocadrées gardent leur couleur.
+      {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
           Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
-      <video ref={videoRef} className={`camera-video mono ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
+      <video ref={videoRef} className={`camera-video ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
       {cameraStatus === 'error' && (
         <div className="camera-fallback">
           <Icon name="image" size={40} />
@@ -114,6 +147,7 @@ export function Home() {
           cam={viewportCamera(stage, cameraSize, focal35)}
           isMine={isMine}
           onOpen={(p) => navigate(`/chasse/${p.id}`)}
+          onCapture={captureHere}
         />
       )}
       {flash && <div className="flash" />}

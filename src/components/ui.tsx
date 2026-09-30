@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { useImageUrl } from '../data/imageUrls'
+import { usePhotoInColor } from '../data/photoColor'
 import { Dots } from './Dots'
 import { Icon, type IconName } from './Icon'
 
@@ -51,8 +52,11 @@ export function PhotoTile({
   size = 'grid',
   label,
   stack = 1,
+  owner,
 }: {
   id: string
+  /** Auteur, si l'appelant le connaît mieux que le store (carte) : règle de couleur. */
+  owner?: string
   /** Nom accessible (sinon la légende). */
   label?: string
   onClick?: () => void
@@ -63,9 +67,11 @@ export function PhotoTile({
   stack?: number
 }) {
   const url = useImageUrl(id, 'thumb')
+  // Photo d'un autre pas encore capturée : noir et blanc.
+  const inColor = usePhotoInColor(id, owner)
   const tile = (
     <button type="button" className={`tile tile-${size}`} onClick={onClick} aria-label={label}>
-      {url ? <img src={url} alt="" loading="lazy" /> : <span className="tile-placeholder" />}
+      {url ? <img src={url} alt="" loading="lazy" className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
       {badge && <span className="tile-badge">{badge}</span>}
       {caption && <span className="tile-caption">{caption}</span>}
       {stack > 1 && <Dots count={stack} index={0} className="light tile-dots" />}

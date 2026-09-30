@@ -7,10 +7,12 @@ import { coverViewport, DEFAULT_PHONE_FOCAL35, focalPx, type ViewportCamera } fr
 import { basisFromAngles, type CameraBasis } from '../geo/orientation'
 import {
   displayScale,
+  edgeFade,
   facesViewer,
   photoPlaneCorners,
   projectPhoto,
   quadTransform,
+  viewCosine,
   type PhotoProjection,
   type Quad,
 } from '../geo/projection'
@@ -44,8 +46,10 @@ export interface ArProjection {
   corners: Quad<Vec3>
   /** Position de l'œil utilisée (repère ENU centré sur le point de vue). */
   eye: Vec3
-  /** On voit la photo de face (on ne l'a pas dépassée). */
+  /** On voit la photo de face (on ne l'a pas dépassée) ; sinon de dos, comme sur une vitre. */
   facing: boolean
+  /** Opacité selon l'angle de vue : 1 de face ou de dos, 0 par la tranche (`edgeFade`). */
+  fade: number
   projection: PhotoProjection
   /** Transformation CSS de la photo, null si elle n'est pas visible d'ici. */
   transform: string | null
@@ -57,7 +61,10 @@ export interface ArProjection {
 /**
  * Projette une photo depuis la position du spectateur : elle reste à sa
  * place dans le décor quand il se déplace, et paraît lointaine de loin
- * (`displayScale`). Sans position, on le suppose au point de vue.
+ * (`displayScale`). Une fois dépassée, elle reste visible de dos, comme
+ * imprimée sur une vitre : l'homographie du plan vu de derrière donne
+ * d'elle-même l'image en miroir. Par la tranche, elle s'efface (`fade`).
+ * Sans position, on le suppose au point de vue.
  * `offset` : recalage au point de vue (chasse).
  */
 export function projectGeoPhoto(
@@ -73,14 +80,21 @@ export function projectGeoPhoto(
   const photoBasis = basisFromAngles(g)
   const corners = photoPlaneCorners(photoBasis, photo, undefined, displayScale(photoBasis, photo, eye))
   const facing = facesViewer(photoBasis, photo.depth, eye)
+  const fade = edgeFade(viewCosine(photoBasis, photo.depth, eye))
   const raw = projectPhoto(corners, eye, basis, cam)
-  const projection = facing ? raw : { ...raw, onScreen: false }
-  const visible = facing && projection.inFront
+  const visible = fade > 0 && raw.inFront
+  const projection = visible ? raw : { ...raw, onScreen: false }
   const transform = visible ? quadTransform(OVERLAY_W, overlayHeight(photo), projection.corners) : null
   const cx = projection.corners.reduce((s, c) => s + c.x, 0) / 4
   const cy = projection.corners.reduce((s, c) => s + c.y, 0) / 4
   const centerOffset = visible ? Math.hypot(cx - cam.width / 2, cy - cam.height / 2) : Infinity
-  return { corners, eye, facing, projection, transform, centerOffset, distance }
+  return { corners, eye, facing, fade, projection, transform, centerOffset, distance }
 }
 
 export const overlayHeight = (photo: GeoPhoto) => (OVERLAY_W * photo.height) / photo.width
+
+/** Échelle d'affichage de la photo (px d'écran par px de rendu), le long de son bord haut. */
+export function overlayScale(ar: ArProjection): number {
+  const [tl, tr] = ar.projection.corners
+  return Math.hypot(tr.x - tl.x, tr.y - tl.y) / OVERLAY_W
+}

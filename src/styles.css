@@ -298,12 +298,6 @@ img {
   object-fit: cover;
 }
 
-/* Fond caméra en noir et blanc (accueil, chasse, recalage) : seules les photos restent en couleur.
-   Filtre d'affichage seulement : la capture lit le flux brut, la photo prise reste en couleur. */
-.camera-video.mono {
-  filter: grayscale(1);
-}
-
 /* Selfie : aperçu en miroir, comme un reflet (la capture lit le flux brut, non inversé). */
 .camera-video.mirror {
   transform: scaleX(-1);
@@ -1465,6 +1459,159 @@ img {
   width: 42px;
   border-radius: 10px;
   pointer-events: none;
+}
+
+/* Photo d'un autre pas encore capturée : noir et blanc (ou couleur partielle pendant la chasse,
+   `--sat`), détachée du décor en couleur par un liseré clair fin et une ombre légère. */
+.overlay-photo.tinted {
+  filter: saturate(var(--sat, 0));
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.9),
+    0 4px 14px rgb(0 0 0 / 0.3);
+}
+
+/* Photo en couleur (la mienne ou capturée) : surbrillance animée, plus épaisse qu'un trait,
+   qui respire, avec un éclat qui la traverse de temps en temps. Opacité et translation
+   seulement : animées par la carte graphique, sans recalcul de la photo. */
+.overlay-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.overlay-shine::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* `--shine` : ≈ 4 px à l'écran, recalculé selon la distance. */
+  box-shadow:
+    inset 0 0 0 var(--shine, 7px) rgb(255 255 255 / 0.95),
+    inset 0 0 calc(var(--shine, 7px) * 4) var(--shine, 7px) rgb(255 255 255 / 0.55);
+  animation: shine-pulse 2.4s ease-in-out infinite;
+}
+
+.overlay-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  background: linear-gradient(100deg, rgb(255 255 255 / 0) 0%, rgb(255 255 255 / 0.35) 50%, rgb(255 255 255 / 0) 100%);
+  transform: translateX(-120%);
+  animation: shine-sweep 3.6s ease-in-out infinite;
+}
+
+@keyframes shine-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes shine-sweep {
+  0%,
+  55% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-shine::before {
+    animation: none;
+    opacity: 0.85;
+  }
+  .overlay-shine::after {
+    display: none;
+  }
+}
+
+/* Chasse : bouton « Capturer », au-dessus des jauges. */
+.capture-btn {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* Capture directe : la carte « Capturée ! » attend que la couleur ait envahi la photo. */
+.captured.after-reveal {
+  animation: captured-in 0.3s ease-out 0.65s both;
+}
+
+@keyframes captured-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .captured.after-reveal {
+    animation: none;
+  }
+}
+
+/* Capture : la couleur envahit la photo depuis son centre. */
+.overlay-reveal {
+  box-shadow: none;
+  animation: color-reveal 0.6s ease-out forwards;
+}
+
+@keyframes color-reveal {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(75% at 50% 50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-reveal {
+    animation: none;
+  }
+}
+
+/* Photo vue de dos : imprimée sur une vitre dépolie (saturation réduite, noir et blanc compris). */
+.overlay-photo.glass {
+  filter: blur(12px) saturate(var(--glass-sat, 0.55)) brightness(1.08);
+  box-shadow: none;
+}
+
+/* Vignettes et images des photos des autres pas encore capturées (profil, listes, carte, piles). */
+.mono,
+.tile img.mono,
+.deck-photo img.mono {
+  filter: grayscale(1);
+}
+
+.overlay-glass {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+  border-radius: 6px;
+  background: linear-gradient(
+    115deg,
+    rgb(255 255 255 / 0.32) 0%,
+    rgb(255 255 255 / 0) 35%,
+    rgb(255 255 255 / 0.14) 55%,
+    rgb(255 255 255 / 0) 75%
+  );
+  box-shadow:
+    inset 0 0 0 6px rgb(255 255 255 / 0.55),
+    inset 0 0 40px rgb(255 255 255 / 0.25);
+  transition: opacity 0.3s;
+  will-change: transform;
 }
 
 .overlay-photo.clickable {

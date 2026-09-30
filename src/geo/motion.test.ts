@@ -115,25 +115,29 @@ describe('pas et sens de la marche', () => {
 
   it('en avançant vers ce que vise la caméra : droit devant', () => {
     // La caméra vise −z : l'élan vers l'avant est une accélération selon −z.
-    const [f, r] = feed(null, 0, 4, setOff(1, [0, 0, -1.2]))!.direction
+    const [f, r] = feed(null, 0, 4, setOff(1, [0, 0, -1.2]))!.direction!
     expect(f).toBeGreaterThan(0.9)
     expect(Math.abs(r)).toBeLessThan(0.4)
   })
 
   it('en reculant (face à la photo) : vers l’arrière', () => {
-    const [f, r] = feed(null, 0, 4, setOff(1, [0, 0, 1.2]))!.direction
+    const [f, r] = feed(null, 0, 4, setOff(1, [0, 0, 1.2]))!.direction!
     expect(f).toBeLessThan(-0.9)
     expect(Math.abs(r)).toBeLessThan(0.4)
   })
 
   it('en marchant de côté : vers la droite', () => {
-    const [f, r] = feed(null, 0, 4, setOff(1, [1.2, 0, 0]))!.direction
+    const [f, r] = feed(null, 0, 4, setOff(1, [1.2, 0, 0]))!.direction!
     expect(r).toBeGreaterThan(0.9)
     expect(Math.abs(f)).toBeLessThan(0.4)
   })
 
-  it('sans élan net : droit devant', () => {
-    expect(feed(null, 0, 4, setOff(1, [0, 0, 0]))!.direction).toEqual([1, 0])
+  it('sans élan net (balancement sur place) : sens inconnu, les pas ne déplacent rien', () => {
+    expect(feed(null, 0, 4, setOff(1, [0, 0, 0]))!.direction).toBeNull()
+  })
+
+  it('avant toute marche : sens inconnu', () => {
+    expect(feed(null, 0, 2, tremor)!.direction).toBeNull()
   })
 })
 

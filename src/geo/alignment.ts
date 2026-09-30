@@ -12,16 +12,45 @@ export const ALIGN_TOLERANCE = {
   pitch: 6,
   /** Écart de roulis toléré (°). */
   roll: 12,
-  /** Rayon minimal (m) : en deçà, la précision du GPS ne permet pas mieux. */
-  radius: 8,
+  /**
+   * Rayon de capture (m) : pour capturer une photo, il faut être à moins de 5 m de l'endroit
+   * où elle a été prise (demande d'Eliott, 0.013.1), quelle que soit la précision du GPS.
+   */
+  radius: 5,
 }
+
+/** Rayon de capture (m), voir `ALIGN_TOLERANCE.radius`. */
+export const CAPTURE_RADIUS = ALIGN_TOLERANCE.radius
+
+/** À cette distance (m) du point de vue, peut-on capturer la photo ? */
+export const withinCaptureRadius = (distance: number | null | undefined): boolean =>
+  distance != null && distance <= CAPTURE_RADIUS
+
+/**
+ * Largeurs (°, m) des courbes du score d'alignement : l'écart pour lequel chaque terme
+ * retombe à 1/e. Le score n'est qu'une indication (la capture suit `ALIGN_TOLERANCE`).
+ */
+export const ALIGN_SCORE = {
+  heading: 12,
+  pitch: 12,
+  roll: 25,
+  /** Au-delà du rayon « sur place ». */
+  distance: 20,
+}
+
+/** Score atteint sur place, à la limite des tolérances de capture (≈ 0,48). */
+export const TOLERANCE_SCORE = Math.exp(
+  -((ALIGN_TOLERANCE.heading / ALIGN_SCORE.heading) ** 2) -
+    (ALIGN_TOLERANCE.pitch / ALIGN_SCORE.pitch) ** 2 -
+    (ALIGN_TOLERANCE.roll / ALIGN_SCORE.roll) ** 2,
+)
 
 export interface Alignment {
   /** Distance au point de vue (m), null sans position. */
   distance: number | null
   /** Cap à suivre pour rejoindre le point de vue. */
   bearing: number | null
-  /** Rayon dans lequel on considère être « sur place » (m). */
+  /** Rayon dans lequel on considère être « sur place » (m) : le rayon de capture. */
   radius: number
   /** Écarts signés : > 0 → tourner à droite / lever / pencher à droite. */
   headingError: number | null
@@ -37,7 +66,7 @@ export function computeAlignment(
   target: { position: GeoPoint; angles: CameraAngles },
   viewer: { position: GeoFix | null; angles: CameraAngles | null },
 ): Alignment {
-  const radius = Math.max(ALIGN_TOLERANCE.radius, viewer.position?.accuracy ?? 0)
+  const radius = CAPTURE_RADIUS
   const distance = viewer.position ? distanceMeters(viewer.position, target.position) : null
   const bearing = viewer.position && distance! > 0.5 ? bearingDeg(viewer.position, target.position) : null
   const a = viewer.angles
@@ -45,11 +74,16 @@ export function computeAlignment(
   const pitchError = a ? target.angles.pitch - a.pitch : null
   const rollError = a ? angleDiffDeg(a.roll, target.angles.roll) : null
 
-  const positionScore = distance == null ? 0 : distance <= radius ? 1 : Math.exp(-(((distance - radius) / 20) ** 2))
+  const positionScore =
+    distance == null ? 0 : distance <= radius ? 1 : Math.exp(-(((distance - radius) / ALIGN_SCORE.distance) ** 2))
   const orientationScore = a
-    ? Math.exp(-((headingError! / 12) ** 2) - (pitchError! / 12) ** 2 - (rollError! / 25) ** 2)
+    ? Math.exp(
+        -((headingError! / ALIGN_SCORE.heading) ** 2) -
+          (pitchError! / ALIGN_SCORE.pitch) ** 2 -
+          (rollError! / ALIGN_SCORE.roll) ** 2,
+      )
     : 0
-  const onSpot = distance != null && distance <= radius
+  const onSpot = withinCaptureRadius(distance)
   const aligned =
     onSpot &&
     Math.abs(headingError!) <= ALIGN_TOLERANCE.heading &&

@@ -88,6 +88,28 @@ export function facesViewer(basis: CameraBasis, depth: number, eye: Vec3): boole
   return dot(eye, basis.f) < depth
 }
 
+/**
+ * |cos| de l'angle entre la visée du spectateur vers le centre du plan-photo et l'axe de la
+ * prise de vue (`basis.f`) : 1 en face (ou pile derrière), 0 quand on voit le plan par la tranche.
+ */
+export function viewCosine(basis: CameraBasis, depth: number, eye: Vec3): number {
+  const toCenter = sub(scale(basis.f, depth), eye)
+  const d = norm(toCenter)
+  return d > 1e-9 ? Math.abs(dot(toCenter, basis.f)) / d : 1
+}
+
+/**
+ * Effacement par la tranche : sous `hidden` (≈ 85° de l'axe) la photo disparaît, au-delà de
+ * `full` (≈ 70°) elle est pleinement visible ; entre les deux, fondu progressif.
+ */
+export const EDGE_FADE = { hidden: 0.08, full: 0.35 }
+
+/** Opacité de 0 à 1 selon `viewCosine` (courbe douce, « smoothstep »). */
+export function edgeFade(cos: number): number {
+  const t = Math.min(1, Math.max(0, (cos - EDGE_FADE.hidden) / (EDGE_FADE.full - EDGE_FADE.hidden)))
+  return t * t * (3 - 2 * t)
+}
+
 /** Point projeté à l'écran ; `z` = profondeur le long de l'axe de visée. */
 export interface ScreenPoint {
   x: number

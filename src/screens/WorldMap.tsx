@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon'
 import { SwipeDeck } from '../components/SwipeDeck'
 import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
+import { usePhotoInColor } from '../data/photoColor'
 import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { formatDateTime } from '../data/types'
@@ -294,6 +295,7 @@ export default function WorldMap() {
                 >
                   <PhotoTile
                     id={latestId}
+                    owner={(single ?? photos.get(latestId))?.owner}
                     size="mini"
                     onClick={() => select(f)}
                     label={
@@ -394,6 +396,7 @@ export default function WorldMap() {
                 <PhotoTile
                   key={p.id}
                   id={p.id}
+                  owner={p.owner}
                   size="strip"
                   caption={`${formatDateTime(p.time, { short: true })}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
                   onClick={() => navigate(`/photo/${p.id}`)}
@@ -428,9 +431,10 @@ export default function WorldMap() {
 /** Carte de la pile : la photo entière (vignette), appui = détail. */
 function MapDeckCard({ photo, caption }: { photo: MapPhoto; caption: string }) {
   const url = useImageUrl(photo.id, 'thumb')
+  const inColor = usePhotoInColor(photo.id, photo.owner)
   return (
     <button type="button" className="deck-photo" onClick={() => navigate(`/photo/${photo.id}`)} aria-label={caption}>
-      {url ? <img src={url} alt="" draggable={false} /> : <span className="tile-placeholder" />}
+      {url ? <img src={url} alt="" draggable={false} className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
       <span className="tile-caption">{caption}</span>
     </button>
   )

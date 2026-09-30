@@ -104,6 +104,12 @@ function restoreCompass() {
 }
 if (typeof window !== 'undefined') restoreCompass()
 
+// Nord de la boussole (iPhone), partagé par tous les écrans : passer de l'accueil à la chasse
+// garde le même recalage du gyroscope au lieu de repartir de la boussole brute (bruitée) —
+// une photo reste au même endroit d'un écran à l'autre. Après une interruption (app en
+// arrière-plan), `updateNorth` recale d'abord vite, le repère du gyroscope ayant pu changer.
+let sharedNorth: NorthState | null = null
+
 function screenAngle(): number {
   return screen.orientation?.angle ?? (window as { orientation?: number }).orientation ?? 0
 }
@@ -132,7 +138,6 @@ export function useOrientation(enabled = true): OrientationState {
   useEffect(() => {
     if (!listening) return
     let basis: CameraBasis | null = null
-    let north: NorthState | null = null
     let absolute = false
     let last = 0
     let frame = 0
@@ -143,24 +148,27 @@ export function useOrientation(enabled = true): OrientationState {
     const onEvent = (e: Event) => {
       const ev = e as CompassEvent
       if (ev.alpha == null || ev.beta == null || ev.gamma == null) return
-      const now = performance.now()
+      // Horodatage de l'événement : le même pour tous les écrans qui l'écoutent (le nord
+      // partagé n'est intégré qu'une fois par mesure).
+      const now = ev.timeStamp > 0 ? ev.timeStamp : performance.now()
       let raw = rotateForScreen(basisFromDeviceOrientation(ev.alpha, ev.beta, ev.gamma), screenAngle())
       if (typeof ev.webkitCompassHeading === 'number' && ev.webkitCompassHeading >= 0) {
         // iOS : alpha vient du gyroscope, relatif à un repère arbitraire ; son écart avec
         // le nord de la boussole est recalé lentement (voir `geo/heading.ts`).
         const { heading, pitch } = anglesFromBasis(raw)
-        north = updateNorth(north, {
+        sharedNorth = updateNorth(sharedNorth, {
           gyroHeading: heading,
           compass: ev.webkitCompassHeading,
           accuracy: typeof ev.webkitCompassAccuracy === 'number' ? ev.webkitCompassAccuracy : null,
           pitch,
           t: now,
         })
-        raw = rotateAboutUp(raw, north.offset)
+        raw = rotateAboutUp(raw, sharedNorth.offset)
         absolute = true
-      } else if (north) {
+      } else if (sharedNorth) {
         // Boussole momentanément muette : on garde le dernier recalage.
-        raw = rotateAboutUp(raw, north.offset)
+        raw = rotateAboutUp(raw, sharedNorth.offset)
+        absolute = true
       } else {
         absolute = absoluteEvent || ev.absolute
       }

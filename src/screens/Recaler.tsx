@@ -16,6 +16,7 @@ import { goBack, navigate } from '../router'
 import { useCameraFocal } from '../sensors/cameraFocal'
 import { useCamera } from '../sensors/useCamera'
 import { useGeolocation } from '../sensors/useGeolocation'
+import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 
 const FOCAL_MIN = 13
@@ -63,6 +64,9 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
   const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
   const geo = useGeolocation()
   const orientation = useOrientation()
+  // Même position que l'accueil et la chasse (suivie image par image, pas à pas) : la photo
+  // recalée est enregistrée là où les autres écrans la montreront.
+  const position = useLivePosition(geo.track, orientation.absolute ? orientation.basis : null)
   const { focal35: cameraFocal35 } = useCameraFocal()
   const toast = useToast()
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
@@ -82,7 +86,7 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
   const hintDistance = hint && geo.fix ? distanceMeters(geo.fix, hint) : null
   const hintBearing = hint && geo.fix && hintDistance! > 1 ? bearingDeg(geo.fix, hint) : null
 
-  const { fix } = geo
+  const fix = position ?? geo.fix
   const angles = orientation.angles
   const blocker = !fix
     ? 'En attente de la position GPS…'
@@ -121,7 +125,7 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
 
   return (
     <main className="screen recaler" ref={stageRef}>
-      <video ref={videoRef} className="camera-video mono" playsInline muted autoPlay />
+      <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
       {url && stage.width > 0 && (

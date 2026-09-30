@@ -1,7 +1,7 @@
 // Composants de réalité augmentée partagés par l'accueil (photos du lieu)
 // et la chasse : photo superposée, frise des photos prises au même endroit.
 
-import type { HTMLAttributes } from 'react'
+import type { CSSProperties, HTMLAttributes } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { formatDayTime, type GeoPhoto } from '../data/types'
 import { formatDistance } from '../geo/geodesy'
@@ -11,35 +11,88 @@ import { Icon } from './Icon'
 import { PhotoTile } from './ui'
 import { useSwipe } from './useSwipe'
 
-/** Photo superposée au décor réel. */
+/** Opacité d'une photo vue de dos : imprimée sur une vitre dépolie. */
+export const GLASS_OPACITY = 0.45
+
+/** Épaisseur de la surbrillance à l'écran (px), quelle que soit la distance. */
+const SHINE_PX = 4
+
+/** Saturation d'une photo vue de dos, rapportée à celle de la photo (vitre un peu délavée). */
+const GLASS_SATURATION = 0.55
+
+/**
+ * Photo superposée au décor réel.
+ * - `saturation` : 0 = noir et blanc (photo d'un autre pas encore capturée), 1 = couleur ;
+ * - `reveal` : capture en cours, la couleur envahit la photo depuis son centre (≈ 600 ms) ;
+ * - en couleur (la mienne ou capturée), de face : surbrillance animée autour de la photo ;
+ * - `glass` : vue de dos (on l'a dépassée), comme imprimée sur une vitre dépolie — floue,
+ *   pâlie, avec un reflet ; l'image est déjà en miroir.
+ */
 export function ArPhoto({
   photo,
   transform,
   opacity,
+  saturation = 1,
+  reveal = false,
+  glass = false,
+  scale = 1,
   onClick,
   handlers,
 }: {
   photo: GeoPhoto
   transform: string
   opacity: number
+  saturation?: number
+  reveal?: boolean
+  glass?: boolean
+  /** Échelle d'affichage (`overlayScale`) : la surbrillance garde la même épaisseur à l'écran. */
+  scale?: number
   onClick?: () => void
   /** Gestes sur la photo (ex. glissement pour passer à la suivante). */
   handlers?: HTMLAttributes<HTMLImageElement>
 }) {
   const url = useImageUrl(photo.id, 'full')
   if (!url) return null
+  const shown = glass ? opacity * GLASS_OPACITY : opacity
+  const tinted = saturation < 1
+  const size = { width: OVERLAY_W, height: overlayHeight(photo) }
+  // Filtre réglé par variables CSS : un seul filtre, combiné à celui de la vitre.
+  const filter = { '--sat': saturation, '--glass-sat': saturation * GLASS_SATURATION } as CSSProperties
   return (
-    <img
-      className={`overlay-photo ${onClick ? 'clickable' : ''}`}
-      src={url}
-      alt=""
-      width={OVERLAY_W}
-      height={overlayHeight(photo)}
-      style={{ transform, opacity }}
-      draggable={false}
-      onClick={onClick}
-      {...handlers}
-    />
+    <>
+      <img
+        className={`overlay-photo ${tinted ? 'tinted' : ''} ${glass ? 'glass' : ''} ${onClick ? 'clickable' : ''}`}
+        src={url}
+        alt=""
+        {...size}
+        style={{ transform, opacity: shown, ...filter }}
+        draggable={false}
+        onClick={onClick}
+        {...handlers}
+      />
+      {/* Capture : copie en couleur révélée depuis le centre, par-dessus la photo en noir et blanc. */}
+      {reveal && (
+        <img
+          className="overlay-photo overlay-reveal"
+          src={url}
+          alt=""
+          aria-hidden
+          {...size}
+          style={{ transform, opacity: shown }}
+          draggable={false}
+        />
+      )}
+      {/* Photo en couleur (la mienne ou capturée) : surbrillance animée. */}
+      {saturation >= 1 && !reveal && !glass && (
+        <div
+          className="overlay-shine"
+          aria-hidden
+          style={{ ...size, transform, opacity: shown, '--shine': `${Math.min(40, SHINE_PX / Math.max(scale, 0.01))}px` } as CSSProperties}
+        />
+      )}
+      {/* Reflet de la vitre, par-dessus la photo. */}
+      {glass && <div className="overlay-glass" aria-hidden style={{ ...size, transform, opacity }} />}
+    </>
   )
 }
 
