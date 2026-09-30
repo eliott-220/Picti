@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Logo } from './components/Icon'
-import { useSession } from './data/auth'
+import { usePasswordRecovery, useSession } from './data/auth'
 import { StoreProvider } from './data/store'
 import { useStore } from './data/storeContext'
 import { supabase } from './data/supabase'
@@ -10,6 +10,7 @@ import { Home } from './screens/Home'
 import { Hunt } from './screens/Hunt'
 import { Hunts } from './screens/Hunts'
 import { Nearby } from './screens/Nearby'
+import { NewPassword } from './screens/NewPassword'
 import { PhotoDetail } from './screens/PhotoDetail'
 import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
@@ -20,9 +21,12 @@ const WorldMap = lazy(() => import('./screens/WorldMap'))
 
 export default function App() {
   const session = useSession()
+  const [recovery, endRecovery] = usePasswordRecovery()
   if (session === undefined) return <Splash />
   // Un compte est obligatoire pour utiliser PICTI.
   if (!session) return <Auth />
+  // Arrivée par le lien « mot de passe oublié » : nouveau mot de passe d'abord.
+  if (recovery) return <NewPassword onDone={endRecovery} />
   return (
     <StoreProvider key={session.user.id} userId={session.user.id}>
       <Screens />

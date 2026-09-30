@@ -6,6 +6,7 @@ import type { Vec3 } from '../geo/math'
 import { coverViewport, DEFAULT_PHONE_FOCAL35, focalPx, type ViewportCamera } from '../geo/optics'
 import { basisFromAngles, type CameraBasis } from '../geo/orientation'
 import {
+  displayScale,
   facesViewer,
   photoPlaneCorners,
   projectPhoto,
@@ -23,15 +24,19 @@ export type GeoframedPhoto = GeoPhoto & { geoframe: Geoframe }
 /** Date de référence d'une photo : prise de vue, à défaut ajout. */
 export const photoTime = (p: GeoPhoto) => p.takenAt ?? p.addedAt
 
-/** Caméra de l'écran : le flux vidéo couvre la scène (object-fit: cover). */
+/**
+ * Caméra de l'écran : le flux vidéo couvre la scène (object-fit: cover).
+ * `focal35` : focale du flux, mesurée sur le téléphone (`useCameraFocal`).
+ */
 export function viewportCamera(
   stage: { width: number; height: number },
   cameraSize: { width: number; height: number } | null,
+  focal35 = DEFAULT_PHONE_FOCAL35,
 ): ViewportCamera | null {
   if (!stage.width) return null
   return cameraSize
-    ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, DEFAULT_PHONE_FOCAL35)
-    : { width: stage.width, height: stage.height, focal: focalPx(DEFAULT_PHONE_FOCAL35, stage.width, stage.height) }
+    ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, focal35)
+    : { width: stage.width, height: stage.height, focal: focalPx(focal35, stage.width, stage.height) }
 }
 
 export interface ArProjection {
@@ -51,8 +56,9 @@ export interface ArProjection {
 
 /**
  * Projette une photo depuis la position du spectateur : elle reste à sa
- * place dans le décor quand il se déplace. Sans position, on le suppose
- * au point de vue. `offset` : recalage au point de vue (chasse).
+ * place dans le décor quand il se déplace, et paraît lointaine de loin
+ * (`displayScale`). Sans position, on le suppose au point de vue.
+ * `offset` : recalage au point de vue (chasse).
  */
 export function projectGeoPhoto(
   photo: GeoframedPhoto,
@@ -65,7 +71,7 @@ export function projectGeoPhoto(
   const distance = fix ? distanceMeters(fix, g.position) : null
   const eye: Vec3 = fix ? viewerEye(g.position, fix, offset) : [0, 0, 0]
   const photoBasis = basisFromAngles(g)
-  const corners = photoPlaneCorners(photoBasis, photo)
+  const corners = photoPlaneCorners(photoBasis, photo, undefined, displayScale(photoBasis, photo, eye))
   const facing = facesViewer(photoBasis, photo.depth, eye)
   const raw = projectPhoto(corners, eye, basis, cam)
   const projection = facing ? raw : { ...raw, onScreen: false }

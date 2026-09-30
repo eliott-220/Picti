@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Icon, Logo } from '../components/Icon'
-import { authErrorMessage } from '../data/auth'
-import { supabase } from '../data/supabase'
+import { authErrorMessage, authLinkErrorMessage } from '../data/auth'
+import { authLinkError, supabase } from '../data/supabase'
 
 const STEPS = [
   {
@@ -21,17 +21,25 @@ const STEPS = [
   },
 ] as const
 
-type Mode = 'inscription' | 'connexion'
+type Mode = 'inscription' | 'connexion' | 'oubli'
 
 /** Première connexion : présentation du géocadrage, création de compte ou connexion. */
 export function Auth() {
-  const [mode, setMode] = useState<Mode>('inscription')
+  // Lien de l'e-mail expiré : on revient directement sur la demande d'un nouveau lien.
+  const [mode, setMode] = useState<Mode>(authLinkError ? 'oubli' : 'inscription')
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(
+    authLinkError ? { text: authLinkErrorMessage(authLinkError), error: true } : null,
+  )
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setMessage(null)
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -55,6 +63,16 @@ export function Auth() {
           })
           setMode('connexion')
         }
+      } else if (mode === 'oubli') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        })
+        if (error) throw error
+        // Même message que le compte existe ou non : on ne révèle pas qui est inscrit.
+        setMessage({
+          text: 'Si un compte existe avec cette adresse, vous allez recevoir un e-mail : ouvrez le lien qu’il contient sur ce téléphone pour choisir un nouveau mot de passe.',
+          error: false,
+        })
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (error) throw error
@@ -67,6 +85,7 @@ export function Auth() {
   }
 
   const signup = mode === 'inscription'
+  const forgot = mode === 'oubli'
 
   return (
     <main className="welcome">
@@ -97,7 +116,7 @@ export function Auth() {
             role="tab"
             aria-selected={signup}
             className={`chip ${signup ? 'selected' : ''}`}
-            onClick={() => setMode('inscription')}
+            onClick={() => switchMode('inscription')}
           >
             Créer un compte
           </button>
@@ -106,12 +125,15 @@ export function Auth() {
             role="tab"
             aria-selected={!signup}
             className={`chip ${!signup ? 'selected' : ''}`}
-            onClick={() => setMode('connexion')}
+            onClick={() => switchMode('connexion')}
           >
             Se connecter
           </button>
         </div>
 
+        {forgot && (
+          <p className="form-intro">Indiquez l’adresse de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.</p>
+        )}
         {signup && (
           <>
             <label>
@@ -135,23 +157,35 @@ export function Auth() {
             required
           />
         </label>
-        <label>
-          Mot de passe
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={signup ? 'new-password' : 'current-password'}
-            minLength={6}
-            required
-          />
-        </label>
+        {!forgot && (
+          <label>
+            Mot de passe
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={signup ? 'new-password' : 'current-password'}
+              minLength={6}
+              required
+            />
+          </label>
+        )}
 
         {message && <p className={`form-message ${message.error ? 'error' : ''}`}>{message.text}</p>}
 
         <button type="submit" className="btn" disabled={busy}>
-          {busy ? 'Un instant…' : signup ? 'Créer mon compte' : 'Me connecter'}
+          {busy ? 'Un instant…' : signup ? 'Créer mon compte' : forgot ? 'Recevoir le lien' : 'Me connecter'}
         </button>
+        {mode === 'connexion' && (
+          <button type="button" className="text-link" onClick={() => switchMode('oubli')}>
+            Mot de passe oublié ?
+          </button>
+        )}
+        {forgot && (
+          <button type="button" className="text-link" onClick={() => switchMode('connexion')}>
+            Retour à la connexion
+          </button>
+        )}
         {signup && <p className="fine">Vos photos sont publiques par défaut ; vous pouvez les réserver à vos amis ou les garder privées.</p>}
       </form>
     </main>

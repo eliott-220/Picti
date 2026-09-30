@@ -1,6 +1,7 @@
 import { Icon, Logo, type IconName } from '../components/Icon'
 import { Sheet } from '../components/ui'
 import { useStore } from '../data/storeContext'
+import { useCameraFocal } from '../sensors/cameraFocal'
 import { formatVersion, reloadApp } from '../data/appUpdate'
 import { supabase } from '../data/supabase'
 import { isGeoframed } from '../data/types'
@@ -8,6 +9,7 @@ import { navigate } from '../router'
 
 export function MenuSheet({ onClose }: { onClose: () => void }) {
   const { myPhotos, captures, profile } = useStore()
+  const { focal35, measured } = useCameraFocal()
   const geoframed = myPhotos.filter(isGeoframed).length
   const hunted = new Set(captures.map((c) => c.photoId)).size
 
@@ -50,7 +52,12 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
         Se déconnecter
       </button>
       <div className="menu-footer">
-        <span>{formatVersion()}</span>
+        <span>
+          {formatVersion()}
+          <small>
+            Caméra {focal35.toFixed(0)} mm{measured ? ' (mesurée)' : ''}
+          </small>
+        </span>
         <button type="button" className="btn small ghost" onClick={reloadApp}>
           <Icon name="reload" size={18} /> Recharger
         </button>

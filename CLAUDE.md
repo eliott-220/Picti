@@ -36,7 +36,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 
 - Vite + React 19 + TypeScript, PWA statique (routage par ancre `#/…`).
 - Backend **Supabase** (projet `picti`, ref `fiybbfiyrnptnpwqkrji`, Paris) : compte obligatoire
-  (e-mail + mot de passe), tables `profiles`, `friendships`, `photos`, `captures`, RPC
+  (e-mail + mot de passe ; **mot de passe oublié** depuis 0.010.0 : `resetPasswordForEmail` → lien vers `window.location.origin` → écran `NewPassword`, repéré par `openedFromRecoveryLink` lu avant que Supabase n'efface l'adresse, et par l'événement `PASSWORD_RECOVERY`), tables `profiles`, `friendships`, `photos`, `captures`, RPC
   `nearby_photos`, bucket privé `photos` (dossier par utilisateur, URLs signées). Toutes les
   règles d'accès sont en RLS : voir `supabase/migrations/`. Visibilité par photo :
   `public` (défaut) / `amis` / `prive`. Config client : `src/config.ts`.
@@ -50,7 +50,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   dans le dépôt ; gestion des codes : voir `supabase/migrations/20260928160000_premium_codes.sql`.
 - Carte du monde : `src/screens/WorldMap.tsx` (chargée à la demande), MapLibre GL 6 +
   fond OpenFreeMap (gratuit, sans clé), regroupement Supercluster (vignette = photo la plus
-  récente), RPC `photos_in_bounds`. Le processus de fond MapLibre est assemblé par Vite
+  récente), RPC `photos_in_bounds`. Carte **orientable** depuis 0.011.0 (rotation à deux doigts,
+  à plat : `touchPitch` coupé, `maxPitch: 0`) ; bouton boussole `.map-north` (visible dès que la
+  carte est tournée, remet le nord en haut) ; les cônes de direction des vignettes sont
+  compensés (`heading - bearing`). Le processus de fond MapLibre est assemblé par Vite
   (`?worker&url` + `setWorkerUrl`).
 - Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
   devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
@@ -68,19 +71,39 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   l'œil sur le point de vue selon la distance (l'ancien `parallaxEye` faisait suivre la photo
   au téléphone dans un rayon de 8 à 30 m). Position : un seul suivi GPS partagé
   (`useGeolocation`, filtre de Kalman `src/geo/tracking.ts`) + accéléromètre
-  (`src/geo/motion.ts`, `src/sensors/motion.ts` : marche / vient de s'arrêter / immobile) ;
-  à l'arrêt, les allers-retours du GPS sont amortis mais un écart **persistant** est rattrapé
-  (`persistentShift` : marche non détectée, GPS en retard) — ne jamais figer la position sans
-  cette porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
+  (`src/geo/motion.ts`, `src/sensors/motion.ts` : **comptage des pas**, au moins 3 rebonds
+  verticaux réguliers — viser ou bouger le téléphone n'est pas marcher ; marche / vient de
+  s'arrêter / immobile) ; à l'arrêt, la position est **tenue** (`holdGain`) : une photo à 6 m se
+  décale de ~30° pour 3 m de dérive GPS ; seul un écart moyen **persistant** (`persistentShift`
+  4 m ou ½ précision, ~5 s) est rattrapé (`catchUp`) — ne jamais figer la position sans cette
+  porte de sortie (0.009.1 le faisait : 5 m de marche pouvaient être ignorés) ; sans
+  accéléromètre, la vitesse GPS dit si l'on bouge ; `useLivePosition` la fait avancer à chaque image (accueil, chasse). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
   capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
+- **Cap sur iPhone** (depuis 0.010.1, `src/geo/heading.ts`) : les mouvements viennent du
+  gyroscope (`alpha`) ; le nord de `webkitCompassHeading` n'est recalé que **lentement**
+  (τ 2 s), téléphone stable (< 8°/s) et objectif à moins de 55° de l'horizon ; recalage rapide
+  au démarrage, après une pause, ou si un grand écart persiste. Ne jamais revenir à un suivi
+  direct de la boussole : en retard quand on tourne, elle faisait « suivre la caméra » aux photos
+  (17° d'erreur en balayant, 14° encore après l'arrêt, contre 3,5° et 0,2°).
+- **Focale mesurée** (depuis 0.011.1, `src/geo/focalCalibration.ts`, `useFocalCalibration`,
+  `cameraFocal.ts`) : en tournant le téléphone, glissement de l'image (profil de colonnes, moitié
+  centrale, image réduite à 240 px) comparé à la rotation du gyroscope, seulement en rotation
+  régulière (même vitesse sur deux demi-fenêtres de 250 ms : insensible au retard de la vidéo) ;
+  médiane de 15 mesures de 15°, biais de perspective corrigé ; gardée dans `localStorage`
+  `picti.focale`, utilisée par l'écran (accueil, chasse, recalage) et les nouvelles photos ;
+  affichée dans le menu (« Caméra 24 mm (mesurée) »). Sans elle (26 mm supposés), sur iPhone
+  Pro (24 mm) la photo défilait moins vite que le décor et restait décalée (2,7° à 30°).
+- **Taille de loin** (depuis 0.010.1, `displayScale` dans `src/geo/projection.ts`) : le plan-photo
+  est réduit par `farScale` (1 au point de vue, ~⅓ à 20 m) avec une hauteur apparente minimale
+  de 5° : à 20 m, ~12 % de la largeur de l'écran (37 % avant) ; au point de vue, inchangé.
 - Commandes : `npm run dev`, `npm run dev:https` (test sur téléphone), `npm test`,
   `npm run lint`, `npm run build` (inclut `tsc -b`).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.009.2** (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`, commit `f0092fc`, confirmée READY sur picti.vercel.app le 29/09/2026). Retour arrière possible : 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.011.1** (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`, commit `4322b70`, branche `claude/nice-cori-zbpf7v`, mise en ligne le 29/09/2026 ; PR eliott-220/Picti#2 pas encore fusionnée dans `main`). Retour arrière possible : 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -125,8 +148,16 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   du spectateur, suivi GPS + accéléromètre, recalage au moment de la capture.
 - 0.009.2 : à l'arrêt, un déplacement que l'accéléromètre n'a pas vu (ou un GPS en retard) est
   rattrapé ; distance à la photo visée affichée dans le viseur, « · marche » sur la pastille GPS.
-- Prochaines étapes : test terrain de l'ancrage sur iPhone (0.009.2, en ligne depuis le 29/09) ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
-  notifications de proximité ; calibration de la focale ; piste VPS/native.
+- 0.010.0 : mot de passe oublié (demande d'un lien par e-mail, écran « Nouveau mot de passe », lien expiré signalé).
+- 0.010.1 : photos stables et lointaines : cap iPhone gyroscope + recalage lent de la boussole,
+  comptage des pas, position tenue à l'arrêt, photo réduite de loin (à 20 m : 12 % de l'écran).
+- 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
+- 0.011.1 : focale de la caméra mesurée automatiquement (iPhone Pro : la photo ne reste plus
+  décalée après avoir tourné) ; affichée dans le menu.
+- Prochaines étapes : test terrain de 0.011.1 sur iPhone Pro (focale mesurée dans le menu, photo
+  plus décalée après avoir tourné ; carte orientable) ; test terrain à plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles d'e-mails français dans `supabase/templates/`, à coller dans Supabase ›
+  Authentication › Emails ; envoi d'e-mails : SMTP intégré limité) ;
+  notifications de proximité ; piste VPS/native.
 
 ## Journal des discussions
 
@@ -142,3 +173,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-28 — Photo qui suit encore après 5 m (0.009.2)](claude/picti/2026-09-28-photo-suit-encore.md)
 - [2026-09-29 — Point d'étape : sur quoi se concentrer](claude/picti/2026-09-29-point-etape.md)
 - [2026-09-29 — Objectifs du jour](claude/picti/2026-09-29-objectifs-du-jour.md)
+- [2026-09-29 — Mot de passe oublié (0.010.0)](claude/picti/2026-09-29-mot-de-passe-oublie.md)
+- [2026-09-29 — La photo bouge et reste trop grande de loin (0.010.1)](claude/picti/2026-09-29-photo-stable-et-lointaine.md)
+- [2026-09-29 — Carte orientable (0.011.0)](claude/picti/2026-09-29-carte-orientable.md)
+- [2026-09-29 — Photo encore un peu décalée sur iPhone Pro : focale mesurée (0.011.1)](claude/picti/2026-09-29-focale-mesuree.md)

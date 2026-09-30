@@ -1270,6 +1270,24 @@ img {
   color: var(--red-deep);
 }
 
+.form-intro {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.text-link {
+  align-self: center;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--red);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
 /* ---------- Personnes ---------- */
 
 .round-btn {
@@ -1650,6 +1668,13 @@ img {
   gap: 16px;
 }
 
+/* Boussole de la carte : le nord, à toucher pour le remettre en haut. */
+.map-north span {
+  display: flex;
+  color: var(--red);
+  transition: transform 0.1s linear;
+}
+
 .map-sheet {
   position: absolute;
   left: 0;
@@ -1818,6 +1843,11 @@ img {
 
 .menu-footer .btn {
   flex-shrink: 0;
+}
+
+.menu-footer small {
+  display: block;
+  font-size: 12px;
 }
 
 .premium-gate {

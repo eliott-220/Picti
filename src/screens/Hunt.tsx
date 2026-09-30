@@ -14,7 +14,9 @@ import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/mat
 import { basisFromAngles, type CameraAngles } from '../geo/orientation'
 import { SAME_SPOT_RADIUS } from '../geo/spots'
 import { goBack } from '../router'
+import { useCameraFocal } from '../sensors/cameraFocal'
 import { useCamera } from '../sensors/useCamera'
+import { useFocalCalibration } from '../sensors/useFocalCalibration'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
@@ -66,6 +68,8 @@ function HuntView({
   const geo = useGeolocation()
   const position = useLivePosition(geo.track)
   const orientation = useOrientation()
+  const { focal35 } = useCameraFocal()
+  useFocalCalibration(videoRef, orientation.angles, cameraStatus === 'ready' && orientation.absolute)
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
   const [opacity, setOpacity] = useState(0.8)
   // chasse → capturée (célébration) → contemplation, pour la photo affichée.
@@ -119,7 +123,7 @@ function HuntView({
   // décor ; ensuite elle garde sa place quand on se déplace.
   const offset = useSpotCalibration(viewerFix && viewerEye(g.position, viewerFix), phase === 'hunting' && al.aligned)
 
-  const cam = viewportCamera(stage, cameraSize)
+  const cam = viewportCamera(stage, cameraSize, focal35)
   const ar = cam && viewerBasis ? projectGeoPhoto(photo, viewerFix, viewerBasis, cam, offset) : null
   const transform = ar?.transform ?? null
 
