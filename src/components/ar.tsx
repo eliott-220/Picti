@@ -11,35 +11,56 @@ import { Icon } from './Icon'
 import { PhotoTile } from './ui'
 import { useSwipe } from './useSwipe'
 
-/** Photo superposée au décor réel. */
+/** Opacité d'une photo vue de dos : imprimée sur une vitre dépolie. */
+export const GLASS_OPACITY = 0.45
+
+/**
+ * Photo superposée au décor réel. `glass` : vue de dos (on l'a dépassée), comme imprimée
+ * sur une vitre dépolie — floue, pâlie, avec un reflet ; l'image est déjà en miroir.
+ */
 export function ArPhoto({
   photo,
   transform,
   opacity,
+  glass = false,
   onClick,
   handlers,
 }: {
   photo: GeoPhoto
   transform: string
   opacity: number
+  glass?: boolean
   onClick?: () => void
   /** Gestes sur la photo (ex. glissement pour passer à la suivante). */
   handlers?: HTMLAttributes<HTMLImageElement>
 }) {
   const url = useImageUrl(photo.id, 'full')
   if (!url) return null
-  return (
+  const shown = glass ? opacity * GLASS_OPACITY : opacity
+  const img = (
     <img
-      className={`overlay-photo ${onClick ? 'clickable' : ''}`}
+      className={`overlay-photo ${glass ? 'glass' : ''} ${onClick ? 'clickable' : ''}`}
       src={url}
       alt=""
       width={OVERLAY_W}
       height={overlayHeight(photo)}
-      style={{ transform, opacity }}
+      style={{ transform, opacity: shown }}
       draggable={false}
       onClick={onClick}
       {...handlers}
     />
+  )
+  if (!glass) return img
+  return (
+    <>
+      {img}
+      {/* Reflet de la vitre, par-dessus la photo. */}
+      <div
+        className="overlay-glass"
+        aria-hidden
+        style={{ width: OVERLAY_W, height: overlayHeight(photo), transform, opacity }}
+      />
+    </>
   )
 }
 

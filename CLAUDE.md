@@ -94,7 +94,15 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   arrêté la corrige (pas comptés dans le mauvais sens). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
-  capture (téléphone immobile), puis le fige. Photo dépassée (vue de dos) : non affichée.
+  capture (téléphone immobile), puis le fige. **Photo dépassée (vue de dos)** (depuis 0.012.0) :
+  reste visible comme **imprimée sur une vitre dépolie** — l'homographie du plan vu de derrière
+  donne d'elle-même l'image en miroir (rien n'est retourné à la main) ; `ArPhoto glass` : classe
+  `.glass` (flou 12 px, désaturée, éclaircie), opacité × `GLASS_OPACITY` (0,45) et calque de reflet
+  `.overlay-glass` (même taille, même transformation). Vue **par la tranche**, elle s'efface en
+  douceur : `viewCosine` (|cos| entre la visée vers le centre du plan et l'axe de prise de vue)
+  → `edgeFade` (smoothstep, `EDGE_FADE` : 0 sous 0,08, 1 au-delà de 0,35) → `ArProjection.fade`,
+  multiplié à l'opacité (viseur, pile, chasse). Pas de texte sur la vitre (il serait en miroir).
+  La capture ne change pas.
 - **Cap sur iPhone** (depuis 0.010.1, `src/geo/heading.ts`) : les mouvements viennent du
   gyroscope (`alpha`) ; le nord de `webkitCompassHeading` n'est recalé que **lentement**
   (τ 2 s), téléphone stable (< 8°/s) et objectif à moins de 55° de l'horizon ; recalage rapide
@@ -117,7 +125,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Déploiement : projet Vercel `picti` (compte d'Eliott) → https://picti.vercel.app, public
   (le compte PICTI protège l'accès). Projet relié au dépôt GitHub : chaque push construit un
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
-  (API Vercel, `create_deployment` + `deploymentId`). **Production actuelle : 0.011.3** (`dpl_DqK5cFg7S4rQjTvfyzb4j11gSdZA`, commit `bfc2431`, branche `claude/youthful-cannon-962c45`, confirmée READY sur picti.vercel.app le 30/09/2026 ; fusionnée dans `main` le 30/09 par eliott-220/Picti#3). Retour arrière possible : 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  (API Vercel, `create_deployment` + `deploymentId`). **Attention : depuis le 30/09, chaque fusion dans
+  `main` est mise en production automatiquement** (vu avec eliott-220/Picti#3 et #4) : fusionner une
+  pull request = mettre en ligne. **Production actuelle : 0.011.3** (`dpl_DqK5cFg7S4rQjTvfyzb4j11gSdZA`, commit `bfc2431`, branche `claude/youthful-cannon-962c45`, confirmée READY sur picti.vercel.app le 30/09/2026 ; fusionnée dans `main` le 30/09 par eliott-220/Picti#3). Retour arrière possible : 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -180,6 +190,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   (accéléromètre + orientation) : en avançant ou en reculant de quelques mètres, la photo grandit
   ou rapetisse à sa place au lieu de suivre le téléphone ; carte : vignettes et position qui suivent
   le doigt pendant le déplacement (elles restaient figées puis se replaçaient 2 à 3 s après).
+- 0.012.0 : photos vues de dos, comme sur une vitre dépolie (floues, en miroir, avec un reflet) au lieu
+  de disparaître une fois dépassées ; effacement en douceur quand on les voit par la tranche.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -210,3 +222,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-29 — Photo encore un peu décalée sur iPhone Pro : focale mesurée (0.011.1)](claude/picti/2026-09-29-focale-mesuree.md)
 - [2026-09-30 — Améliorer l'ergonomie de l'app](claude/picti/2026-09-30-ergonomie.md)
 - [2026-09-30 — Selfie trop grand, photo qui suit en avançant, carte figée (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)
+- [2026-09-30 — Photos vues de dos, comme sur une vitre dépolie (0.012.0)](claude/picti/2026-09-30-photos-de-dos-vitre.md)

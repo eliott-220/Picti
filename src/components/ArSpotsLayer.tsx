@@ -93,7 +93,8 @@ export function ArSpotsLayer({
             key={s.key}
             photo={s.cards[s.index].photo}
             transform={s.cards[s.index].ar.transform!}
-            opacity={0.8}
+            opacity={0.8 * s.cards[s.index].ar.fade}
+            glass={!s.cards[s.index].ar.facing}
             onClick={() => onOpen(s.cards[s.index].photo)}
           />
         ),
@@ -163,7 +164,12 @@ function ArDeck({
             transition: swipe.transition,
           }}
         >
-          <ArPhoto photo={below.photo} transform={below.ar.transform!} opacity={0.9} />
+          <ArPhoto
+            photo={below.photo}
+            transform={below.ar.transform!}
+            opacity={0.9 * below.ar.fade}
+            glass={!below.ar.facing}
+          />
         </div>
       )}
       <div
@@ -174,7 +180,8 @@ function ArDeck({
           key={top.photo.id}
           photo={top.photo}
           transform={top.ar.transform!}
-          opacity={1}
+          opacity={top.ar.fade}
+          glass={!top.ar.facing}
           onClick={() => onOpen(top.photo)}
           handlers={n > 1 ? swipe.handlers : undefined}
         />

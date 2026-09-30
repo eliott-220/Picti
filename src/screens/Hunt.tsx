@@ -168,7 +168,12 @@ function HuntView({
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
       {transform && (
-        <ArPhoto photo={photo} transform={transform} opacity={al.aligned ? Math.max(opacity, 0.95) : opacity} />
+        <ArPhoto
+          photo={photo}
+          transform={transform}
+          opacity={(al.aligned ? Math.max(opacity, 0.95) : opacity) * (ar?.fade ?? 1)}
+          glass={ar ? !ar.facing : false}
+        />
       )}
 
       {edgeArrow != null && (

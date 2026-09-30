@@ -4,11 +4,13 @@ import { coverViewport, fieldOfView, focalPx } from './optics'
 import { basisFromAngles } from './orientation'
 import {
   applyHomography,
+  edgeFade,
   facesViewer,
   homography,
   photoPlaneCorners,
   projectPhoto,
   quadTransform,
+  viewCosine,
   type Point2,
   type Quad,
 } from './projection'
@@ -76,6 +78,22 @@ describe('projection du plan-photo', () => {
     expect(facesViewer(basis, 6, scale(basis.f, -20))).toBe(true)
     expect(facesViewer(basis, 6, scale(basis.r, 15))).toBe(true)
     expect(facesViewer(basis, 6, scale(basis.f, 7))).toBe(false)
+  })
+
+  it('angle de vue : 1 de face ou de dos, 0 par la tranche', () => {
+    expect(viewCosine(basis, 6, [0, 0, 0])).toBeCloseTo(1, 6)
+    // 12 m devant le point de vue : on voit le plan de dos, dans l'axe.
+    expect(viewCosine(basis, 6, scale(basis.f, 12))).toBeCloseTo(1, 6)
+    // Sur le côté, à hauteur du plan : par la tranche.
+    const side = [basis.f[0] * 6 + basis.r[0] * 20, basis.f[1] * 6 + basis.r[1] * 20, basis.f[2] * 6 + basis.r[2] * 20] as const
+    expect(viewCosine(basis, 6, side)).toBeCloseTo(0, 6)
+  })
+
+  it('s’efface en douceur quand on la voit par la tranche', () => {
+    expect(edgeFade(1)).toBe(1)
+    expect(edgeFade(0.02)).toBe(0)
+    expect(edgeFade(0.2)).toBeGreaterThan(0)
+    expect(edgeFade(0.2)).toBeLessThan(1)
   })
 
   it('n’est pas à l’écran quand on regarde à l’opposé', () => {

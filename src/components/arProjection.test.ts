@@ -85,11 +85,32 @@ describe('photo ancrée dans le décor', () => {
     expect(height).toBeCloseTo(minHeight, 0)
   })
 
-  it('n’est plus affichée une fois dépassée', () => {
+  it('dépassée, en regardant dans le même sens : derrière soi, hors écran', () => {
     const { ar } = edges(0, 8)
     expect(ar.facing).toBe(false)
-    expect(ar.transform).toBeNull()
     expect(ar.projection.onScreen).toBe(false)
+  })
+
+  it('dépassée, en se retournant : visible de dos, en miroir, comme sur une vitre', () => {
+    const south = basisFromAngles({ heading: 180, pitch: 0, roll: 0 })
+    const ar = projectGeoPhoto(photo, at(0, 12), south, screen)
+    expect(ar.facing).toBe(false)
+    expect(ar.fade).toBeCloseTo(1, 6)
+    expect(ar.transform).not.toBeNull()
+    expect(ar.projection.onScreen).toBe(true)
+    // Miroir : le coin haut-gauche de l'image passe à droite du coin haut-droit.
+    const [tl, tr] = ar.projection.corners
+    expect(tl.x).toBeGreaterThan(tr.x)
+  })
+
+  it('vue par la tranche : s’efface', () => {
+    const west = basisFromAngles({ heading: 270, pitch: 0, roll: 0 })
+    const edge = projectGeoPhoto(photo, at(25, 6), west, screen)
+    expect(edge.fade).toBe(0)
+    expect(edge.transform).toBeNull()
+    const oblique = projectGeoPhoto(photo, at(25, 0), west, screen)
+    expect(oblique.fade).toBeGreaterThan(0)
+    expect(oblique.fade).toBeLessThan(1)
   })
 
   it('ne dépend pas de l’altitude GPS', () => {
