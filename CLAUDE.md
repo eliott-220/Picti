@@ -130,7 +130,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   lointaines, 0.011.0 carte orientable, 0.011.1 focale mesurée), **pas encore fusionnée dans `main`**.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
-- Prochaines étapes : fusionner `claude/nice-cori-zbpf7v` dans `main` ; test terrain en marchant ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
+- Prochaines étapes : fusionner `claude/nice-cori-zbpf7v` dans `main` (pull request
+  https://github.com/eliott-220/Picti/pull/2, à jour le 30/09, sans conflit, tests OK — à valider par Eliott) ; test terrain en marchant ; test terrain à plusieurs ; paiement Premium ; mot de passe oublié ;
   notifications de proximité ; calibration de la focale ; piste VPS/native.
 
 ## Journal des discussions
