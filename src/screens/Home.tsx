@@ -9,7 +9,7 @@ import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, type GeoPhoto } from '../data/types'
-import { computeAlignment } from '../geo/alignment'
+import { CAPTURE_RADIUS, computeAlignment, withinCaptureRadius } from '../geo/alignment'
 import { FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
@@ -22,6 +22,9 @@ import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
+
+/** Précision GPS (m) au-delà de laquelle une photo prise risque d'être mal placée. */
+const PRECISE_FIX = 15
 
 /** Accueil : le viseur, point de départ du géocadrage en direct. */
 export function Home() {
@@ -55,10 +58,14 @@ export function Home() {
     if (!isGeoframed(p)) return
     const g = p.geoframe
     // Score conservé avec la capture : l'alignement du moment, comme en chasse.
-    const { score } = computeAlignment(
+    const { score, distance } = computeAlignment(
       { position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } },
       { position: position ?? geo.fix, angles: orientation.angles },
     )
+    if (!withinCaptureRadius(distance)) {
+      toast(`Approchez-vous à moins de ${CAPTURE_RADIUS} m de l’endroit de la prise de vue`)
+      return
+    }
     navigator.vibrate?.([60, 40, 120])
     try {
       await addCapture(p.id, score)
@@ -97,10 +104,17 @@ export function Home() {
       await addPhoto(photo, images)
       navigator.vibrate?.(30)
       if (photo.geoframe) {
-        toast(selfie ? 'Selfie géocadré et publié' : 'Photo géocadrée et publiée', {
-          label: 'Voir',
-          to: `/photo/${photo.id}`,
-        })
+        const accuracy = photo.geoframe.accuracy
+        // GPS encore imprécis (premières secondes, intérieur) : la photo pourra paraître décalée.
+        const vague = accuracy != null && accuracy > PRECISE_FIX
+        toast(
+          vague
+            ? `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'}, mais GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée`
+            : selfie
+              ? 'Selfie géocadré et publié'
+              : 'Photo géocadrée et publiée',
+          { label: 'Voir', to: `/photo/${photo.id}` },
+        )
       } else {
         const missing = !geo.fix ? 'position GPS' : 'boussole'
         const kind = selfie ? 'Selfie gardé' : 'Photo gardée'

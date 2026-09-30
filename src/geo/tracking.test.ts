@@ -224,6 +224,19 @@ describe('position avancée pas à pas', () => {
     expect(where(track).n).toBeLessThan(-2)
   })
 
+  it('immobile, les pas comptés : une dérive du GPS de 6 m ne fait pas glisser la photo', () => {
+    let track = settled()
+    const rand = noise(3)
+    for (let t = 11; t < 60; t++) track = updateTrack(track, fixAt(6 + rand(), rand(), t), 'still', true)
+    expect(Math.hypot(where(track).e, where(track).n)).toBeLessThan(1.5)
+  })
+
+  it('immobile, les pas comptés : un écart de 12 m qui persiste est tout de même rattrapé', () => {
+    let track = settled()
+    for (let t = 11; t < 40; t++) track = updateTrack(track, fixAt(12, 0, t), 'still', true)
+    expect(where(track).e).toBeGreaterThan(9)
+  })
+
   it('sans pas comptés (pas d’orientation), le suivi reste celui du GPS', () => {
     const track = updateTrack(settled(), fixAt(0, 3, 11), 'moving', false)
     expect(track.mode).toBe('moving')

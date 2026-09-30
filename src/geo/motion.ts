@@ -44,7 +44,11 @@ export const MOTION = {
    * oublier les petits gestes de la main.
    */
   velocityWindow: 1.5,
-  /** Élan minimal (m/s) des premiers pas pour en tirer une direction ; en deçà : droit devant. */
+  /**
+   * Élan minimal (m/s) des premiers pas pour en tirer une direction. En deçà, le sens est
+   * inconnu (balancement sur place, gestes) : les pas ne déplacent pas la position, le GPS
+   * la suit comme sans accéléromètre — mieux vaut ne rien faire que déplacer la photo de 2 m.
+   */
   minDirectionSpeed: 0.15,
 }
 
@@ -80,8 +84,11 @@ export interface MotionDetector {
   vr: number
   /** Somme des vitesses relevées aux premiers pas de la marche en cours. */
   push: [number, number]
-  /** Direction de la marche en cours (repère de l'objectif, unitaire), fixée après `minSteps` pas. */
-  direction: [number, number]
+  /**
+   * Direction de la marche en cours (repère de l'objectif, unitaire), fixée après `minSteps`
+   * pas ; null si l'élan ne permet pas de la connaître (ou avant la première marche).
+   */
+  direction: [number, number] | null
   /** Pas comptés dans des marches reconnues (au moins `minSteps` pas réguliers), depuis le début. */
   walked: number
 }
@@ -134,7 +141,7 @@ export function feedMotion(prev: MotionDetector | null, s: MotionSample): Motion
   vf = vf * leak + (axes ? dot(a, axes.forward) * dt : 0)
   vr = vr * leak + (axes ? dot(a, axes.right) * dt : 0)
   let push = prev?.push ?? [0, 0]
-  let direction = prev?.direction ?? [1, 0]
+  let direction = prev ? prev.direction : null
   let walked = prev?.walked ?? 0
 
   let armed = prev?.armed ?? true
@@ -152,7 +159,7 @@ export function feedMotion(prev: MotionDetector | null, s: MotionSample): Motion
     if (steps <= MOTION.minSteps) push = steps === 1 ? [vf, vr] : [push[0] + vf, push[1] + vr]
     if (steps === MOTION.minSteps) {
       const length = Math.hypot(push[0], push[1])
-      direction = length / MOTION.minSteps >= MOTION.minDirectionSpeed ? [push[0] / length, push[1] / length] : [1, 0]
+      direction = length / MOTION.minSteps >= MOTION.minDirectionSpeed ? [push[0] / length, push[1] / length] : null
       // Marche reconnue : ses premiers pas comptent aussi.
       walked += MOTION.minSteps
     } else if (steps > MOTION.minSteps) {

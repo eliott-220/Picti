@@ -32,6 +32,12 @@ export const TRACKING = {
    * il est rattrapé comme juste après un arrêt, pendant `catchUp` ms.
    */
   persistentShift: 4,
+  /**
+   * Même seuil quand les pas font avancer la position (`stepping`) : les vrais déplacements sont
+   * déjà comptés, un écart du GPS immobile en deçà de 8 m (ou de sa précision) n'est que sa
+   * dérive — la suivre ferait glisser les photos alors qu'on n'a pas bougé.
+   */
+  steppedShift: 8,
   /** Poids de chaque relevé dans cet écart moyen (≈ 4 s de mémoire à un relevé par seconde). */
   shiftWeight: 0.25,
   catchUp: 4000,
@@ -147,7 +153,10 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   // En marchant, le GPS est en retard sur les pas : son écart ne compte qu'une fois arrêté.
   const se = walking ? prev.se * (1 - w) : still ? prev.se + (ze - e - prev.se) * w : 0
   const sn = walking ? prev.sn * (1 - w) : still ? prev.sn + (zn - n - prev.sn) * w : 0
-  const shifted = still && !walking && Math.hypot(se, sn) > Math.max(TRACKING.persistentShift, fix.accuracy / 2)
+  const shiftLimit = stepping
+    ? Math.max(TRACKING.steppedShift, fix.accuracy)
+    : Math.max(TRACKING.persistentShift, fix.accuracy / 2)
+  const shifted = still && !walking && Math.hypot(se, sn) > shiftLimit
   const catchUntil = shifted ? fix.timestamp + TRACKING.catchUp : prev.catchUntil
   const catching = still && !walking && fix.timestamp < catchUntil
 

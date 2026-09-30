@@ -64,12 +64,16 @@ export function useLivePosition(track: Track | null, basis: CameraBasis | null =
       const b = basisRef.current
       const steps = walkedSteps()
       if (!b || !steps) return false
-      keepStepping()
+      // Dernière marche au sens inconnu (balancement, gestes) : ses pas ne déplacent rien et le
+      // GPS reprend la main, comme sans accéléromètre.
+      const unknownWay = steps.direction == null && steps.walked > 0
+      if (!unknownWay) keepStepping()
       sign.current = accelerometerSign(b, steps.gravity) ?? sign.current
       if (counted.current == null || steps.walked < counted.current) counted.current = steps.walked
       const count = steps.walked - counted.current
       if (!count) return false
       counted.current = steps.walked
+      if (!steps.direction) return false
       const [f, r] = steps.direction
       const dir = stepDirection(b, [f * sign.current, r * sign.current])
       if (!dir) return false

@@ -91,7 +91,12 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   navigateurs l'inversent, ce qui inverserait avant/arrière).
   Tant qu'un écran avance ainsi (`keepStepping`, `updateTrack(…, stepping)`), le GPS (en retard)
   ne tire pas la position pendant la marche ni juste après ; seul un écart qui persiste une fois
-  arrêté la corrige (pas comptés dans le mauvais sens). Une
+  arrêté la corrige (pas comptés dans le mauvais sens). Depuis 0.013.1 : **sens inconnu** (élan
+  trop faible, balancement sur place) → `direction` null, les pas ne déplacent rien et le GPS
+  reprend la main ; **à l'arrêt, pas comptés**, un écart du GPS n'est rattrapé qu'au-delà de
+  `steppedShift` (8 m ou sa précision) — en deçà ce n'est que sa dérive. **Une seule position
+  pour les trois écrans caméra** : accueil, chasse et recalage enregistrent / projettent tous la
+  position suivie (`useLivePosition`, pas à pas). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
   capture (téléphone immobile), puis le fige. **Photo dépassée (vue de dos)** (depuis 0.012.0) :
@@ -108,7 +113,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   (τ 2 s), téléphone stable (< 8°/s) et objectif à moins de 55° de l'horizon ; recalage rapide
   au démarrage, après une pause, ou si un grand écart persiste. Ne jamais revenir à un suivi
   direct de la boussole : en retard quand on tourne, elle faisait « suivre la caméra » aux photos
-  (17° d'erreur en balayant, 14° encore après l'arrêt, contre 3,5° et 0,2°).
+  (17° d'erreur en balayant, 14° encore après l'arrêt, contre 3,5° et 0,2°). **Nord partagé**
+  par tous les écrans (`sharedNorth` dans `useOrientation`, depuis 0.013.1) : passer de l'accueil
+  à la chasse ne repart plus de la boussole brute (la photo restait décalée quelques secondes) ;
+  horodatage des événements pour ne l'intégrer qu'une fois par mesure.
 - **Focale mesurée** (depuis 0.011.1, `src/geo/focalCalibration.ts`, `useFocalCalibration`,
   `cameraFocal.ts`) : en tournant le téléphone, glissement de l'image (profil de colonnes, moitié
   centrale, image réduite à 240 px) comparé à la rotation du gyroscope, seulement en rotation
@@ -149,7 +157,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   attend la fin (`.captured.after-reveal`). **Capture directe** : rester immobile était trop dur
   (le moindre mouvement annulait le maintien `HOLD_MS`) → bouton « Capturer » dans la chasse
   (photo d'un autre visible à l'écran) et dans l'étiquette du viseur (`onCapture`, révélation sur
-  place) ; la capture automatique par alignement maintenu reste. Photos en couleur (miennes ou
+  place) ; la capture automatique par alignement maintenu reste. **Capture à moins de 5 m** du
+  point de vue (`CAPTURE_RADIUS`, `withinCaptureRadius`, depuis 0.013.1), quelle que soit la
+  précision du GPS : au-delà, bouton désactivé « Capturer à moins de 5 m : encore X m » (chasse)
+  ou « Chasser » (viseur). Photos en couleur (miennes ou
   capturées), de face : **surbrillance animée** `.overlay-shine` (bord clair ≈ 4 px à l'écran quelle
   que soit la distance, `--shine` via `overlayScale`, halo qui respire, éclat qui traverse ;
   opacité/translation seulement ; figée avec `prefers-reduced-motion`). Filtres CSS sur les
@@ -215,6 +226,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   capture (couleur progressive en s'alignant, jusqu'à 40 %, puis la couleur envahit la photo) ;
   capture directe d'un appui (« Capturer », chasse et viseur) ; surbrillance animée des photos en
   couleur ; même règle partout (profil, chasses, listes, carte, piles). Combinée à la vitre (0.012.0).
+- 0.013.1 : capture à moins de 5 m du point de vue ; ancrage renforcé — nord de la boussole
+  partagé entre les écrans, pas au sens inconnu ignorés (plus de glissement en se balançant),
+  dérive GPS < 8 m ignorée à l'arrêt, même position pour accueil / chasse / recalage, avertissement
+  quand une photo est prise avec un GPS imprécis (> ±15 m).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -247,3 +262,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-30 — Selfie trop grand, photo qui suit en avançant, carte figée (0.011.3)](claude/picti/2026-09-30-selfie-et-marche.md)
 - [2026-09-30 — Photos vues de dos, comme sur une vitre dépolie (0.012.0)](claude/picti/2026-09-30-photos-de-dos-vitre.md)
 - [2026-09-30 — Couleurs inversées : la couleur, récompense de la chasse (0.013.0)](claude/picti/2026-09-30-couleurs-inversees.md)
+- [2026-09-30 — Capture à moins de 5 m, photo qui ne bouge plus (0.013.1)](claude/picti/2026-09-30-capture-5m-ancrage.md)

@@ -9,7 +9,7 @@ import { useStore } from '../data/storeContext'
 import { HUNT_COLOR, huntSaturation, usePhotoInColor } from '../data/photoColor'
 import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
-import { ALIGN_TOLERANCE, computeAlignment, guidance, viewerEye } from '../geo/alignment'
+import { ALIGN_TOLERANCE, CAPTURE_RADIUS, computeAlignment, guidance, viewerEye } from '../geo/alignment'
 import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
 import { basisFromAngles, type CameraAngles } from '../geo/orientation'
@@ -157,7 +157,18 @@ function HuntView({
   }, [al.aligned, phase, capture])
   // Rester immobile devant la photo était trop difficile (le moindre mouvement annulait la
   // capture) : la photo d'un autre, visible à l'écran, se capture directement.
-  const canCapture = phase === 'hunting' && !isMine(photo) && !alreadyCaptured && transform != null
+  // Capturable seulement à moins de 5 m du point de vue (`CAPTURE_RADIUS`), photo visible.
+  const capturable = phase === 'hunting' && !isMine(photo) && !alreadyCaptured
+  const canCapture = capturable && al.onSpot && transform != null
+  const captureHint = !capturable
+    ? null
+    : al.distance == null
+      ? 'Capturer : recherche de votre position…'
+      : !al.onSpot
+        ? `Capturer à moins de ${CAPTURE_RADIUS} m : encore ${Math.ceil(al.distance - CAPTURE_RADIUS)} m`
+        : transform == null
+          ? 'Visez la photo pour la capturer'
+          : null
 
   const hasOrientation = demo || (orientation.status === 'active' && orientation.absolute)
   const message = phase === 'hunting' ? guidance(al, hasOrientation) : 'Photo retrouvée ✓'
@@ -254,9 +265,9 @@ function HuntView({
             ok={al.pitchError != null && Math.abs(al.pitchError) <= ALIGN_TOLERANCE.pitch}
           />
         </div>
-        {canCapture && (
-          <button type="button" className="btn capture-btn" onClick={capture}>
-            <Icon name="scan" /> Capturer
+        {capturable && (
+          <button type="button" className="btn capture-btn" onClick={capture} disabled={!canCapture}>
+            <Icon name="scan" /> {captureHint ?? 'Capturer'}
           </button>
         )}
         <div className="score-bar" aria-label="Qualité de l’alignement">

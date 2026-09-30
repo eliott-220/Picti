@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useColorRule } from '../data/photoColor'
+import { withinCaptureRadius } from '../geo/alignment'
 import type { GeoPhoto } from '../data/types'
 import { distanceMeters, type GeoFix } from '../geo/geodesy'
 import type { ViewportCamera } from '../geo/optics'
@@ -135,8 +136,12 @@ export function ArSpotsLayer({
             onChange={(i) => select(focus.key, focus.cards[i].photo)}
             isMine={isMine}
             action={
-              // Photo d'un autre pas encore capturée : on la capture directement, sur place.
-              onCapture && !inColor(focus.cards[focus.index].photo) && !revealing.has(focus.cards[focus.index].photo.id)
+              // Photo d'un autre pas encore capturée, à moins de 5 m de son point de vue : on la
+              // capture directement, sur place. Plus loin : « Chasser » guide jusqu'au point de vue.
+              onCapture &&
+              !inColor(focus.cards[focus.index].photo) &&
+              !revealing.has(focus.cards[focus.index].photo.id) &&
+              withinCaptureRadius(focus.cards[focus.index].ar.distance)
                 ? { label: 'Capturer', onClick: () => capture(focus.cards[focus.index].photo) }
                 : { label: 'Chasser', onClick: () => onOpen(focus.cards[focus.index].photo) }
             }

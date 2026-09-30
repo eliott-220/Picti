@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeAlignment, guidance, viewerEye } from './alignment'
+import { CAPTURE_RADIUS, computeAlignment, guidance, viewerEye, withinCaptureRadius } from './alignment'
 import { fromENU } from './geodesy'
 
 const spot = { lat: 46.1557, lon: -1.1533 }
@@ -26,10 +26,22 @@ describe('computeAlignment', () => {
     expect(guidance(al, true)).toBe('Point de vue à 120 m vers le N')
   })
 
-  it('élargit le rayon quand le GPS est imprécis', () => {
-    const al = computeAlignment(target, { position: fixAt(15, 0, 20), angles: target.angles })
-    expect(al.radius).toBe(20)
-    expect(al.onSpot).toBe(true)
+  it('capture seulement à moins de 5 m du point de vue, même avec un GPS imprécis', () => {
+    expect(CAPTURE_RADIUS).toBe(5)
+    const near = computeAlignment(target, { position: fixAt(4, 0, 20), angles: target.angles })
+    expect(near.radius).toBe(5)
+    expect(near.onSpot).toBe(true)
+    expect(near.aligned).toBe(true)
+    const far = computeAlignment(target, { position: fixAt(6, 0, 20), angles: target.angles })
+    expect(far.onSpot).toBe(false)
+    expect(far.aligned).toBe(false)
+    expect(guidance(far, true)).toBe('Point de vue à 6 m vers le O')
+  })
+
+  it('rayon de capture : 5 m inclus, pas de capture sans position', () => {
+    expect(withinCaptureRadius(5)).toBe(true)
+    expect(withinCaptureRadius(5.1)).toBe(false)
+    expect(withinCaptureRadius(null)).toBe(false)
   })
 
   it('indique de quel côté se tourner', () => {
