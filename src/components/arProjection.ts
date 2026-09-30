@@ -92,3 +92,9 @@ export function projectGeoPhoto(
 }
 
 export const overlayHeight = (photo: GeoPhoto) => (OVERLAY_W * photo.height) / photo.width
+
+/** Échelle d'affichage de la photo (px d'écran par px de rendu), le long de son bord haut. */
+export function overlayScale(ar: ArProjection): number {
+  const [tl, tr] = ar.projection.corners
+  return Math.hypot(tr.x - tl.x, tr.y - tl.y) / OVERLAY_W
+}

@@ -8,7 +8,8 @@ import { RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
-import { isGeoframed } from '../data/types'
+import { isGeoframed, type GeoPhoto } from '../data/types'
+import { computeAlignment } from '../geo/alignment'
 import { FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
@@ -38,7 +39,7 @@ export function Home() {
   // Focale de la caméra principale, mesurée en tournant le téléphone.
   const { focal35 } = useCameraFocal()
   useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)
-  const { addPhoto, nearby, captures, isMine, photos } = useStore()
+  const { addPhoto, addCapture, nearby, captures, isMine, photos } = useStore()
   const toast = useToast()
   useNearbyRefresh(geo.fix)
 
@@ -48,6 +49,24 @@ export function Home() {
   // Toutes les photos géocadrées connues (le viseur ne garde que celles d'alentour) :
   // une photo qu'on vient de prendre y apparaît aussitôt, sans attendre la recherche à proximité.
   const arPhotos = useMemo(() => photos.filter((p): p is GeoframedPhoto => isGeoframed(p)), [photos])
+
+  /** Capture directe depuis le viseur : la photo visée, d'un autre, passe en couleur. */
+  async function captureHere(p: GeoPhoto) {
+    if (!isGeoframed(p)) return
+    const g = p.geoframe
+    // Score conservé avec la capture : l'alignement du moment, comme en chasse.
+    const { score } = computeAlignment(
+      { position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } },
+      { position: position ?? geo.fix, angles: orientation.angles },
+    )
+    navigator.vibrate?.([60, 40, 120])
+    try {
+      await addCapture(p.id, score)
+      toast('Photo capturée', { label: 'Voir', to: `/photo/${p.id}` })
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Capture impossible')
+    }
+  }
 
   async function shoot() {
     if (busy) return
@@ -114,6 +133,7 @@ export function Home() {
           cam={viewportCamera(stage, cameraSize, focal35)}
           isMine={isMine}
           onOpen={(p) => navigate(`/chasse/${p.id}`)}
+          onCapture={captureHere}
         />
       )}
       {flash && <div className="flash" />}

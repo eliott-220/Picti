@@ -40,6 +40,28 @@ de l'accueil, de la chasse et du recalage. Aucune photo n'avait de filtre.
 
 Filtres CSS sur les images seulement, jamais sur la vidéo.
 
+## Ajouts demandés ensuite
+
+> Sur les photos déjà capturées / en couleur, rajoute un petit effet de surbrillance animé, un peu
+> plus épais qu'un simple trait blanc. Pour les photos qu'on souhaite capturer, c'est trop
+> compliqué de rester devant la photo car quand elle bouge pendant la capture ça annule tout :
+> dès qu'on appuie sur capturer on récupère directement la photo, l'animation qui passe de noir
+> et blanc à en couleur s'exécute et c'est bon.
+
+- **Capture directe** :
+  - chasse : bouton « Capturer » (photo d'un autre, pas encore capturée, visible à l'écran) → même
+    capture que l'alignement maintenu (`capture()`, score du moment), révélation de la couleur,
+    puis la carte « Capturée ! » (retardée de 0,65 s pour laisser voir l'animation) ;
+  - viseur : l'étiquette de la photo visée propose « Capturer » au lieu de « Chasser » pour une
+    photo d'un autre en noir et blanc → `onCapture` (score d'alignement du moment, vibration,
+    message « Photo capturée ») et la couleur envahit la photo sur place ;
+  - la capture automatique par alignement maintenu reste possible.
+- **Surbrillance animée** des photos en couleur (miennes ou capturées) vues de face :
+  `.overlay-shine` — bord clair ≈ 4 px à l'écran à toute distance (`--shine` calculé depuis
+  `overlayScale`), halo intérieur qui respire (2,4 s), éclat qui traverse la photo (3,6 s) ;
+  seulement opacité et translation (carte graphique) ; figée avec `prefers-reduced-motion`.
+  Pas sur les vitres (vues de dos) ni pendant la révélation.
+
 ## Vérifications
 
 - Tests : `photoColor` (auteur, capture, autre, auteur inconnu) et `huntSaturation` (0 loin,
@@ -48,9 +70,12 @@ Filtres CSS sur les images seulement, jamais sur la vidéo.
   −1° → 40 % ; capture → copie en couleur de `circle(0%)` à `circle(75%)` en 600 ms.
 - Viseur : caméra en couleur, mes photos vues de dos en vitre, en couleur ; listes : photos
   capturées en couleur.
+- Capture directe (Chromium) : viseur, « Capturer » → révélation → photo en couleur avec
+  surbrillance, compteur « à chasser » 3 → 2 ; chasse à 29° d'écart → « Capturer » → révélation
+  (copie présente à 200 ms), carte « Capturée ! » à 0 puis 1 d'opacité après l'animation.
+- Surbrillance à 72 m : bord clair bien visible (≈ 4 px), halo et éclat.
 - **À vérifier sur iPhone** : fluidité (filtres `saturate` sur l'image transformée pendant la
-  chasse), rendu de la révélation. Remarque : la carte « Capturée ! » apparaît en même temps et
-  cache une partie de l'animation (visible derrière, assombrie) — à revoir si besoin.
+  chasse, surbrillance animée), rendu de la révélation.
 
 ## Mise en ligne
 

@@ -14,6 +14,9 @@ import { useSwipe } from './useSwipe'
 /** Opacité d'une photo vue de dos : imprimée sur une vitre dépolie. */
 export const GLASS_OPACITY = 0.45
 
+/** Épaisseur de la surbrillance à l'écran (px), quelle que soit la distance. */
+const SHINE_PX = 4
+
 /** Saturation d'une photo vue de dos, rapportée à celle de la photo (vitre un peu délavée). */
 const GLASS_SATURATION = 0.55
 
@@ -21,6 +24,7 @@ const GLASS_SATURATION = 0.55
  * Photo superposée au décor réel.
  * - `saturation` : 0 = noir et blanc (photo d'un autre pas encore capturée), 1 = couleur ;
  * - `reveal` : capture en cours, la couleur envahit la photo depuis son centre (≈ 600 ms) ;
+ * - en couleur (la mienne ou capturée), de face : surbrillance animée autour de la photo ;
  * - `glass` : vue de dos (on l'a dépassée), comme imprimée sur une vitre dépolie — floue,
  *   pâlie, avec un reflet ; l'image est déjà en miroir.
  */
@@ -31,6 +35,7 @@ export function ArPhoto({
   saturation = 1,
   reveal = false,
   glass = false,
+  scale = 1,
   onClick,
   handlers,
 }: {
@@ -40,6 +45,8 @@ export function ArPhoto({
   saturation?: number
   reveal?: boolean
   glass?: boolean
+  /** Échelle d'affichage (`overlayScale`) : la surbrillance garde la même épaisseur à l'écran. */
+  scale?: number
   onClick?: () => void
   /** Gestes sur la photo (ex. glissement pour passer à la suivante). */
   handlers?: HTMLAttributes<HTMLImageElement>
@@ -73,6 +80,14 @@ export function ArPhoto({
           {...size}
           style={{ transform, opacity: shown }}
           draggable={false}
+        />
+      )}
+      {/* Photo en couleur (la mienne ou capturée) : surbrillance animée. */}
+      {saturation >= 1 && !reveal && !glass && (
+        <div
+          className="overlay-shine"
+          aria-hidden
+          style={{ ...size, transform, opacity: shown, '--shine': `${Math.min(40, SHINE_PX / Math.max(scale, 0.01))}px` } as CSSProperties}
         />
       )}
       {/* Reflet de la vitre, par-dessus la photo. */}

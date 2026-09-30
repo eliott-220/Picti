@@ -145,7 +145,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `huntSaturation` = 0 sous 0,15, courbe douce jusqu'à 40 % au score atteint à la limite des
   tolérances de capture (`TOLERANCE_SCORE`, calculé depuis `ALIGN_TOLERANCE` et `ALIGN_SCORE`).
   Première capture d'une photo d'un autre : copie en couleur révélée depuis le centre en 600 ms
-  (`.overlay-reveal`, `clip-path`), immédiate avec `prefers-reduced-motion`. Filtres CSS sur les
+  (`.overlay-reveal`, `clip-path`), immédiate avec `prefers-reduced-motion` ; la carte « Capturée ! »
+  attend la fin (`.captured.after-reveal`). **Capture directe** : rester immobile était trop dur
+  (le moindre mouvement annulait le maintien `HOLD_MS`) → bouton « Capturer » dans la chasse
+  (photo d'un autre visible à l'écran) et dans l'étiquette du viseur (`onCapture`, révélation sur
+  place) ; la capture automatique par alignement maintenu reste. Photos en couleur (miennes ou
+  capturées), de face : **surbrillance animée** `.overlay-shine` (bord clair ≈ 4 px à l'écran quelle
+  que soit la distance, `--shine` via `overlayScale`, halo qui respire, éclat qui traverse ;
+  opacité/translation seulement ; figée avec `prefers-reduced-motion`). Filtres CSS sur les
   images seulement (`--sat`, `--glass-sat` pour la vitre), jamais sur la vidéo ; liseré clair fin +
   ombre légère sur les photos en noir et blanc du viseur (`.overlay-photo.tinted`).
 - Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
@@ -206,7 +213,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   de disparaître une fois dépassées ; effacement en douceur quand on les voit par la tranche.
 - 0.013.0 : couleurs inversées — caméra en couleur, photos des autres en noir et blanc jusqu'à leur
   capture (couleur progressive en s'alignant, jusqu'à 40 %, puis la couleur envahit la photo) ;
-  même règle partout (profil, chasses, listes, carte, piles). Combinée à la vitre (0.012.0).
+  capture directe d'un appui (« Capturer », chasse et viseur) ; surbrillance animée des photos en
+  couleur ; même règle partout (profil, chasses, listes, carte, piles). Combinée à la vitre (0.012.0).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
