@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
-import { ArPhoto, CaptureCard, SpotTimeline } from '../components/ar'
+import { AlignGauges, ArPhoto, CaptureCard, SpotTimeline } from '../components/ar'
 import {
   coverTransform,
   overlayScale,
@@ -17,12 +17,13 @@ import { useStore } from '../data/storeContext'
 import { huntSaturation, usePhotoInColor } from '../data/photoColor'
 import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
-import { ALIGN_TOLERANCE, CAPTURE_RADIUS, computeAlignment, guidance, viewerEye } from '../geo/alignment'
-import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
+import { CAPTURE_RADIUS, computeAlignment, guidance, viewerEye } from '../geo/alignment'
+import type { GeoFix } from '../geo/geodesy'
 import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
 import { basisFromAngles, type CameraAngles } from '../geo/orientation'
-import { SAME_SPOT_RADIUS } from '../geo/spots'
-import { goBack } from '../router'
+import { sameSpot } from '../geo/spots'
+import { photoPileOrder, spotPointOf } from '../data/photoSpots'
+import { goBack, navigate } from '../router'
 import { useCameraFocal } from '../sensors/cameraFocal'
 import { useCamera } from '../sensors/useCamera'
 import { useFocalCalibration } from '../sensors/useFocalCalibration'
@@ -48,13 +49,11 @@ export function Hunt({ id }: { id: string }) {
       </main>
     )
   }
-  // Photos prises au même endroit, de la plus récente à la plus ancienne.
+  // Photos du même lieu, dans l'ordre de la pile (les plus aimées devant).
+  const here = spotPointOf(base)
   const stack = photos
-    .filter(
-      (p): p is GeoframedPhoto =>
-        isGeoframed(p) && distanceMeters(p.geoframe.position, base.geoframe.position) <= SAME_SPOT_RADIUS,
-    )
-    .sort((a, b) => photoTime(b) - photoTime(a))
+    .filter((p): p is GeoframedPhoto => isGeoframed(p) && (p.id === base.id || sameSpot(here, spotPointOf(p))))
+    .sort(photoPileOrder())
   const current = stack.find((p) => p.id === currentId) ?? base
   return <HuntView photo={current} stack={stack} onSelect={(p) => setCurrentId(p.id)} />
 }
@@ -71,7 +70,7 @@ function HuntView({
   onSelect,
 }: {
   photo: GeoframedPhoto
-  /** Photos prises au même endroit (dont celle-ci), de la plus récente à la plus ancienne. */
+  /** Photos du même lieu (dont celle-ci), dans l'ordre de la pile. */
   stack: GeoframedPhoto[]
   onSelect: (photo: GeoframedPhoto) => void
 }) {
@@ -280,25 +279,10 @@ function HuntView({
             index={Math.max(0, stack.findIndex((p) => p.id === photo.id))}
             onChange={(i) => onSelect(stack[i])}
             isMine={isMine}
+            onGallery={() => navigate(`/galerie/${photo.id}`)}
           />
         )}
-        <div className="gauges">
-          <Gauge
-            label="Distance"
-            value={al.distance != null ? formatDistance(al.distance) : '…'}
-            ok={al.onSpot}
-          />
-          <Gauge
-            label="Cap"
-            value={al.headingError != null ? `${al.headingError > 0 ? '+' : ''}${Math.round(al.headingError)}°` : '…'}
-            ok={al.headingError != null && Math.abs(al.headingError) <= ALIGN_TOLERANCE.heading}
-          />
-          <Gauge
-            label="Inclinaison"
-            value={al.pitchError != null ? `${al.pitchError > 0 ? '+' : ''}${Math.round(al.pitchError)}°` : '…'}
-            ok={al.pitchError != null && Math.abs(al.pitchError) <= ALIGN_TOLERANCE.pitch}
-          />
-        </div>
+        <AlignGauges al={al} />
         {capturable && (
           <button type="button" className="btn capture-btn" onClick={startCapture} disabled={!canCapture}>
             <Icon name="scan" /> {captureHint ?? 'Capturer'}
@@ -327,8 +311,18 @@ function HuntView({
           <div className="captured-card">
             <Icon name="flag" size={36} />
             <h2>{firstCapture ? 'Capturée !' : 'Retrouvée !'}</h2>
-            <p>Vous êtes à l’endroit précis et sous l’angle exact où cette photo a été prise.</p>
+            <p>
+              Vous êtes à l’endroit précis et sous l’angle exact où cette photo a été prise.
+              {firstCapture && !isMine(photo) && ' Elle compte comme un like, aimée sur place.'}
+            </p>
             <div className="captured-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => navigate(`/reproduire/${photo.id}`, { replace: true })}
+              >
+                <Icon name="reproduce" /> Reproduire cette photo
+              </button>
               <button
                 type="button"
                 className="btn light"
@@ -348,14 +342,5 @@ function HuntView({
         </div>
       )}
     </main>
-  )
-}
-
-function Gauge({ label, value, ok }: { label: string; value: string; ok: boolean }) {
-  return (
-    <div className={`gauge ${ok ? 'ok' : ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   )
 }

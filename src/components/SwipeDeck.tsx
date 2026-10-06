@@ -15,6 +15,8 @@ export function SwipeDeck<T extends { id: string }>({
   renderCard,
   label,
   className = '',
+  rings,
+  onDots,
 }: {
   items: T[]
   index: number
@@ -22,6 +24,10 @@ export function SwipeDeck<T extends { id: string }>({
   renderCard: (item: T) => ReactNode
   label: string
   className?: string
+  /** Pour chaque carte : est-ce une reproduction (anneau dans les points) ? */
+  rings?: readonly boolean[]
+  /** Appui sur les points : galerie du lieu. */
+  onDots?: () => void
 }) {
   const n = items.length
   const swipe = useCardSwipe((step) => onIndexChange(cycle(index, step, n)))
@@ -75,7 +81,7 @@ export function SwipeDeck<T extends { id: string }>({
           {renderCard(top)}
         </div>
       </div>
-      <Dots count={n} index={index} />
+      <Dots count={n} index={index} rings={rings} onOpen={onDots} />
     </div>
   )
 }

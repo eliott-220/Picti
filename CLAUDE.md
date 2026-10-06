@@ -88,9 +88,56 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     RLS toujours appliquée (security invoker). Changer de filtre vide les photos chargées et
     recharge la zone visible sans recentrer ; choix mémorisé (`localStorage`
     `picti.carte.filtre`) ; « Amis » sans ami → « Ajoutez des amis pour voir leurs photos ».
-- Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
-  devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
-  en boucle via `cycle`) et des **points façon Instagram** (`Dots`) indiquent leur nombre.
+- **Likes et reproductions** (depuis 0.15.0, migration `20261006160000_likes_et_reproductions.sql`) :
+  - **Likes** : table `photo_likes` (une ligne par personne et par photo, `on_site`) ; RLS : je ne
+    vois / crée / retire que mes likes, sur une photo que j'ai le droit de voir et qui n'est pas la
+    mienne ; l'auteur voit qui a aimé (`fetchLikers`, « Aimée par … », épingle = sur place).
+    `photos.likes_count` tenu par déclencheur (`private.on_photo_like`) ; les compteurs ne
+    s'écrivent pas depuis l'app (`private.protect_photo_counters`, `pg_trigger_depth()`). UI :
+    `LikeButton` (optimiste, annulé si la base refuse ; `toggleLike`, `likes`, `likeCounts` pour les
+    photos de la carte) sur la fiche, la frise du viseur et de la chasse, la carte de la pile de la carte.
+  - **Capturer = aimer** : déclencheur `after insert on captures` (`private.on_capture`) → like
+    `on_site` (ou le like à distance qui le devient, jamais deux) + notification « capture ». Un like
+    sur place ne se retire pas tant que la capture existe (policy de `delete`).
+  - **Notifications** : table `notifications` (`like` / `capture`), créées par les déclencheurs
+    seulement (jamais à soi-même ; un like retiré efface sa notification non lue), lues et marquées
+    lues par leur destinataire (droit sur `read_at` seulement). Cloche dans le rail de l'accueil
+    (pastille des non lues), écran `#/notifications` ; likes d'une même photo regroupés
+    (`groupNotifications`, « Paul et 4 autres aiment votre photo »). Supabase Realtime (table dans la
+    publication `supabase_realtime`), à défaut relues toutes les 60 s ; toujours au retour dans l'app.
+    **Push** : table `push_subscriptions` prête, envoi pas branché (voir la note de session).
+  - **Vues et versions** (`src/geo/views.ts`) : VUE = même lieu ET cap à ±20°, inclinaison à ±15°
+    (`sameView`, orientation enregistrée — celle de l'objectif avant pour un selfie).
+    `photos.version_of` = photo parente : celle de « Reproduire » (si la nouvelle est bien dans sa
+    vue ; visibilité ramenée à la sienne au plus, `capVisibility`), sinon `chooseParent` (photo de la
+    vue que j'ai capturée le plus récemment, sinon la plus ancienne ; privées et moins visibles
+    écartées) — dans `addPhoto` ; refusée par la base → enregistrée sans parente. Contrôle en base
+    (`private.check_photo_version` : parente visible par l'auteur, non privée, même vue avec 1 m / 1°
+    de marge ; jamais plus visible qu'elle) ; `versions_count` par déclencheur. Une reproduction est
+    une photo comme les autres, avec ↻ (`VersionBadge`, `.tile-meta`, `.overlay-version`, anneau dans
+    `Dots`) ; son détail montre la parente (`ParentBlock`, « Reproduction d'une photo qui n'est plus
+    disponible » sinon) et « Avant / après » (`BeforeAfter`) ; une photo reproduite, « ↻ Reproduite
+    n fois » (`loadVersions`, RLS : seulement celles que je peux voir).
+  - **« Reproduire cette photo »** (après une capture : dialogue de la chasse, toast du viseur ; détail
+    d'une photo capturée) → `#/reproduire/<id>` = l'accueil en mode reproduction (`Home reproduce`) :
+    l'originale en calque centré avec son champ de vision réel (comme Recaler), opacité réglable,
+    jauges de la chasse (`AlignGauges`) ; la photo prise passe par `addPhoto` → détail de la version.
+  - **Pile triée** (`pileOrder`, `photoPileOrder`) : score `PILE_SCORE` (likes ; poids des likes sur
+    place prévu pour plus tard) décroissant, la plus récente à égalité, photo ajoutée depuis moins de
+    `NEW_PHOTO_BOOST_HOURS` (24 h) en tête. `groupBySpot(items, point, date, order)` ancre toujours le
+    lieu sur sa photo la plus récente puis range la pile. Carte : vignette d'un lieu / d'un groupe =
+    tête de pile (`photos_in_bounds` renvoie `likes_count`, `version_of`, `accuracy`).
+  - **Galerie d'un lieu** (`#/galerie/<id>`, appui sur les points) : grille de toutes les photos du
+    lieu (`loadSpot` les charge depuis la carte, RPC `nearby_photos` à 10 m), tri « Les plus aimées »
+    (par défaut) / « Les plus récentes » (ajout) / « Date de prise », mémorisé (`picti.galerie.tri`).
+- Photos d'un même **lieu** (`src/geo/spots.ts`, depuis 0.15.0 : `sameSpot` = rayon de 5 m
+  `SPOT_RADIUS_MIN`, élargi jusqu'à la moins bonne précision GPS des deux photos, plafonné à 10 m
+  `SPOT_RADIUS_MAX`, précision inconnue → 10 m, ET caps à ±45° `SPOT_HEADING_TOLERANCE` près : deux
+  photos dos à dos = deux lieux ; sans cap, la distance seule ; à utiliser partout, jamais une
+  comparaison directe de distance) : **empilées**, dans l'ordre de la pile (`pileOrder`, voir
+  « Likes et reproductions ») ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
+  en boucle via `cycle`) et des **points façon Instagram** (`Dots`) indiquent leur nombre (anneau =
+  reproduction ; appui = galerie du lieu).
   Partout : viseur de l'accueil (`ArSpotsLayer` : pile des photos du lieu visibles dans la
   direction visée), en-tête du détail (`usePhotosHere`), carte (les photos d'un endroit
   forment un seul point, jamais séparé au zoom), grille « Mes photos » (une vignette par
@@ -194,7 +241,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
   (API Vercel, `create_deployment` + `deploymentId`). **Attention : depuis le 30/09, chaque fusion dans
   `main` est mise en production automatiquement** (vu avec eliott-220/Picti#3 et #4) : fusionner une
-  pull request = mettre en ligne. **Production actuelle : 0.013.1** (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`, commit `f75bb68` = fusion d'eliott-220/Picti#6 dans `main`, confirmée READY sur picti.vercel.app le 30/09/2026 ; contient 0.012.0 vitre, 0.013.0 couleurs inversées, 0.013.1 capture à 5 m et ancrage). Retour arrière possible : 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  pull request = mettre en ligne. **Production actuelle : 0.14.0** (`dpl_9TDSTZYJRyjE5TxMLy1h63DJWS7r`, commit `f67a54b` = eliott-220/Picti#8 fusionnée dans `main`, confirmée en ligne sur picti.vercel.app le 06/10/2026 ; contient photo « carte », capture par agrandissement, amis et vie privée). Retour arrière possible : 0.13.1 (`dpl_CWEBYDsasj4uGqN4HCQu4UEUSVuZ`, https://picti-1w0uak6yx-dash-board4.vercel.app, étiquette git `v0.13.1`), 0.013.1 d'origine (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`), 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -296,12 +343,20 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   visibilité au-dessus du déclencheur et dans l'import, toast « visible par vos amis » + « Modifier »,
   invitations (lien `#/ami/<code>`, partage, QR code, recherche par nom), pastille des demandes
   reçues, carte filtrable Monde / Amis.
+- 0.015.0 : likes (cœur sur la fiche, la pile du viseur et du détail, la fiche de groupe de la carte ;
+  « Aimée par … » pour l'auteur) ; capturer = aimer sur place ; notifications (cloche, likes regroupés,
+  temps réel) ; reproductions (« Reproduire cette photo » après une capture : calque de l'originale ;
+  toute photo prise dans la vue d'une autre en devient une version, ↻, avant / après) ; piles triées
+  par likes (bonus 24 h des photos neuves), galerie d'un lieu (trois tris) ; lieu = 5 m (jusqu'à
+  10 m selon le GPS) et même direction. Notifications push : structure seulement.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
 - Prochaines étapes : test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
-  l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
+  l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ;
+  0.015.0 sur iPhone (reproduction avec le calque, notifications en temps réel) ; envoi des
+  notifications push (voir la note du 06/10, « Likes et reproductions ») ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
   choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
   plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
   d'e-mails français dans `supabase/templates/`, à coller dans Supabase › Authentication › Emails ;
@@ -332,3 +387,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-30 — Capture à moins de 5 m, photo qui ne bouge plus (0.013.1)](claude/picti/2026-09-30-capture-5m-ancrage.md)
 - [2026-10-06 — Photo « carte », effacement à 2 m, capture par agrandissement (0.014.0)](claude/picti/2026-10-06-carte-et-capture.md)
 - [2026-10-06 — Amis : « amis » par défaut, choix à la prise, invitations, carte Monde / Amis (0.014.0)](claude/picti/2026-10-06-amis.md)
+- [2026-10-06 — Likes, capture = like, notifications, reproductions, galerie, lieux à 5 m (0.015.0)](claude/picti/2026-10-06-likes-et-reproductions.md)

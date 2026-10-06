@@ -1,10 +1,11 @@
 import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl'
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Supercluster, { type ClusterFeature, type ClusterProperties, type PointFeature } from 'supercluster'
 import { Icon } from '../components/Icon'
+import { LikeButton, VersionBadge } from '../components/LikeButton'
 import { SwipeDeck } from '../components/SwipeDeck'
 import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
@@ -13,7 +14,7 @@ import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { formatDateTime } from '../data/types'
 import { distanceMeters, formatDistance } from '../geo/geodesy'
-import { groupBySpot } from '../geo/spots'
+import { groupBySpot, pileOrder } from '../geo/spots'
 import { goBack, navigate } from '../router'
 import { useGeolocation } from '../sensors/useGeolocation'
 
@@ -54,24 +55,34 @@ interface MapPhoto {
   heading: number | null
   /** Date de prise de vue (ou d'ajout), en ms. */
   time: number
+  /** Date d'ajout dans PICTI (ms). */
+  addedAt: number
   thumbPath: string
+  likes: number
+  versionOf: string | null
+  accuracy: number | null
 }
 
-/** Un point de la carte = un endroit (photos prises à quelques mètres près). */
-interface PointProps {
-  /** Photo la plus récente de l'endroit (affichée en vignette, identifie l'endroit). */
+/** Ce qui décide de la photo en tête : likes, date d'ajout (bonus des photos neuves), date. */
+interface Lead {
+  /** Photo en tête (affichée en vignette, identifie l'endroit). */
   id: string
   time: number
-  /** Nombre de photos prises à cet endroit. */
+  addedAt: number
+  likes: number
+}
+/** Un point de la carte = un lieu (`sameSpot`). */
+interface PointProps extends Lead {
+  /** Nombre de photos du lieu. */
   count: number
 }
-interface ClusterProps {
-  /** Photo la plus récente du groupe (affichée en vignette). */
-  id: string
-  time: number
+interface ClusterProps extends Lead {
   /** Nombre total de photos du groupe. */
   count: number
 }
+
+/** Ordre de la pile (`pileOrder`) appliqué aux photos de la carte et aux têtes de lieux. */
+const leadOrder = (now: number) => pileOrder((l: Lead) => ({ likes: l.likes, addedAt: l.addedAt, time: l.time }), now)
 
 type Feature = ClusterFeature<ClusterProps> | PointFeature<PointProps>
 
@@ -93,6 +104,9 @@ interface InBoundsRow {
   taken_at: string | null
   created_at: string
   thumb_path: string
+  likes_count: number | null
+  version_of: string | null
+  accuracy: number | null
 }
 
 /**
@@ -213,7 +227,11 @@ export default function WorldMap() {
             lon: r.lon,
             heading: r.heading,
             time: Date.parse(r.taken_at ?? r.created_at),
+            addedAt: Date.parse(r.created_at),
             thumbPath: r.thumb_path,
+            likes: r.likes_count ?? 0,
+            versionOf: r.version_of ?? null,
+            accuracy: r.accuracy ?? null,
           })
         }
         return next
@@ -225,35 +243,50 @@ export default function WorldMap() {
     }
   }, [view, scope])
 
-  // Photos d'un même endroit, empilées : elles ne se séparent jamais, même au zoom maximal.
-  const spots = useMemo(() => {
-    const list = groupBySpot([...photos.values()], (p) => p, (p) => p.time)
-    return new Map(list.map((s) => [s.items[0].id, s]))
-  }, [photos])
+  // Mes likes récents (pas encore relus de la base) : pris en compte dans l'ordre des piles.
+  const { likeCounts } = useStore()
+  const likesOf = useCallback((p: MapPhoto) => likeCounts.get(p.id) ?? p.likes, [likeCounts])
+  // Instant de référence du bonus des photos neuves (fixé à l'ouverture de la carte).
+  const [now] = useState(() => Date.now())
+  const order = useMemo(() => leadOrder(now), [now])
 
-  // Index de regroupement : chaque groupe retient sa photo la plus récente.
+  // Photos d'un même lieu (`sameSpot`), empilées, la tête de pile devant : elles ne se séparent
+  // jamais, même au zoom maximal.
+  const spots = useMemo(() => {
+    const list = groupBySpot(
+      [...photos.values()],
+      (p) => ({ position: p, accuracy: p.accuracy, heading: p.heading }),
+      (p) => p.time,
+      (a, b) => order(lead(a, likesOf), lead(b, likesOf)),
+    )
+    return new Map(list.map((s) => [s.items[0].id, s]))
+  }, [photos, likesOf, order])
+
+  // Index de regroupement : chaque groupe retient la tête de pile de ses lieux.
   const index = useMemo(() => {
     const sc = new Supercluster<PointProps, ClusterProps>({
       radius: 64,
       maxZoom: CLUSTER_MAX_ZOOM,
-      map: (p) => ({ id: p.id, time: p.time, count: p.count }),
+      map: (p) => ({ id: p.id, time: p.time, addedAt: p.addedAt, likes: p.likes, count: p.count }),
       reduce: (acc, p) => {
         acc.count += p.count
-        if (p.time > acc.time) {
-          acc.time = p.time
+        if (order(p, acc) < 0) {
           acc.id = p.id
+          acc.time = p.time
+          acc.addedAt = p.addedAt
+          acc.likes = p.likes
         }
       },
     })
     sc.load(
       [...spots.values()].map((s) => ({
         type: 'Feature' as const,
-        properties: { id: s.items[0].id, time: s.items[0].time, count: s.items.length },
+        properties: { ...lead(s.items[0], likesOf), count: s.items.length },
         geometry: { type: 'Point' as const, coordinates: [s.position.lon, s.position.lat] },
       })),
     )
     return sc
-  }, [spots])
+  }, [spots, likesOf, order])
 
   const features: Feature[] = useMemo(
     () => (view ? index.getClusters(view.bbox, Math.floor(view.zoom)) : []),
@@ -268,7 +301,7 @@ export default function WorldMap() {
       const leaves = index
         .getLeaves(clusterId, Infinity)
         .flatMap((l) => spots.get(l.properties.id)?.items ?? [])
-        .sort((a, b) => b.time - a.time)
+        .sort((a, b) => order(lead(a, likesOf), lead(b, likesOf)))
       setSelection({ photos: leaves, clusterId, sameSpot: false, lngLat: [lon, lat] })
     } else {
       const spot = spots.get((f.properties as PointProps).id)
@@ -426,7 +459,7 @@ export default function WorldMap() {
               <span>
                 {selection.sameSpot && selection.photos.length > 1
                   ? 'Faites glisser pour voir les autres'
-                  : 'De la plus récente à la plus ancienne'}
+                  : 'Les plus aimées d’abord'}
                 {fix &&
                   ` · ${formatDistance(distanceMeters(fix, { lat: selection.lngLat[1], lon: selection.lngLat[0] }))}`}
               </span>
@@ -441,6 +474,8 @@ export default function WorldMap() {
               items={selection.photos}
               index={Math.min(deckIndex, selection.photos.length - 1)}
               onIndexChange={setDeckIndex}
+              rings={selection.photos.map((p) => p.versionOf != null)}
+              onDots={() => navigate(`/galerie/${selection.photos[Math.min(deckIndex, selection.photos.length - 1)].id}`)}
               label="Photos prises à cet endroit"
               renderCard={(p) => (
                 <MapDeckCard
@@ -456,6 +491,8 @@ export default function WorldMap() {
                   key={p.id}
                   id={p.id}
                   owner={p.owner}
+                  likes={likesOf(p)}
+                  version={p.versionOf != null}
                   size="strip"
                   caption={`${formatDateTime(p.time, { short: true })}${mine(p.owner) ? '' : ` · ${p.ownerName}`}`}
                   onClick={() => navigate(`/photo/${p.id}`)}
@@ -487,14 +524,25 @@ export default function WorldMap() {
   )
 }
 
-/** Carte de la pile : la photo entière (vignette), appui = détail. */
+/** Carte de la pile : la photo entière (vignette), appui = détail ; cœur et ↻ par-dessus. */
 function MapDeckCard({ photo, caption }: { photo: MapPhoto; caption: string }) {
   const url = useImageUrl(photo.id, 'thumb')
   const inColor = usePhotoInColor(photo.id, photo.owner)
   return (
-    <button type="button" className="deck-photo" onClick={() => navigate(`/photo/${photo.id}`)} aria-label={caption}>
-      {url ? <img src={url} alt="" draggable={false} className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
-      <span className="tile-caption">{caption}</span>
-    </button>
+    <div className="deck-photo-wrap">
+      <button type="button" className="deck-photo" onClick={() => navigate(`/photo/${photo.id}`)} aria-label={caption}>
+        {url ? <img src={url} alt="" draggable={false} className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
+        <span className="tile-caption">{caption}</span>
+      </button>
+      <span className="deck-meta">
+        {photo.versionOf && <VersionBadge />}
+        <LikeButton photo={{ id: photo.id, owner: photo.owner, likesCount: photo.likes }} className="light" />
+      </span>
+    </div>
   )
+}
+
+/** Ce qui décide de la tête de pile d'une photo de la carte. */
+function lead(p: MapPhoto, likesOf: (p: MapPhoto) => number): Lead {
+  return { id: p.id, time: p.time, addedAt: p.addedAt, likes: likesOf(p) }
 }

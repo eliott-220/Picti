@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextVisibility, VISIBILITIES, visibilityHelp, VISIBLE_BY, type Visibility } from './types'
+import { nextVisibility, ofName, VISIBILITIES, visibilityHelp, VISIBLE_BY, type Visibility } from './types'
 
 describe('pastille de visibilité', () => {
   it('fait défiler les trois valeurs, dans l’ordre, en boucle', () => {
@@ -26,5 +26,15 @@ describe('pastille de visibilité', () => {
     expect(visibilityHelp('amis')).toBe('Seuls vos amis peuvent la découvrir sur place.')
     expect(visibilityHelp('public', { plural: true })).toContain('peuvent les découvrir')
     expect(visibilityHelp('prive', { plural: true })).toBe('Vous seul pouvez les voir.')
+  })
+})
+
+describe('ofName', () => {
+  it('élide devant une voyelle ou un h', () => {
+    expect(ofName('Alice')).toBe('d’Alice')
+    expect(ofName('Hugo')).toBe('d’Hugo')
+    expect(ofName('Élodie')).toBe('d’Élodie')
+    expect(ofName('Bruno')).toBe('de Bruno')
+    expect(ofName('vous')).toBe('de vous')
   })
 })

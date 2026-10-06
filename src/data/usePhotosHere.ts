@@ -1,22 +1,19 @@
 import { useMemo } from 'react'
-import { photoTime } from '../components/arProjection'
-import { distanceMeters } from '../geo/geodesy'
-import { SAME_SPOT_RADIUS } from '../geo/spots'
+import { sameSpot } from '../geo/spots'
+import { photoPileOrder, spotPointOf } from './photoSpots'
 import { useStore } from './storeContext'
 import { isGeoframed, type GeoPhoto } from './types'
 
 /**
- * Photos géocadrées prises au même endroit qu'une photo (elle comprise), de
- * la plus récente à la plus ancienne. Une seule si elle n'est pas géocadrée.
+ * Photos géocadrées du même lieu qu'une photo (elle comprise, `sameSpot`), dans l'ordre de la
+ * pile (les plus aimées devant). Une seule si elle n'est pas géocadrée.
  */
 export function usePhotosHere(photo: GeoPhoto): GeoPhoto[] {
   const { photos } = useStore()
   return useMemo(() => {
-    const g = photo.geoframe
-    if (!g) return [photo]
-    const here = photos.filter(
-      (p) => p.id !== photo.id && isGeoframed(p) && distanceMeters(p.geoframe.position, g.position) <= SAME_SPOT_RADIUS,
-    )
-    return [photo, ...here].sort((a, b) => photoTime(b) - photoTime(a))
+    if (!isGeoframed(photo)) return [photo]
+    const here = spotPointOf(photo)
+    const others = photos.filter((p) => p.id !== photo.id && isGeoframed(p) && sameSpot(here, spotPointOf(p)))
+    return [photo, ...others].sort(photoPileOrder())
   }, [photos, photo])
 }

@@ -18,6 +18,7 @@ import {
   type Visibility,
 } from '../data/types'
 import { groupBySpot } from '../geo/spots'
+import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { goBack, navigate } from '../router'
 
 /** « Moi » : profil, chasseurs, amis et photos géocadrées. */
@@ -37,7 +38,7 @@ export function Profile({ section }: { section?: 'amis' }) {
 
   const geoframed = myPhotos.filter(isGeoframed)
   // Photos prises au même endroit : une seule vignette, empilée (on les fait défiler dans le détail).
-  const spots = groupBySpot(geoframed, (p) => p.geoframe.position, photoTime)
+  const spots = groupBySpot(geoframed, spotPointOf, photoTime, photoPileOrder())
   const pending = myPhotos.filter((p) => !isGeoframed(p))
   const heroUrl = useImageUrl(geoframed[0]?.id ?? myPhotos[0]?.id, 'full')
 
@@ -150,6 +151,8 @@ export function Profile({ section }: { section?: 'amis' }) {
                 // Seules les photos qui ne suivent pas mon réglage par défaut sont signalées.
                 badge={p.visibility !== defaultVisibility ? VISIBILITY_LABEL[p.visibility] : undefined}
                 stack={1 + others.length}
+                likes={p.likesCount}
+                version={p.versionOf != null}
                 label={others.length ? `${1 + others.length} photos au même endroit` : undefined}
                 onClick={() => navigate(`/photo/${p.id}`)}
               />

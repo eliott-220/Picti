@@ -27,6 +27,9 @@ const photo: GeoframedPhoto = {
   geoframe: { position: spot, accuracy: 5, heading: 0, pitch: 0, roll: 0, headingSource: 'boussole' },
   hintPosition: null,
   selfie: false,
+  likesCount: 0,
+  versionOf: null,
+  versionsCount: 0,
 }
 
 // Le spectateur regarde lui aussi vers le nord, avec un écran au cadrage de la photo.

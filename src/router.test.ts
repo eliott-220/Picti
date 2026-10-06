@@ -35,6 +35,13 @@ describe('parseHash', () => {
     expect(parseHash('#/photo')).toEqual({ name: 'accueil' })
   })
 
+  it('ouvre la galerie d’un lieu, les notifications, le mode « Reproduire »', () => {
+    expect(parseHash('#/galerie/abc')).toEqual({ name: 'galerie', id: 'abc' })
+    expect(parseHash('#/notifications')).toEqual({ name: 'notifications' })
+    expect(parseHash('#/reproduire/abc')).toEqual({ name: 'reproduire', id: 'abc' })
+    expect(parseHash('#/reproduire')).toEqual({ name: 'accueil' })
+  })
+
   it('lit les paramètres de recherche', () => {
     expect(parseHash('#/recherche')).toEqual({ name: 'recherche', filters: false })
     expect(parseHash('#/recherche?filtres')).toEqual({ name: 'recherche', filters: true })

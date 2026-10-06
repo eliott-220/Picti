@@ -28,12 +28,17 @@ const photo: GeoPhoto = {
   },
   hintPosition: null,
   selfie: false,
+  likesCount: 0,
+  versionOf: null,
+  versionsCount: 0,
 }
 
 const asRow = (p: GeoPhoto): PhotoRow => ({
   ...photoToRow(p),
   owner: p.owner,
   created_at: new Date(p.addedAt).toISOString(),
+  likes_count: p.likesCount,
+  versions_count: p.versionsCount,
   owner_profile: { name: p.ownerName },
 })
 
@@ -58,6 +63,21 @@ describe('conversion photo ⇄ ligne', () => {
     const selfie: GeoPhoto = { ...photo, selfie: true, focal35: 23, depth: 0.6 }
     expect(rowToPhoto(asRow(selfie))).toEqual(selfie)
     expect(photoToRow(selfie).selfie).toBe(true)
+  })
+
+  it('lit les likes, la photo parente et le nombre de versions', () => {
+    const version: GeoPhoto = { ...photo, likesCount: 7, versionOf: '6a1f0c1e-0000-4000-8000-0000000000ff', versionsCount: 2 }
+    expect(rowToPhoto(asRow(version))).toEqual(version)
+    // Lignes d'avant la 0.15.0 (colonnes absentes) : ni like ni parente.
+    const { likes_count: _l, version_of: _v, versions_count: _n, ...old } = asRow(photo)
+    expect(rowToPhoto(old as PhotoRow)).toMatchObject({ likesCount: 0, versionOf: null, versionsCount: 0 })
+  })
+
+  it('écrit la photo parente, jamais les compteurs (tenus par la base)', () => {
+    const row = photoToRow({ ...photo, likesCount: 7, versionOf: 'parente', versionsCount: 2 })
+    expect(row.version_of).toBe('parente')
+    expect('likes_count' in row).toBe(false)
+    expect('versions_count' in row).toBe(false)
   })
 
   it('ignore un mode sans orientation complète', () => {

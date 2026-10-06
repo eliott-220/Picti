@@ -42,7 +42,7 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
     for (const file of Array.from(files)) {
       try {
         const r = await importPhotoFile(file)
-        await addPhoto(r.photo, r.images, visibility)
+        await addPhoto(r.photo, r.images, { visibility })
         if (r.completeness === 'complet') s.auto++
         else s.pending++
       } catch {

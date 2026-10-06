@@ -16,6 +16,11 @@ export type Route =
   | { name: 'recaler'; id: string }
   /** Lien d'invitation : `#/ami/<code ami>`. */
   | { name: 'ami'; code: string }
+  /** Galerie de toutes les photos du lieu d'une photo. */
+  | { name: 'galerie'; id: string }
+  | { name: 'notifications' }
+  /** Viseur avec la photo à reproduire en calque. */
+  | { name: 'reproduire'; id: string }
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -35,7 +40,11 @@ export function parseHash(hash: string): Route {
     case 'photo':
     case 'chasse':
     case 'recaler':
+    case 'galerie':
+    case 'reproduire':
       return id ? { name: head, id } : { name: 'accueil' }
+    case 'notifications':
+      return { name: 'notifications' }
     case 'ami':
       return id ? { name: 'ami', code: id } : { name: 'accueil' }
     default:

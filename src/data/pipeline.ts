@@ -7,8 +7,14 @@ import type { CameraAngles } from '../geo/orientation'
 import { decodeImage, makeThumbnail, type EncodedImage } from './images'
 import { DEFAULT_DEPTH, formatDate, newId, SELFIE_DEPTH, type GeoPhoto } from './types'
 
-/** Photo pas encore publiée : l'auteur et les chemins d'images sont fixés à l'envoi. */
-export type PhotoDraft = Omit<GeoPhoto, 'owner' | 'ownerName' | 'visibility' | 'imagePath' | 'thumbPath'>
+/**
+ * Photo pas encore publiée : l'auteur, les chemins d'images, la visibilité et la photo parente
+ * (version) sont fixés à l'envoi ; les compteurs, par la base.
+ */
+export type PhotoDraft = Omit<
+  GeoPhoto,
+  'owner' | 'ownerName' | 'visibility' | 'imagePath' | 'thumbPath' | 'likesCount' | 'versionOf' | 'versionsCount'
+>
 
 export interface NewPhoto {
   photo: PhotoDraft

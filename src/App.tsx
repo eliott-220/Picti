@@ -7,15 +7,18 @@ import { useStore } from './data/storeContext'
 import { supabase } from './data/supabase'
 import { navigate, useRoute } from './router'
 import { Auth } from './screens/Auth'
+import { Gallery } from './screens/Gallery'
 import { Home } from './screens/Home'
 import { Hunt } from './screens/Hunt'
 import { Hunts } from './screens/Hunts'
 import { Invite } from './screens/Invite'
 import { Nearby } from './screens/Nearby'
 import { NewPassword } from './screens/NewPassword'
+import { Notifications } from './screens/Notifications'
 import { PhotoDetail } from './screens/PhotoDetail'
 import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
+import { Reproduce } from './screens/Reproduce'
 import { Search } from './screens/Search'
 
 // La carte (MapLibre) est lourde : chargée seulement à l'ouverture.
@@ -93,6 +96,12 @@ function Screens() {
       return <Hunt key={route.id} id={route.id} />
     case 'recaler':
       return <Recaler key={route.id} id={route.id} />
+    case 'galerie':
+      return <Gallery key={route.id} id={route.id} />
+    case 'notifications':
+      return <Notifications />
+    case 'reproduire':
+      return <Reproduce key={route.id} id={route.id} />
     default:
       return <Home />
   }

@@ -1,7 +1,18 @@
 import { createContext, useContext } from 'react'
 import type { GeoPoint } from '../geo/geodesy'
 import type { PhotoDraft } from './pipeline'
-import type { Capture, Friendship, GeoPhoto, PersonResult, Profile, ProfileChanges, Visibility } from './types'
+import type {
+  AppNotification,
+  Capture,
+  Friendship,
+  GeoPhoto,
+  Liker,
+  MyLike,
+  PersonResult,
+  Profile,
+  ProfileChanges,
+  Visibility,
+} from './types'
 
 export interface Store {
   userId: string
@@ -20,11 +31,29 @@ export interface Store {
   /** Captures de mes photos par d'autres utilisateurs (mes chasseurs). */
   hunters: Capture[]
   friends: Friendship[]
+  /** Mes likes : identifiant de photo → like (sur place ou non). */
+  likes: ReadonlyMap<string, MyLike>
+  /** Nombre de likes des photos hors du store (carte), après mes likes. */
+  likeCounts: ReadonlyMap<string, number>
+  /** Mes notifications (likes et captures de mes photos), les plus récentes d'abord. */
+  notifications: AppNotification[]
   isMine(photo: GeoPhoto): boolean
   loadPhoto(id: string): Promise<GeoPhoto | null>
   refreshNearby(position: GeoPoint): Promise<void>
-  /** Sans visibilité : celle choisie par défaut dans le profil. */
-  addPhoto(draft: PhotoDraft, images: { full: Blob; thumb: Blob }, visibility?: Visibility): Promise<GeoPhoto>
+  /** Charge toutes les photos (visibles) d'un lieu, autour de cette position. */
+  loadSpot(position: GeoPoint): Promise<void>
+  /** Versions (reproductions) visibles d'une photo. */
+  loadVersions(photoId: string): Promise<GeoPhoto[]>
+  /**
+   * Publie une photo. `visibility` : sans elle, celle choisie par défaut dans le profil.
+   * `versionOf` : photo à reproduire (bouton « Reproduire »), `null` pour ne rattacher à rien ;
+   * sans lui, la photo de la même vue choisie par `chooseParent`.
+   */
+  addPhoto(
+    draft: PhotoDraft,
+    images: { full: Blob; thumb: Blob },
+    options?: { visibility?: Visibility; versionOf?: string | null },
+  ): Promise<GeoPhoto>
   updatePhoto(photo: GeoPhoto): Promise<void>
   removePhoto(id: string): Promise<void>
   addCapture(photoId: string, score: number): Promise<void>
@@ -41,6 +70,12 @@ export interface Store {
   removeFriend(userId: string): Promise<void>
   /** Passe le compte en Premium avec un code (seconde option de paiement). */
   redeemPremiumCode(code: string): Promise<{ ok: boolean; message: string }>
+  /** Like / unlike (pas sa propre photo, pas le like d'une capture). */
+  toggleLike(photo: { id: string; owner: string; likesCount: number }): Promise<void>
+  /** Qui a aimé ma photo. */
+  fetchLikers(photoId: string): Promise<Liker[]>
+  reloadNotifications(): Promise<void>
+  markNotificationsRead(ids: string[]): Promise<void>
 }
 
 export const StoreContext = createContext<Store | null>(null)

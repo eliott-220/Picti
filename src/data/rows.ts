@@ -36,6 +36,9 @@ export interface PhotoRow {
   visibility: Visibility
   image_path: string
   thumb_path: string
+  likes_count: number
+  version_of: string | null
+  versions_count: number
   owner_profile?: { name: string } | null
 }
 
@@ -77,11 +80,16 @@ export function rowToPhoto(r: PhotoRow): GeoPhoto {
       : null,
     hintPosition: r.hint_lat != null && r.hint_lon != null ? { lat: r.hint_lat, lon: r.hint_lon } : null,
     selfie: r.selfie ?? false,
+    likesCount: r.likes_count ?? 0,
+    versionOf: r.version_of ?? null,
+    versionsCount: r.versions_count ?? 0,
   }
 }
 
-/** Ligne à écrire (sans les champs gérés par la base : auteur, date d'ajout). */
-export function photoToRow(p: GeoPhoto): Omit<PhotoRow, 'owner' | 'created_at' | 'owner_profile'> {
+/** Ligne à écrire (sans les champs gérés par la base : auteur, date d'ajout, compteurs). */
+export function photoToRow(
+  p: GeoPhoto,
+): Omit<PhotoRow, 'owner' | 'created_at' | 'owner_profile' | 'likes_count' | 'versions_count'> {
   const g = p.geoframe
   return {
     id: p.id,
@@ -107,6 +115,7 @@ export function photoToRow(p: GeoPhoto): Omit<PhotoRow, 'owner' | 'created_at' |
     visibility: p.visibility,
     image_path: p.imagePath,
     thumb_path: p.thumbPath,
+    version_of: p.versionOf,
   }
 }
 

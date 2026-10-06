@@ -2490,3 +2490,501 @@ img {
   box-shadow: var(--shadow);
   font-size: 15px;
 }
+
+/* ---------- Likes, reproductions, galerie, notifications (0.15.0) ---------- */
+
+/* Cœur et nombre de likes. Plein (rouge) : aimée ; épingle : aimée sur place (capturée). */
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 12px 4px 9px;
+  border: none;
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+}
+
+.like-btn:active {
+  transform: scale(0.94);
+}
+
+.like-btn.liked svg:first-child {
+  color: var(--red);
+  fill: var(--red);
+}
+
+.like-btn.mine {
+  cursor: default;
+}
+
+.like-btn.mine.liked svg:first-child {
+  color: inherit;
+  fill: currentColor;
+}
+
+.like-btn .like-pin {
+  margin-left: -2px;
+  color: var(--red);
+}
+
+.like-btn.light {
+  background: rgb(20 20 20 / 0.55);
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+
+.like-btn.light.liked svg:first-child {
+  color: #ff5a5a;
+  fill: #ff5a5a;
+}
+
+.like-btn.light .like-pin {
+  color: #ff8a8a;
+}
+
+.like-btn.compact {
+  min-height: 26px;
+  padding: 2px 9px 2px 7px;
+  font-size: 13px;
+}
+
+/* ↻ : reproduction d'une autre photo. */
+.version-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: none;
+}
+
+.version-badge.light {
+  background: rgb(20 20 20 / 0.55);
+  backdrop-filter: blur(8px);
+}
+
+/* Vignettes : ↻ et likes en haut à droite. */
+.tile-meta {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.tile-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(20 20 20 / 0.6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tile-meta svg {
+  fill: currentColor;
+}
+
+/* Points : anneau pour une reproduction ; cliquables (galerie du lieu). */
+.dot.ring {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1.5px rgb(0 0 0 / 0.35);
+}
+
+.dot.ring.active {
+  box-shadow: inset 0 0 0 1.5px var(--red);
+}
+
+.dots.light .dot.ring {
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.6);
+}
+
+.dots.light .dot.ring.active,
+.detail-deck .dot.ring.active {
+  box-shadow: inset 0 0 0 1.5px #fff;
+}
+
+.dots-button {
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.ar-dots.dots-button {
+  padding: 8px 11px;
+  pointer-events: auto;
+}
+
+.detail-deck .dots-button {
+  padding: 10px 14px;
+}
+
+/* Viseur : ↻ dans le coin de la carte, de taille constante à l'écran. */
+.overlay-version {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.overlay-version span {
+  position: absolute;
+  top: calc(var(--px, 1) * 10px);
+  left: calc(var(--px, 1) * 10px);
+  display: grid;
+  place-items: center;
+  width: calc(var(--px, 1) * 26px);
+  height: calc(var(--px, 1) * 26px);
+  border-radius: 50%;
+  background: rgb(20 20 20 / 0.7);
+  color: #fff;
+  font-size: calc(var(--px, 1) * 16px);
+  font-weight: 700;
+}
+
+.timeline-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.timeline-meta .dots {
+  justify-content: flex-start;
+}
+
+.timeline-version {
+  font-weight: 700;
+}
+
+/* Carte du monde : cœur et ↻ sur la carte de la pile. */
+.deck-photo-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.deck-meta {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Détail : cœur sous le titre, ↻ sur la carte. */
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detail-card {
+  position: relative;
+}
+
+.detail-card-version {
+  position: absolute;
+  top: calc(var(--safe-top) + 28px);
+  right: 24px;
+  width: 32px;
+  height: 32px;
+  font-size: 19px;
+}
+
+.version-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.version-block.missing {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.version-parent {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: none;
+  border-radius: var(--r-tile);
+  background: var(--paper-2);
+  text-align: left;
+}
+
+.thumb {
+  display: block;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+
+.thumb img,
+.thumb .tile-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.version-thumb {
+  width: 56px;
+  height: 72px;
+  border-radius: 10px;
+}
+
+.version-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.version-text strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.version-text > span {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.versions-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.versions-block .strip {
+  align-self: stretch;
+}
+
+.versions-note {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.likers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.likers > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+
+.likers svg {
+  color: var(--red);
+  fill: var(--red);
+}
+
+.likers ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.likers li {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--paper-2);
+}
+
+/* Avant / après : la reproduction glisse sur l'originale. */
+.before-after {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 20px);
+  background: #000;
+  color: #fff;
+}
+
+.ba-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 16px;
+  touch-action: none;
+}
+
+.ba-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ba-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow: 0 0 8px rgb(0 0 0 / 0.6);
+  pointer-events: none;
+}
+
+.ba-label {
+  position: absolute;
+  top: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(20 20 20 / 0.6);
+  font-size: 13px;
+}
+
+.ba-label.left {
+  left: 12px;
+}
+
+.ba-label.right {
+  right: 12px;
+}
+
+.before-after input {
+  accent-color: var(--red);
+}
+
+/* Mode « Reproduire » : consigne et jauges en haut, opacité du calque au-dessus du déclencheur. */
+.reproduce-guide {
+  position: absolute;
+  top: calc(var(--safe-top) + 16px);
+  left: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reproduce-guide .gauges {
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+}
+
+.reproduce-opacity {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: calc(var(--safe-bottom) + 160px);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+}
+
+/* Galerie d'un lieu. */
+.gallery-sort {
+  margin-top: 0;
+}
+
+/* Notifications. */
+.notif-read-all {
+  align-self: flex-start;
+  margin-top: 14px;
+}
+
+.notif-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notif-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+
+.notif-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+}
+
+.notif-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.notif-text strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.notif-row.unread .notif-text strong {
+  font-weight: 600;
+}
+
+.notif-text strong svg {
+  flex-shrink: 0;
+  color: var(--red);
+}
+
+.notif-text > span {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.notif-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+}

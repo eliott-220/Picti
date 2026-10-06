@@ -53,6 +53,8 @@ export function PhotoTile({
   label,
   stack = 1,
   owner,
+  likes,
+  version = false,
 }: {
   id: string
   /** Auteur, si l'appelant le connaît mieux que le store (carte) : règle de couleur. */
@@ -65,6 +67,10 @@ export function PhotoTile({
   size?: 'grid' | 'strip' | 'mini'
   /** Nombre de photos empilées (prises au même endroit) : points en bas. */
   stack?: number
+  /** Nombre de likes, affiché en haut à droite (rien sous 1). */
+  likes?: number
+  /** Reproduction d'une autre photo : symbole ↻. */
+  version?: boolean
 }) {
   const url = useImageUrl(id, 'thumb')
   // Photo d'un autre pas encore capturée : noir et blanc.
@@ -73,6 +79,16 @@ export function PhotoTile({
     <button type="button" className={`tile tile-${size}`} onClick={onClick} aria-label={label}>
       {url ? <img src={url} alt="" loading="lazy" className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
       {badge && <span className="tile-badge">{badge}</span>}
+      {(version || !!likes) && (
+        <span className="tile-meta">
+          {version && <span aria-label="Reproduction">↻</span>}
+          {!!likes && (
+            <span aria-label={`${likes} like${likes > 1 ? 's' : ''}`}>
+              <Icon name="heart" size={12} /> {likes}
+            </span>
+          )}
+        </span>
+      )}
       {caption && <span className="tile-caption">{caption}</span>}
       {stack > 1 && <Dots count={stack} index={0} className="light tile-dots" />}
     </button>
@@ -120,5 +136,16 @@ export function AvatarRow({ people }: { people: { id: string; name: string; deta
         </div>
       ))}
     </div>
+  )
+}
+
+/** Vignette seule, non cliquable (à placer dans un bouton) ; même règle de couleur que `PhotoTile`. */
+export function Thumb({ id, owner, className = '' }: { id: string; owner?: string; className?: string }) {
+  const url = useImageUrl(id, 'thumb')
+  const inColor = usePhotoInColor(id, owner)
+  return (
+    <span className={`thumb ${className}`} aria-hidden="true">
+      {url ? <img src={url} alt="" className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
+    </span>
   )
 }

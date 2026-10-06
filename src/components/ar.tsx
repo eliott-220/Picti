@@ -5,11 +5,13 @@
 import { useEffect, useState, type CSSProperties, type HTMLAttributes } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { formatDayTime, type GeoPhoto } from '../data/types'
+import { ALIGN_TOLERANCE, type Alignment } from '../geo/alignment'
 import { CAPTURE } from '../geo/capture'
 import { formatDistance } from '../geo/geodesy'
 import { OVERLAY_W, overlayHeight, photoTime } from './arProjection'
 import { Dots } from './Dots'
 import { Icon } from './Icon'
+import { LikeButton } from './LikeButton'
 import { PhotoTile } from './ui'
 import type { CaptureState } from './useCapture'
 import { useSwipe } from './useSwipe'
@@ -55,6 +57,7 @@ export function ArPhoto({
   glass = false,
   blur = 0,
   scale = 1,
+  version = false,
   onClick,
   handlers,
 }: {
@@ -66,6 +69,8 @@ export function ArPhoto({
   blur?: number
   /** Échelle d'affichage (`overlayScale`) : cadre et surbrillance gardent la même épaisseur à l'écran. */
   scale?: number
+  /** Reproduction d'une autre photo : symbole ↻ dans un coin de la carte. */
+  version?: boolean
   onClick?: () => void
   /** Gestes sur la photo (ex. glissement pour passer à la suivante). */
   handlers?: HTMLAttributes<HTMLImageElement>
@@ -110,6 +115,12 @@ export function ArPhoto({
       )}
       {/* Reflet de la vitre, par-dessus la photo. */}
       {glass && <div className="overlay-glass" aria-hidden style={{ ...size, ...vars, transform, opacity }} />}
+      {/* Reproduction : ↻ dans le coin, de taille constante à l'écran (pas sur la vitre, il serait en miroir). */}
+      {version && !glass && (
+        <div className="overlay-version" aria-hidden style={{ ...size, ...vars, transform, opacity: shown }}>
+          <span>↻</span>
+        </div>
+      )}
     </>
   )
 }
@@ -188,8 +199,9 @@ export function CaptureHint({ text }: { text: string | null }) {
 }
 
 /**
- * Frise des photos prises au même endroit : la plus récente d'abord,
- * flèches (ou glissement) pour remonter le temps, points pour le nombre.
+ * Frise des photos d'un même lieu, dans l'ordre de la pile (les plus aimées d'abord) : flèches
+ * (ou glissement) pour passer de l'une à l'autre, cœur de la photo affichée, points pour le
+ * nombre (appui : galerie du lieu).
  */
 export function SpotTimeline({
   items,
@@ -199,6 +211,7 @@ export function SpotTimeline({
   action,
   dots = true,
   distance,
+  onGallery,
 }: {
   items: GeoPhoto[]
   index: number
@@ -209,6 +222,8 @@ export function SpotTimeline({
   dots?: boolean
   /** Distance au point de vue (m), si connue. */
   distance?: number | null
+  /** Galerie de toutes les photos du lieu (appui sur les points). */
+  onGallery?: () => void
 }) {
   const photo = items[index]
   const step = (s: 1 | -1) => onChange(Math.min(items.length - 1, Math.max(0, index + s)))
@@ -232,15 +247,27 @@ export function SpotTimeline({
         className="timeline-step"
         onClick={() => step(-1)}
         disabled={index === 0}
-        aria-label="Photo plus récente"
+        aria-label="Photo précédente de la pile"
       >
         <Icon name="back" size={20} />
       </button>
       <PhotoTile id={photo.id} size="mini" />
       <div className="timeline-text">
         <strong>{formatDayTime(photoTime(photo))}</strong>
-        <span>{(index === 0 && items.length > 1 ? `${author} · la plus récente` : author) + where}</span>
-        {dots && <Dots count={items.length} index={index} className="light" />}
+        <span>{author + where}</span>
+        <div className="timeline-meta">
+          <LikeButton photo={photo} className="light compact" />
+          {photo.versionOf && <span className="timeline-version">↻</span>}
+          {dots && (
+            <Dots
+              count={items.length}
+              index={index}
+              rings={items.map((p) => p.versionOf != null)}
+              onOpen={onGallery}
+              className="light"
+            />
+          )}
+        </div>
       </div>
       {action && (
         <button type="button" className="btn small" onClick={action.onClick} disabled={action.disabled}>
@@ -252,10 +279,38 @@ export function SpotTimeline({
         className="timeline-step next"
         onClick={() => step(1)}
         disabled={index >= items.length - 1}
-        aria-label="Photo plus ancienne"
+        aria-label="Photo suivante de la pile"
       >
         <Icon name="back" size={20} />
       </button>
+    </div>
+  )
+}
+
+/** Jauges d'alignement sur le point de vue d'une photo : distance, cap, inclinaison (chasse, reproduction). */
+export function AlignGauges({ al }: { al: Alignment }) {
+  return (
+    <div className="gauges">
+      <Gauge label="Distance" value={al.distance != null ? formatDistance(al.distance) : '…'} ok={al.onSpot} />
+      <Gauge
+        label="Cap"
+        value={al.headingError != null ? `${al.headingError > 0 ? '+' : ''}${Math.round(al.headingError)}°` : '…'}
+        ok={al.headingError != null && Math.abs(al.headingError) <= ALIGN_TOLERANCE.heading}
+      />
+      <Gauge
+        label="Inclinaison"
+        value={al.pitchError != null ? `${al.pitchError > 0 ? '+' : ''}${Math.round(al.pitchError)}°` : '…'}
+        ok={al.pitchError != null && Math.abs(al.pitchError) <= ALIGN_TOLERANCE.pitch}
+      />
+    </div>
+  )
+}
+
+function Gauge({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className={`gauge ${ok ? 'ok' : ''}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { distanceMeters, type GeoFix } from '../geo/geodesy'
 import type { ViewportCamera } from '../geo/optics'
 import { anglesFromBasis, type CameraBasis } from '../geo/orientation'
 import { cycle, groupBySpot } from '../geo/spots'
+import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { ArPhoto, CaptureCard, CaptureHint, SpotTimeline } from './ar'
 import {
   coverTransform,
@@ -35,9 +36,10 @@ interface Card {
 
 /**
  * Viseur augmenté : les photos géocadrées autour de soi flottent à leur
- * place, comme des cartes. Les photos d'un même endroit sont empilées, la
- * plus récente devant : on fait glisser celle du dessus (comme sur Tinder)
- * pour voir les autres, les points sous la photo indiquant combien il y en a.
+ * place, comme des cartes. Les photos d'un même lieu sont empilées, les plus
+ * aimées devant : on fait glisser celle du dessus (comme sur Tinder) pour voir
+ * les autres ; les points sous la photo disent combien il y en a et ouvrent la
+ * galerie du lieu.
  * « Capturer » : la photo visée s'agrandit jusqu'à couvrir l'écran (voir `useCapture`).
  */
 export function ArSpotsLayer({
@@ -47,6 +49,7 @@ export function ArSpotsLayer({
   cam,
   isMine,
   onOpen,
+  onGallery,
   onCapture,
 }: {
   photos: GeoframedPhoto[]
@@ -55,6 +58,8 @@ export function ArSpotsLayer({
   cam: ViewportCamera | null
   isMine: (p: GeoPhoto) => boolean
   onOpen: (p: GeoPhoto) => void
+  /** Galerie de toutes les photos du lieu (appui sur les points). */
+  onGallery?: (p: GeoPhoto) => void
   /**
    * Enregistre la capture d'une photo d'un autre, pas encore capturée, une fois l'agrandissement
    * achevé (bouton « Capturer ») ; résout `true` si elle est enregistrée.
@@ -87,15 +92,15 @@ export function ArSpotsLayer({
   const spots = useMemo(() => {
     if (!fix) return []
     const around = photos.filter((p) => distanceMeters(fix, p.geoframe.position) <= AR_RANGE)
-    return groupBySpot(around, (p) => p.geoframe.position, photoTime)
+    return groupBySpot(around, spotPointOf, photoTime, photoPileOrder())
   }, [photos, fix])
 
   const projected =
     basis && cam
       ? spots
           .map((spot) => {
-            // Clé stable : la plus ancienne photo du lieu (une nouvelle photo ne la change pas).
-            const key = spot.items[spot.items.length - 1].id
+            // Clé stable : la plus ancienne photo du lieu (ni une nouvelle photo ni un like ne la changent).
+            const key = spot.items.reduce((a, b) => (photoTime(b) < photoTime(a) ? b : a)).id
             // Pile : les photos du lieu visibles dans cette direction.
             const cards: Card[] = spot.items
               .slice(0, MAX_PER_SPOT)
@@ -147,6 +152,7 @@ export function ArSpotsLayer({
             color={color}
             onSelect={(photo) => select(s.key, photo)}
             onOpen={onOpen}
+            onGallery={onGallery}
           />
         ) : (
           <ArPhoto
@@ -158,6 +164,7 @@ export function ArSpotsLayer({
             blur={s.cards[s.index].ar.blur}
             scale={overlayScale(s.cards[s.index].ar)}
             glass={!s.cards[s.index].ar.facing}
+            version={s.cards[s.index].photo.versionOf != null}
             onClick={() => onOpen(s.cards[s.index].photo)}
           />
         ),
@@ -226,6 +233,7 @@ function ArDeck({
   color,
   onSelect,
   onOpen,
+  onGallery,
 }: {
   cards: Card[]
   index: number
@@ -233,6 +241,7 @@ function ArDeck({
   color: (p: GeoPhoto) => { saturation: number }
   onSelect: (photo: GeoPhoto) => void
   onOpen: (photo: GeoPhoto) => void
+  onGallery?: (photo: GeoPhoto) => void
 }) {
   const n = cards.length
   const swipe = useCardSwipe((step) => onSelect(cards[cycle(index, step, n)].photo))
@@ -278,6 +287,7 @@ function ArDeck({
           blur={top.ar.blur}
           scale={overlayScale(top.ar)}
           glass={!top.ar.facing}
+          version={top.photo.versionOf != null}
           onClick={() => onOpen(top.photo)}
           handlers={n > 1 ? swipe.handlers : undefined}
         />
@@ -286,6 +296,8 @@ function ArDeck({
         <Dots
           count={n}
           index={index}
+          rings={cards.map((c) => c.photo.versionOf != null)}
+          onOpen={onGallery && (() => onGallery(top.photo))}
           className="light ar-dots"
           style={{
             left: Math.min(cam.width - 40, Math.max(40, box.x)),

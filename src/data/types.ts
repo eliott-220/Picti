@@ -101,6 +101,42 @@ export interface GeoPhoto {
    * où se tenait son auteur.
    */
   selfie: boolean
+  /** Nombre de likes (tenu par la base). */
+  likesCount: number
+  /**
+   * Version (reproduction) : la photo parente, celle que l'auteur a voulu reproduire ou la
+   * photo de la même vue choisie à l'enregistrement (`chooseParent`). Null sinon.
+   */
+  versionOf: string | null
+  /** Nombre de versions de cette photo (tenu par la base). */
+  versionsCount: number
+}
+
+/** Mon like sur une photo : `onSite` = donné par une capture (« aimée sur place »). */
+export interface MyLike {
+  onSite: boolean
+}
+
+/** Un like vu par l'auteur de la photo (« Aimée par … »). */
+export interface Liker {
+  userId: string
+  name: string
+  onSite: boolean
+  likedAt: number
+}
+
+export type NotificationKind = 'like' | 'capture'
+
+export interface AppNotification {
+  id: string
+  kind: NotificationKind
+  photoId: string
+  /** Vignette de la photo (stockage). */
+  thumbPath: string | null
+  actorId: string
+  actorName: string
+  createdAt: number
+  read: boolean
 }
 
 /** Une photo retrouvée in situ lors d'une chasse. */
@@ -210,6 +246,9 @@ export function photoTitleAndDate(p: GeoPhoto): string {
   const when = formatDateTime(p.takenAt ?? p.addedAt)
   return formatDate(p.takenAt ?? p.addedAt) === p.title || !p.title ? when : `${p.title} · ${when}`
 }
+
+/** « de Paul », « d’Alice » : complément du nom avec élision devant une voyelle ou un h. */
+export const ofName = (name: string) => (/^[aeiouyàâäéèêëîïôöùûüh]/i.test(name) ? `d’${name}` : `de ${name}`)
 
 /** Identifiant UUID v4 (clé primaire des photos en base). */
 export function newId(): string {
