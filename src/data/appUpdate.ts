@@ -52,10 +52,9 @@ export function reloadApp() {
   window.location.reload()
 }
 
+/** Ligne de version du menu, ex. « Version 0.015.1 · 6 oct. » (jour de la mise à jour, sans l'heure). */
 export function formatVersion(): string {
   const d = new Date(APP_BUILT_AT)
-  const when = Number.isNaN(d.getTime())
-    ? ''
-    : d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const when = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   return `Version ${APP_NUMBER}${APP_VERSION.length === 7 ? '' : ' (locale)'}${when ? ` · ${when}` : ''}`
 }
