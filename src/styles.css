@@ -3309,7 +3309,7 @@ button.avatar-item {
   accent-color: var(--red);
 }
 
-/* Mode « Reproduire » : consigne et jauges en haut, opacité du calque au-dessus du déclencheur. */
+/* Mode « Reproduire » : consigne et distance en haut, opacité au-dessus du déclencheur. */
 .reproduce-guide {
   position: absolute;
   top: calc(var(--safe-top) + 16px);
@@ -3320,12 +3320,6 @@ button.avatar-item {
   gap: 8px;
 }
 
-.reproduce-guide .gauges {
-  padding: 6px;
-  border-radius: 20px;
-  background: var(--glass);
-  backdrop-filter: blur(10px);
-}
 
 .reproduce-opacity {
   position: absolute;
@@ -3722,4 +3716,104 @@ button.tile-author {
 
 .photo-sheet:focus-visible {
   outline: none;
+}
+
+/* La vidéo et les croix partagent exactement le même viseur, hors des commandes.
+   Accueil/chasse gardent leur cadrage plein écran. */
+.camera-stage {
+  position: absolute;
+  inset: 0;
+}
+.reproduce-viewfinder {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) calc(var(--safe-bottom) + 206px);
+}
+.reproduce-viewfinder .camera-stage {
+  position: relative;
+  inset: auto;
+  grid-row: 2;
+  min-height: 0;
+  overflow: hidden;
+}
+.reproduce-viewfinder .reproduce-guide {
+  position: static;
+  grid-row: 1;
+  margin: calc(var(--safe-top) + 12px) 16px 12px;
+  gap: 6px;
+}
+.reproduce-distance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.reproduce-crosshairs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+}
+.reproduce-crosshairs svg {
+  display: block;
+  overflow: hidden;
+}
+.reproduce-crosshairs svg g {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px #000) drop-shadow(0 0 1px #000);
+}
+.cross-target, .reproduce-crosshairs.aligned .cross-fixed {
+  color: #ffdc3c;
+}
+.cross-message {
+  position: absolute;
+  bottom: 24px;
+  left: 28px;
+  right: 28px;
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px #000, 0 0 2px #000, 1px 0 2px #000;
+}
+.reproduce-crosshairs.aligned .cross-message {
+  color: #ffdc3c;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  #root:has(.reproduce-viewfinder) { max-width: none; }
+  .reproduce-viewfinder {
+    --safe-right: env(safe-area-inset-right, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: calc(var(--safe-right, 0px) + 112px);
+    grid-template-rows: auto minmax(0, 1fr) calc(var(--safe-bottom) + 48px);
+  }
+  .reproduce-viewfinder .reproduce-guide {
+    margin: 6px 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+  }
+  .reproduce-viewfinder .guide { padding: 4px 8px; }
+  .reproduce-viewfinder .guide span { display: none; }
+  .reproduce-viewfinder .reproduce-alert { padding: 4px 10px; font-size: 13px; }
+  .reproduce-viewfinder .bottom-bar {
+    left: auto;
+    right: var(--safe-right, 0px);
+    top: 12px;
+    bottom: 12px;
+    width: 112px;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .reproduce-viewfinder .reproduce-opacity {
+    left: 24px;
+    right: 136px;
+    bottom: calc(var(--safe-bottom) + 4px);
+  }
+  .reproduce-viewfinder .shutter-visibility { font-size: 11px; }
+  .cross-message { bottom: 24px; font-size: 13px; }
 }

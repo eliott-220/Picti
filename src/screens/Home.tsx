@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlignGauges } from '../components/ar'
+import { ReproduceCrosshairs } from '../components/ReproduceCrosshairs'
 import { viewportCamera, type GeoframedPhoto } from '../components/arProjection'
 import { ArSpotsLayer } from '../components/ArSpotsLayer'
 import { Icon } from '../components/Icon'
@@ -19,7 +19,8 @@ import { outOfViewMessage, reproduceAlert, vaguePositionMessage, viewpointAt } f
 import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, ofName, VISIBLE_BY, type GeoPhoto } from '../data/types'
-import { computeAlignment, guidance } from '../geo/alignment'
+import { computeAlignment } from '../geo/alignment'
+import { distanceMeters, formatDistance } from '../geo/geodesy'
 import { angleDiffDeg, clamp } from '../geo/math'
 import { coverViewport, focalPx, FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis, type CameraAngles } from '../geo/orientation'
@@ -56,18 +57,19 @@ const LAST_SHOT_MS = 5000
 
 /**
  * Accueil : le viseur, point de départ du géocadrage en direct. Avec `reproduce` (bouton
- * « Reproduire cette photo ») : la photo d'origine en calque semi-transparent et les jauges
- * d'alignement de la chasse ; la photo prise en devient une version.
+ * « Reproduire cette photo ») : la photo d'origine en calque semi-transparent et les deux croix
+ * d'orientation ; le rattachement reste décidé par les règles existantes.
  */
 export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   const [sheet, setSheet] = useState<'import' | 'menu' | null>(null)
   const [flash, setFlash] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [reproduceOpacity, setReproduceOpacity] = useState(0.5)
   // Un selfie se reproduit avec la caméra avant.
   const [facing, setFacing] = useState<CameraFacing>(reproduce?.selfie ? 'user' : 'environment')
   const selfie = facing === 'user'
   const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera(true, facing)
-  const [stageRef, stage] = useElementSize<HTMLElement>()
+  const [stageRef, stage] = useElementSize<HTMLDivElement>()
   const geo = useGeolocation()
   const orientation = useOrientation()
   // Position suivie image par image (et pas à pas) : les photos restent à leur place quand on marche.
@@ -287,57 +289,75 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           : null
 
   return (
-    <main className="screen viewfinder" ref={stageRef}>
-      {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
-          Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
-      <video ref={videoRef} className={`camera-video ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
-      {cameraStatus === 'error' && (
-        <div className="camera-fallback">
-          <Icon name="image" size={40} />
-          <p>{cameraError}</p>
-        </div>
-      )}
+    <main className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`}>
+      <div className="camera-stage" ref={stageRef}>
+        {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
+            Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
+        <video ref={videoRef} className={`camera-video ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
+        {cameraStatus === 'error' && (
+          <div className="camera-fallback">
+            <Icon name="image" size={40} />
+            <p>{cameraError}</p>
+          </div>
+        )}
+        {reproduce && status?.view !== 'lost' && (
+          <ReproduceOverlay
+            photo={reproduce}
+            stage={stage}
+            cameraSize={cameraSize}
+            focal35={selfie ? FRONT_PHONE_FOCAL35 : focal35}
+            dim={away}
+            opacity={reproduceOpacity}
+            mirror={selfie}
+          />
+        )}
+        {reproduce && cameraStatus === 'ready' && !sheet && !held && !frozen && !lostCard && !captureSheet?.open && (
+          <ReproduceCrosshairs
+            target={reproduce.geoframe}
+            orientation={orientation}
+            cam={viewportCamera(stage, cameraSize, selfie ? FRONT_PHONE_FOCAL35 : focal35)}
+            selfie={selfie}
+          />
+        )}
+        {/* Image figée au déclenchement, le temps de choisir. */}
+        {frozen && <img className={`frozen-shot ${selfie ? 'mirror' : ''}`} src={frozen} alt="" />}
+        {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie. */}
+        {!sheet && !selfie && !reproduce && (
+          <ArSpotsLayer
+            photos={arPhotos}
+            fix={position}
+            basis={orientation.absolute ? orientation.basis : null}
+            cam={viewportCamera(stage, cameraSize, focal35)}
+            isMine={isMine}
+            onOpen={(p) => navigate(`/photo/${p.id}`)}
+            onHunt={(p) => navigate(`/chasse/${p.id}`)}
+            onGallery={(p) => navigate(`/galerie/${p.id}`)}
+            onCapture={captureHere}
+            actionFor={(p) =>
+              captureSheet?.id === p.id && !captureSheet.open
+                ? { label: 'Fiche', onClick: () => setCaptureSheet({ id: p.id, open: true }) }
+                : null
+            }
+          />
+        )}
+        {flash && <div className="flash" />}
+      </div>
       {reproduce && status?.view !== 'lost' && (
-        <ReproduceOverlay
-          photo={reproduce}
-          stage={stage}
-          cameraSize={cameraSize}
-          focal35={selfie ? FRONT_PHONE_FOCAL35 : focal35}
-          dim={away}
-        />
+        <label className="slider reproduce-opacity">
+          <Icon name="eye" size={18} />
+          <input type="range" min={0.1} max={0.9} step={0.05} value={reproduceOpacity}
+            onChange={(e) => setReproduceOpacity(Number(e.target.value))} aria-label="Opacité de la photo d’origine" />
+        </label>
       )}
-      {/* Image figée au déclenchement, le temps de choisir. */}
-      {frozen && <img className={`frozen-shot ${selfie ? 'mirror' : ''}`} src={frozen} alt="" />}
-      {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie. */}
-      {!sheet && !selfie && !reproduce && (
-        <ArSpotsLayer
-          photos={arPhotos}
-          fix={position}
-          basis={orientation.absolute ? orientation.basis : null}
-          cam={viewportCamera(stage, cameraSize, focal35)}
-          isMine={isMine}
-          onOpen={(p) => navigate(`/photo/${p.id}`)}
-          onHunt={(p) => navigate(`/chasse/${p.id}`)}
-          onGallery={(p) => navigate(`/galerie/${p.id}`)}
-          onCapture={captureHere}
-          actionFor={(p) =>
-            captureSheet?.id === p.id && !captureSheet.open
-              ? { label: 'Fiche', onClick: () => setCaptureSheet({ id: p.id, open: true }) }
-              : null
-          }
-        />
-      )}
-      {flash && <div className="flash" />}
 
       {reproduce ? (
         <ReproduceGuide
           target={reproduce}
           position={here}
-          angles={shotAngles}
-          absolute={orientation.absolute}
-          status={status}
           alert={lostCard ? null : alert}
           alertArrow={alertArrow}
+          compassAction={orientation.status === 'needs-permission' || orientation.status === 'denied'
+            ? () => void orientation.requestPermission() : undefined}
         />
       ) : (
         <SensorStatus geo={geo} orientation={orientation} />
@@ -371,7 +391,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       </nav>
       )}
 
-      {selfie && !sheet && (
+      {selfie && !sheet && !reproduce && (
         <p className="selfie-hint"><strong>Selfie</strong> · on le retrouvera en visant, depuis la place du téléphone, l’endroit où vous vous tenez</p>
       )}
 
@@ -512,6 +532,8 @@ function ReproduceOverlay({
   cameraSize,
   focal35,
   dim,
+  opacity,
+  mirror,
 }: {
   photo: GeoframedPhoto
   stage: { width: number; height: number }
@@ -519,9 +541,10 @@ function ReproduceOverlay({
   focal35: number
   /** Hors de la vue : calque plus pâle. */
   dim: boolean
+  opacity: number
+  mirror: boolean
 }) {
   const url = useImageUrl(photo.id, 'full')
-  const [opacity, setOpacity] = useState(0.5)
   if (!url || !stage.width) return null
   const camFocal = cameraSize
     ? coverViewport(cameraSize.width, cameraSize.height, stage.width, stage.height, focal35).focal
@@ -530,65 +553,40 @@ function ReproduceOverlay({
   const w = photo.width * k
   const h = photo.height * k
   return (
-    <>
       <img
         className="align-photo reproduce-photo"
         src={url}
         alt=""
-        style={{ width: w, height: h, left: (stage.width - w) / 2, top: (stage.height - h) / 2, opacity: dim ? opacity * 0.35 : opacity }}
+        style={{ transform: mirror ? 'scaleX(-1)' : undefined, width: w, height: h, left: (stage.width - w) / 2, top: (stage.height - h) / 2, opacity: dim ? opacity * 0.35 : opacity }}
         draggable={false}
       />
-      <label className="slider reproduce-opacity">
-        <Icon name="eye" size={18} />
-        <input
-          type="range"
-          min={0.1}
-          max={0.9}
-          step={0.05}
-          value={opacity}
-          onChange={(e) => setOpacity(Number(e.target.value))}
-          aria-label="Opacité de la photo d’origine"
-        />
-      </label>
-    </>
   )
 }
 
 /**
  * En-tête du mode « Reproduire » : consigne, bandeau quand on s'éloigne de la vue de l'originale
- * (orange au bord, rouge hors de la vue), pastille du GPS imprécis, jauges de la chasse.
+ * (orange au bord, rouge hors de la vue), pastille du GPS imprécis et distance, indépendantes des croix.
  */
 function ReproduceGuide({
   target,
   position,
-  angles,
-  absolute,
-  status,
   alert,
   alertArrow,
+  compassAction,
 }: {
   target: GeoframedPhoto
   position: Parameters<typeof computeAlignment>[1]['position']
-  angles: Parameters<typeof computeAlignment>[1]['angles']
-  absolute: boolean
-  status: ReproduceState | null
   alert: ReturnType<typeof reproduceAlert>
   alertArrow: number | null
+  compassAction?: () => void
 }) {
-  const g = target.geoframe
-  const al = computeAlignment(
-    { position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } },
-    { position, angles },
-  )
-  const inView = !status || status.view === 'in-view' || status.view === 'drifting'
-  const aligned = al.aligned && inView
   return (
     <header className="reproduce-guide">
-      <div className={`guide ${aligned ? 'ok' : ''}`}>
+      <div className="guide">
         <Icon name="reproduce" />
         <div>
-          <strong>{aligned ? 'Cadrage retrouvé : déclenchez' : guidance(al, absolute)}</strong>
-          <span>Reproduire la photo {ofName(target.ownerName || 'quelqu’un')} · superposez-la au décor</span>
+          <strong>Reproduire la photo</strong>
+          <span>Photo {ofName(target.ownerName || 'quelqu’un')} · superposez-la au décor</span>
         </div>
       </div>
       {alert && (
@@ -597,12 +595,15 @@ function ReproduceGuide({
           <strong>{alert.text}</strong>
         </div>
       )}
-      {status?.status === 'gps-weak' && position && (
+      {position && position.accuracy > GPS_GOOD_ACCURACY && (
         <span className="reproduce-chip" role="status">
           <Icon name="pin" size={14} /> GPS imprécis (±{Math.round(position.accuracy)} m), patientez
         </span>
       )}
-      <AlignGauges al={al} />
+      <span className="reproduce-distance">
+        <Icon name="pin" size={14} /> {position ? `Point de vue à ${formatDistance(distanceMeters(position, target.geoframe.position))}` : 'Recherche de votre position…'}
+      </span>
+      {compassAction && <button type="button" className="btn ghost" onClick={compassAction}>Activer la boussole</button>}
     </header>
   )
 }

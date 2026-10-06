@@ -121,7 +121,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - **« Reproduire cette photo »** (après une capture : dialogue de la chasse, toast du viseur ; détail
     d'une photo capturée) → `#/reproduire/<id>` = l'accueil en mode reproduction (`Home reproduce`) :
     l'originale en calque centré avec son champ de vision réel (comme Recaler), opacité réglable,
-    jauges de la chasse (`AlignGauges`) ; la photo prise passe par `addPhoto` → détail de la version.
+    deux croix à superposer (`ReproduceCrosshairs`, depuis 0.16.1) ; la photo prise passe par `addPhoto` → détail de la version.
   - **S'éloigner avant de déclencher** (depuis 0.15.2, `src/geo/reproduce.ts`, testé) :
     `reproduceStatus(viewer, parent, accuracy, previous)` → `in-view` | `drifting` (dans la vue mais
     au-delà de `REPRODUCE_DRIFT_RATIO` = 70 % du rayon) | `out` (trop loin, ou cap / inclinaison hors
@@ -483,6 +483,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   d'amitié ; appui sur une photo = sa fiche partout (viseur : capture à moins de 5 m) ; fiche en
   feuille juste après une capture ; miniature après une prise de vue ; noms cliquables. Rapport de
   sécurité sur `friendships` / `profiles` (correctif proposé, en attente d'accord).
+- 0.016.1 : Reproduire — deux croix (axe blanc, orientation cible jaune), centrées dans la vidéo hors commandes ; roulis, paysage, miroir selfie, flèche hors champ et consigne derrière ; repli à l’œil sans capteurs valides/récents. Distance et GPS séparés ; règles de rattachement, capture et base inchangées.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -527,3 +528,5 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Likes, capture = like, notifications, reproductions, galerie, lieux à 5 m (0.015.0)](claude/picti/2026-10-06-likes-et-reproductions.md)
 - [2026-10-06 — Reproduire hors de la vue, GPS plus fiable à la prise (0.015.2)](claude/picti/2026-10-06-reproduire-et-gps.md)
 - [2026-10-06 — Fiche d'une photo, profil public, bouton d'amitié, sécurité des amitiés (0.16.0)](claude/picti/2026-10-06-fiche-photo.md)
+
+- [2026-10-06 — Reproduire : deux croix à aligner (0.016.1)](claude/picti/2026-10-06-reproduire-deux-croix.md)

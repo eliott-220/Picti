@@ -33,7 +33,7 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | **Notifications** | Cloche (accueil) | « Paul a capturé votre photo », « Paul et 4 autres aiment votre photo » (likes regroupés), en temps réel. |
 | **Fiche d'une photo** | Appui sur une photo, partout | La photo **en grand** (plein écran, pile du lieu glissable), puis en descendant : Chasser / Revoir in situ, Reproduire, Enregistrer ; **l'auteur** (→ son profil public, bouton d'amitié) ; **« Prise le mardi 6 octobre 2026 à 14 h 32 »** (et la date d'ajout pour une photo importée) ; les **photos liées** : « **Au fil du temps** » (l'originale puis ses reproductions par date de prise, avant / après) ou « **D'après la photo de …** » (l'originale d'une reproduction) ; mes réglages ; détails techniques repliés. Juste après une capture, elle monte **en feuille** par-dessus la caméra (on la redescend pour contempler la photo in situ). |
 | **Profil public** | Auteur d'une photo, noms | Nom, ville, « Sur PICTI depuis … », **bouton d'amitié** (Ajouter / Demande envoyée / Accepter / Amis ✓) et ses photos que j'ai le droit de voir — jamais son code ami ni son offre. |
-| **Reproductions** | Après une capture, Fiche | **Reproduire cette photo** : la caméra avec l'originale en calque pour retrouver son cadrage. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
+| **Reproductions** | Après une capture, Fiche | **Reproduire cette photo** : la caméra avec l'originale en calque et deux petites croix à superposer pour retrouver son orientation (0.016.1). Distance et alertes GPS restent distinctes. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
 | **Galerie d'un lieu** | Points d'une pile | Toutes les photos du lieu, triées par likes, date d'ajout ou date de prise. |
 | **Amis** | Moi › Mes amis | **Lien d'invitation** (`#/ami/<code>`, à partager ou en **QR code**), ajout par code ou **par nom** ; demandes à accepter (pastille sur le menu), retrait. |
 | Enregistrer une photo | Fiche | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
@@ -100,6 +100,7 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
   vite que ne le voudrait la seule perspective (`displayScale`) : la photo paraît lointaine (à
   20 m, environ 12 % de la largeur de l'écran au lieu de 37 %) et garde de très loin une hauteur
   minimale de 5°.
+- **Reproduire — deux croix** (`src/geo/reproduceOrientation.ts`, `ReproduceCrosshairs`) : cible optique enregistrée projetée dans la base caméra, sans GPS. Croix fixe blanche et cible jaune ; flèche au bord hors champ, consigne de rotation derrière, repli à l’œil sans mesure valide récente. Verdict sur la mesure avant lissage (6° / 6° / 12° dans le repère caméra), distinct du rattachement `sameView` (20° / 15°, sans roulis). Viseur mesuré hors commandes, recadrage vidéo et miroir selfie partagés avec le calque.
 - **Alignement** (`src/geo/alignment.ts`) : distance au point de vue, écarts de cap,
   d'inclinaison et de roulis, score global et consignes de guidage.
 - **Photo ancrée dans le décor** (`src/geo/alignment.ts`, `viewerEye`) : la projection part

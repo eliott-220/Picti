@@ -15,6 +15,9 @@ export type OrientationStatus = 'unsupported' | 'needs-permission' | 'denied' | 
 
 export interface OrientationState {
   basis: CameraBasis | null
+  /** Dernière mesure corrigée du nord, avant lissage ; aide de précision uniquement. */
+  measuredBasis: CameraBasis | null
+  measuredAt: number
   angles: CameraAngles | null
   /** Le cap est absolu (référencé au nord) et non relatif. */
   absolute: boolean
@@ -123,6 +126,7 @@ function initialStatus(): OrientationStatus {
 export function useOrientation(enabled = true): OrientationState {
   const [status, setStatus] = useState<OrientationStatus>(initialStatus)
   const [snapshot, setSnapshot] = useState<{ basis: CameraBasis; absolute: boolean } | null>(null)
+  const [measurement, setMeasurement] = useState<{ basis: CameraBasis; at: number } | null>(null)
 
   const listening = enabled && (status === 'waiting' || status === 'active')
 
@@ -139,6 +143,8 @@ export function useOrientation(enabled = true): OrientationState {
     if (!listening) return
     let basis: CameraBasis | null = null
     let absolute = false
+    let measured: CameraBasis | null = null
+    let measuredAt = 0
     let last = 0
     let frame = 0
 
@@ -147,12 +153,17 @@ export function useOrientation(enabled = true): OrientationState {
 
     const onEvent = (e: Event) => {
       const ev = e as CompassEvent
+      if ([ev.alpha, ev.beta, ev.gamma].some((v) => v == null || !Number.isFinite(v))) {
+        measured = null
+        setMeasurement(null)
+        return
+      }
       if (ev.alpha == null || ev.beta == null || ev.gamma == null) return
       // Horodatage de l'événement : le même pour tous les écrans qui l'écoutent (le nord
       // partagé n'est intégré qu'une fois par mesure).
       const now = ev.timeStamp > 0 ? ev.timeStamp : performance.now()
       let raw = rotateForScreen(basisFromDeviceOrientation(ev.alpha, ev.beta, ev.gamma), screenAngle())
-      if (typeof ev.webkitCompassHeading === 'number' && ev.webkitCompassHeading >= 0) {
+      if (typeof ev.webkitCompassHeading === 'number' && Number.isFinite(ev.webkitCompassHeading) && ev.webkitCompassHeading >= 0) {
         // iOS : alpha vient du gyroscope, relatif à un repère arbitraire ; son écart avec
         // le nord de la boussole est recalé lentement (voir `geo/heading.ts`).
         const { heading, pitch } = anglesFromBasis(raw)
@@ -172,12 +183,15 @@ export function useOrientation(enabled = true): OrientationState {
       } else {
         absolute = absoluteEvent || ev.absolute
       }
+      measured = raw
+      measuredAt = performance.now()
       basis = smoothBasis(basis, raw, last ? 1 - Math.exp(-Math.max(0, now - last) / SMOOTHING_MS) : 1)
       last = now
       if (!frame) {
         frame = requestAnimationFrame(() => {
           frame = 0
           setSnapshot({ basis: basis!, absolute })
+          setMeasurement(measured ? { basis: measured, at: measuredAt } : null)
           setStatus((s) => (s === 'waiting' ? 'active' : s))
         })
       }
@@ -205,6 +219,8 @@ export function useOrientation(enabled = true): OrientationState {
 
   return {
     basis: snapshot?.basis ?? null,
+    measuredBasis: measurement?.basis ?? null,
+    measuredAt: measurement?.at ?? -Infinity,
     angles,
     absolute: snapshot?.absolute ?? false,
     status,
