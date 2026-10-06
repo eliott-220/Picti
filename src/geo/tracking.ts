@@ -13,9 +13,21 @@
 // ne voit pas quelques mètres de marche, noyés dans ses ±5 m. Pendant la marche et juste
 // après, il ne la tire alors plus en arrière (il est en retard) ; seul un écart qui
 // persiste une fois arrêté la corrige.
+//
+// Moyenne à l'arrêt (0.15.2) : immobile depuis `averageAfter`, la position est la moyenne
+// pondérée (1 / précision²) des relevés depuis l'arrêt, sur au plus `averageWindow` — c'est
+// là que l'on prend une photo. Ensuite elle est tenue comme avant (un écart persistant reste
+// rattrapé). Pas après une marche comptée pas à pas (`stepped`) : sur quelques mètres, les pas
+// sont plus justes que le GPS, qui ne les voit pas.
 
 import { fromENU, toENU, type GeoFix, type GeoPoint } from './geodesy'
 import type { MotionState } from './motion'
+
+/**
+ * Précision GPS (m) jusqu'à laquelle une photo est bien placée : au-delà, la pastille passe à
+ * l'orange et le déclencheur prévient (« Position imprécise »).
+ */
+export const GPS_GOOD_ACCURACY = 12
 
 export const TRACKING = {
   /** Accélérations de la marche : départs, arrêts, virages (m/s²). */
@@ -52,6 +64,12 @@ export const TRACKING = {
   minJump: 8,
   /** Sans relevé depuis ce délai (ms), on repart du suivant. */
   maxGap: 15_000,
+  /**
+   * Immobile depuis ce délai (ms), la position est la moyenne pondérée des relevés depuis
+   * l'arrêt, pris pendant au plus `averageWindow` ms ; ensuite elle est tenue.
+   */
+  averageAfter: 2000,
+  averageWindow: 10_000,
   /** Au-delà de cette distance (m) de l'origine du repère local, on le recentre. */
   maxOffset: 1000,
   /** Durée maximale (s) pendant laquelle on prolonge la marche après un relevé. */
@@ -96,12 +114,39 @@ export interface Track {
   sn: number
   /** Jusqu'à cet instant (ms), un tel écart est en cours de rattrapage. */
   catchUntil: number
+  /** Début de l'arrêt en cours (ms), dont les relevés sont moyennés ; null en mouvement. */
+  stillSince: number | null
+  /** Relevés moyennés depuis l'arrêt. */
+  average: StillAverage | null
+  /** La position a avancé pas à pas depuis que le GPS l'a fixée : pas de moyenne à l'arrêt. */
+  stepped: boolean
+}
+
+/** Sommes pondérées des relevés d'un arrêt (repère local du suivi). */
+export interface StillAverage {
+  /** Somme des poids 1 / précision². */
+  w: number
+  /** Sommes pondérées des positions (m). */
+  e: number
+  n: number
+  /** Somme des inverses des variances des relevés : précision de la moyenne. */
+  info: number
 }
 
 /** Variance d'un relevé : `accuracy` est un rayon de confiance, plus large qu'un écart-type. */
 const measurementVariance = (accuracy: number) => Math.max(1, accuracy / 2) ** 2
 
-function start(fix: GpsFix, mode: TrackMode): Track {
+/** Ajoute un relevé (`e`, `n` dans le repère local) à la moyenne d'un arrêt. */
+function addToAverage(average: StillAverage | null, e: number, n: number, accuracy: number): StillAverage {
+  const w = 1 / accuracy ** 2
+  const a = average ?? { w: 0, e: 0, n: 0, info: 0 }
+  return { w: a.w + w, e: a.e + w * e, n: a.n + w * n, info: a.info + 1 / measurementVariance(accuracy) }
+}
+
+/** Position moyenne d'un arrêt (Est, Nord). */
+export const averagePosition = (a: StillAverage): [number, number] => [a.e / a.w, a.n / a.w]
+
+function start(fix: GpsFix, mode: TrackMode, averaging: boolean): Track {
   return {
     origin: { lat: fix.lat, lon: fix.lon },
     e: 0,
@@ -119,6 +164,9 @@ function start(fix: GpsFix, mode: TrackMode): Track {
     se: 0,
     sn: 0,
     catchUntil: 0,
+    stillSince: averaging ? fix.timestamp : null,
+    average: averaging ? addToAverage(null, 0, 0, fix.accuracy) : null,
+    stepped: false,
   }
 }
 
@@ -141,14 +189,14 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
       : motion === 'still' && (speed ?? 0) > TRACKING.movingSpeed
         ? 'moving'
         : motion
-  if (!prev || fix.timestamp - prev.t > TRACKING.maxGap) return start(fix, mode)
+  const still = mode === 'still'
+  if (!prev || fix.timestamp - prev.t > TRACKING.maxGap) return start(fix, mode, still && !walking)
   const dt = Math.max(0, (fix.timestamp - prev.t) / 1000)
   let { e, n, ve, vn, pp, pv, vv } = prev
 
   const r = measurementVariance(fix.accuracy)
   const [ze, zn] = toENU(prev.origin, fix)
   // Écart moyen récent à l'arrêt : les allers-retours du GPS s'annulent, un déplacement non.
-  const still = mode === 'still'
   const w = TRACKING.shiftWeight
   // En marchant, le GPS est en retard sur les pas : son écart ne compte qu'une fois arrêté.
   const se = walking ? prev.se * (1 - w) : still ? prev.se + (ze - e - prev.se) * w : 0
@@ -182,15 +230,52 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
   const s = pp + r
   if (mode === 'still' && !walking && Math.hypot(ye, yn) > Math.max(TRACKING.minJump, 3 * Math.sqrt(s))) {
     // Saut à l'arrêt : isolé (reflet du signal), on l'ignore ; confirmé, on s'y rend.
-    if (prev.rejected >= 1) return start(fix, mode)
+    if (prev.rejected >= 1) return start(fix, mode, !walking)
     return { ...prev, e, n, ve, vn, pp, pv, vv, t: fix.timestamp, mode, rejected: prev.rejected + 1, catchUntil }
   }
+
+  // Arrêt : relevés moyennés (pondérés par 1 / précision²) depuis le début de l'arrêt, pendant
+  // au plus `averageWindow` ; au-delà de `averageAfter`, la position est leur moyenne. Une marche
+  // (même non détectée : écart persistant rattrapé) met fin à l'arrêt.
+  const averaging = still && !walking && !catching && !prev.stepped
+  const stillSince = averaging ? (prev.stillSince ?? fix.timestamp) : null
+  const sinceStop = stillSince == null ? 0 : fix.timestamp - stillSince
+  const inWindow = averaging && sinceStop < TRACKING.averageWindow
+  const average = !averaging
+    ? null
+    : inWindow
+      ? addToAverage(prev.stillSince == null ? null : prev.average, ze, zn, fix.accuracy)
+      : prev.average
+  const stop = { stillSince, average }
+  if (inWindow && average && sinceStop >= TRACKING.averageAfter) {
+    const [ae, an] = averagePosition(average)
+    return {
+      ...prev,
+      e: ae,
+      n: an,
+      ve: 0,
+      vn: 0,
+      pp: 1 / average.info,
+      pv: 0,
+      vv: 0,
+      accuracy: fix.accuracy,
+      alt: fix.alt ?? prev.alt,
+      t: fix.timestamp,
+      mode,
+      rejected: 0,
+      se,
+      sn,
+      catchUntil,
+      ...stop,
+    }
+  }
+
   const kp = pp / s
   const kv = pv / s
   if (walking || (still && !catching && kp < TRACKING.holdGain)) {
     // Immobile : on tient la position ; seul l'écart moyen du GPS est suivi. En marchant
     // pas à pas, la position avance avec les pas, pas avec le GPS (en retard).
-    return { ...prev, e, n, ve, vn, pp, pv, vv, accuracy: fix.accuracy, t: fix.timestamp, mode, rejected: 0, se, sn, catchUntil }
+    return { ...prev, e, n, ve, vn, pp, pv, vv, accuracy: fix.accuracy, t: fix.timestamp, mode, rejected: 0, se, sn, catchUntil, ...stop }
   }
   const track: Track = {
     origin: prev.origin,
@@ -210,6 +295,9 @@ export function updateTrack(prev: Track | null, fix: GpsFix, motion: MotionState
     se: shifted ? 0 : se,
     sn: shifted ? 0 : sn,
     catchUntil,
+    ...stop,
+    // Le GPS fixe de nouveau la position (en mouvement, ou écart rattrapé) : les pas sont oubliés.
+    stepped: still && !catching ? prev.stepped : false,
   }
   return Math.hypot(track.e, track.n) > TRACKING.maxOffset ? recenter(track) : track
 }
@@ -226,6 +314,10 @@ export function walkTrack(track: Track, de: number, dn: number): Track {
     // L'écart moyen du GPS était mesuré depuis l'ancienne position.
     se: track.se - de,
     sn: track.sn - dn,
+    // On a bougé : l'arrêt en cours est terminé ; la position vient désormais des pas.
+    stillSince: null,
+    average: null,
+    stepped: track.stepped || de !== 0 || dn !== 0,
   }
   return Math.hypot(moved.e, moved.n) > TRACKING.maxOffset ? recenter(moved) : moved
 }
@@ -233,7 +325,9 @@ export function walkTrack(track: Track, de: number, dn: number): Track {
 /** Place l'origine du repère local sur la position estimée. */
 function recenter(track: Track): Track {
   const p = fromENU(track.origin, [track.e, track.n, 0])
-  return { ...track, origin: { lat: p.lat, lon: p.lon }, e: 0, n: 0 }
+  const a = track.average
+  const average = a && { ...a, e: a.e - a.w * track.e, n: a.n - a.w * track.n }
+  return { ...track, origin: { lat: p.lat, lon: p.lon }, e: 0, n: 0, average }
 }
 
 /**

@@ -7,6 +7,8 @@ import { normalizeDeg } from './math'
 
 export interface ExifGeoframe {
   position: GeoPoint | null
+  /** Précision horizontale de la position (EXIF GPSHPositioningError, m), si l'appareil l'a notée. */
+  accuracy: number | null
   /** Direction de l'objectif (EXIF GPSImgDirection), en degrés. */
   heading: number | null
   /** Référence du cap : nord vrai (T) ou magnétique (M). */
@@ -56,9 +58,12 @@ export function geoframeFromExif(tags: Record<string, unknown> | null | undefine
   const ref = typeof t.GPSImgDirectionRef === 'string' ? t.GPSImgDirectionRef.trim().toUpperCase()[0] : null
 
   const focal35 = num(t.FocalLengthIn35mmFormat) ?? num(t.FocalLengthIn35mmFilm)
+  // Notée par les iPhone et certains Android ; 0 ou négative n'a pas de sens.
+  const accuracy = num(t.GPSHPositioningError)
 
   return {
     position: valid ? { lat: lat!, lon: lon!, alt } : null,
+    accuracy: valid && accuracy != null && accuracy > 0 ? accuracy : null,
     heading: dir != null ? normalizeDeg(dir) : null,
     headingRef: ref === 'T' || ref === 'M' ? ref : null,
     focal35: focal35 && focal35 > 0 ? focal35 : null,

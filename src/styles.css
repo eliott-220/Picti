@@ -382,6 +382,15 @@ img {
   background: var(--red);
 }
 
+/* GPS au-delà de ±12 m : une photo prise risque d'être mal placée. */
+.sensor-status .chip.warn {
+  background: rgb(232 118 0 / 0.92);
+}
+
+.sensor-status .chip.warn svg {
+  color: #fff;
+}
+
 .sensor-status .chip.action svg {
   color: #fff;
 }
@@ -425,6 +434,38 @@ img {
 
 .shutter:disabled {
   opacity: 0.7;
+}
+
+/* Reproduire, hors de la vue de l'originale : la photo prise ne sera pas une reproduction. */
+.shutter {
+  position: relative;
+}
+
+.shutter-warn {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e87600;
+  color: #fff;
+}
+
+/* Image figée au déclenchement, le temps de choisir (feuille). */
+.frozen-shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.frozen-shot.mirror {
+  transform: scaleX(-1);
 }
 
 /* ---------- Feuilles (import, menu) ---------- */
@@ -3295,6 +3336,141 @@ button.avatar-item {
   border-radius: 999px;
   background: var(--glass);
   backdrop-filter: blur(10px);
+}
+
+/* Reproduire : bandeau quand on s'éloigne (orange au bord de la vue, rouge hors de la vue). */
+.reproduce-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 15px;
+  box-shadow: var(--shadow);
+}
+
+.reproduce-alert strong {
+  font-weight: 500;
+}
+
+.reproduce-alert.warn {
+  background: #e87600;
+}
+
+.reproduce-alert.bad {
+  background: var(--red);
+}
+
+.reproduce-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(232 118 0 / 0.92);
+  color: #fff;
+  font-size: 13px;
+}
+
+/* Lieu de la photo quitté : carte claire (pas la célébration rouge de la capture). */
+.captured-card.lost-card {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.captured-card.lost-card h2 {
+  font-size: 26px;
+}
+
+.captured-card.lost-card svg {
+  color: var(--red);
+}
+
+.captured-card.lost-card .btn svg {
+  color: #fff;
+}
+
+.lost-card .captured-actions {
+  flex-direction: column;
+  align-self: stretch;
+}
+
+/* Feuilles de la prise de vue : hors de la vue de l'originale, GPS imprécis. */
+.shot-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shot-sheet > svg {
+  color: #e87600;
+}
+
+.shot-sheet p {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+/* « Attendre » : la photo sera prise dès que le GPS redevient précis. */
+.gps-wait {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + 216px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 18px;
+  border-radius: 24px;
+  background: rgb(232 118 0 / 0.95);
+  color: #fff;
+  font-size: 14px;
+}
+
+.gps-wait button {
+  flex: none;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+/* Position « approximative » sur iPhone : explication affichée une fois. */
+.notice-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: var(--pad);
+  background: rgb(0 0 0 / 0.45);
+}
+
+.notice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 340px;
+  padding: 28px 24px;
+  border-radius: 32px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+
+.notice-card svg {
+  color: var(--red);
+}
+
+.notice-card p {
+  margin: 0;
 }
 
 /* Galerie d'un lieu. */

@@ -122,6 +122,31 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     d'une photo capturée) → `#/reproduire/<id>` = l'accueil en mode reproduction (`Home reproduce`) :
     l'originale en calque centré avec son champ de vision réel (comme Recaler), opacité réglable,
     jauges de la chasse (`AlignGauges`) ; la photo prise passe par `addPhoto` → détail de la version.
+  - **S'éloigner avant de déclencher** (depuis 0.15.2, `src/geo/reproduce.ts`, testé) :
+    `reproduceStatus(viewer, parent, accuracy, previous)` → `in-view` | `drifting` (dans la vue mais
+    au-delà de `REPRODUCE_DRIFT_RATIO` = 70 % du rayon) | `out` (trop loin, ou cap / inclinaison hors
+    tolérance ; `reason`) | `lost` (> `REPRODUCE_LOST_DISTANCE` = 50 m) | `gps-weak` (précision >
+    `GPS_GOOD_ACCURACY`), plus `view` (position dans la vue, même GPS imprécis), distance, cap pour y
+    retourner, rayon. `inView` = **exactement `sameView`** (la règle de `version_of` ; grille de cas
+    testée) ; l'état affiché est amorti sans horloge cachée (heure et état précédent en paramètres) :
+    `out` seulement après `REPRODUCE_OUT_DELAY_MS` (2 s) d'écart, retour seulement
+    `REPRODUCE_HYSTERESIS_M` (1 m) à l'intérieur du rayon (et de 50 m). Hook `useReproduceStatus`
+    (recalcul toutes les 200 ms, vibration courte au passage à `out`). Textes : `src/data/shotWarnings.ts`
+    (testés). UI : bandeau orange « Revenez de 2 m » / rouge « Trop loin de la photo d'origine (14 m) »,
+    « Tournez-vous vers la gauche », « Levez le téléphone » + flèche (`.reproduce-alert`), calque à
+    35 % hors de la vue, ⚠ sur le déclencheur (`.shutter-warn`) ; `lost` : calque masqué, carte « Vous
+    avez quitté le lieu de la photo » (« Y retourner » = la carte s'efface, flèche et distance ;
+    « Quitter Reproduire ») — le mode ne se ferme jamais seul ; `gps-weak` : pastille « GPS imprécis
+    (±18 m), patientez ». **Au déclenchement, c'est le verdict immédiat (`inView`) qui décide**, pas
+    l'état affiché : hors de la vue, image **figée tout de suite** (`.frozen-shot`) puis feuille
+    (« Cette photo ne sera pas une reproduction : vous êtes à 14 m du point de vue de la photo de
+    Marie (il faut être à moins de 6 m). ») : « Revenir au point de vue » (jette l'image) / « Garder
+    en photo classique » (`addPhoto(…, { versionOf: null })`, visibilité de la pastille = réglage
+    de l'utilisateur, pas celle de l'originale). Filet de sécurité : base qui refuse `version_of`
+    → réessai sans parente, toast « Enregistrée comme photo classique : vous n'étiez plus dans la vue
+    de l'originale ». Contrôle en base vérifié le 06/10 (fonction en ligne = migration 0.15.0) : il
+    tolère 1 m et 1° de plus que le client, donc accepte tout ce que le client juge dans la vue —
+    aucune migration.
   - **Pile triée** (`pileOrder`, `photoPileOrder`) : score `PILE_SCORE` (likes ; poids des likes sur
     place prévu pour plus tard) décroissant, la plus récente à égalité, photo ajoutée depuis moins de
     `NEW_PHOTO_BOOST_HOURS` (24 h) en tête. `groupBySpot(items, point, date, order)` ancre toujours le
@@ -251,7 +276,27 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   position suivie (`useLivePosition`, pas à pas). Une
   photo prise est enregistrée à la position affichée. En chasse seulement,
   `useSpotCalibration` attribue au GPS l'écart restant quand la photo est alignée avant la
-  capture (téléphone immobile), puis le fige. **Photo dépassée (vue de dos)** (depuis 0.012.0) :
+  capture (téléphone immobile), puis le fige. **Moyenne à l'arrêt** (depuis 0.15.2, dans
+  `updateTrack`) : immobile depuis `TRACKING.averageAfter` (2 s), la position suivie est la moyenne
+  pondérée (1 / précision²) des relevés depuis l'arrêt (`stillSince`, `average`), pris pendant au
+  plus `TRACKING.averageWindow` (10 s), puis tenue comme avant (sauts isolés exclus ; écart
+  persistant toujours rattrapé, il rouvre un arrêt ; marche détectée → GPS suivi aussitôt). **Pas
+  après une marche comptée pas à pas** (`stepped`, mis par `walkTrack`, effacé quand le GPS refixe
+  la position : en mouvement, ou rattrapage) : la moyenne déferait les mètres comptés que le GPS ne
+  voit pas (test « un GPS immobile ne défait pas quelques mètres de marche »). `useLivePosition` se
+  re-rend aussi quand la **précision** change (avant, immobile, la position affichée gardait une
+  précision périmée, enregistrée avec la photo). **Précision à la prise** : `GPS_GOOD_ACCURACY`
+  (12 m, `src/geo/tracking.ts`) ; pastille « GPS ±6 m » normale, orange (`.chip.warn`) au-delà ;
+  déclencher au-delà fige l'image et ouvre « Position imprécise (±18 m) : la photo risque d'être mal
+  placée. » → « Attendre » (bandeau `.gps-wait`, la photo se prend seule — nouvelle image — dès
+  que la précision repasse sous 12 m ; « Annuler ») / « Prendre quand même » (l'image figée). Toutes
+  les prises (directe, selfie, Reproduire). `photos.accuracy` : direct = précision du relevé ;
+  import = EXIF `GPSHPositioningError` (`ExifGeoframe.accuracy`), sinon null. **iPhone en position
+  « approximative »** (`PreciseLocationNotice`, accueil et chasse) : précision > 100 m pendant 15 s
+  → une fois « Activez Réglages › Confidentialité et sécurité › Service de localisation › Sites web
+  Safari › Position exacte. » (« Compris » mémorisé dans `localStorage`
+  `picti.position-exacte.compris`, sous try/catch) ; « dehors » ne se détecte pas. `watchPosition` :
+  `enableHighAccuracy: true`, `maximumAge: 0` (vérifié). **Photo dépassée (vue de dos)** (depuis 0.012.0) :
   reste visible comme **imprimée sur une vitre dépolie** — l'homographie du plan vu de derrière
   donne d'elle-même l'image en miroir (rien n'est retourné à la main) ; `ArPhoto glass` : classe
   `.glass` (flou 12 px, désaturée, éclaircie), opacité × `GLASS_OPACITY` (0,45) et calque de reflet
@@ -316,7 +361,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
   (API Vercel, `create_deployment` + `deploymentId`). **Attention : depuis le 30/09, chaque fusion dans
   `main` est mise en production automatiquement** (vu avec eliott-220/Picti#3 et #4) : fusionner une
-  pull request = mettre en ligne. **Production actuelle : 0.15.0** (`dpl_5H8MFymL5FSrDjK4hHJxNJNCs7R6`, commit `1b68f85`, `main` avancée sans PR à la demande d'Eliott, confirmée en ligne sur picti.vercel.app le 06/10/2026 ; likes, notifications, reproductions, galerie, lieux à 5 m). Retour arrière possible : 0.14.0 (`dpl_9TDSTZYJRyjE5TxMLy1h63DJWS7r`, https://picti-qid7yv1w0-dash-board4.vercel.app, étiquette git `v0.14.0`), 0.13.1 (`dpl_CWEBYDsasj4uGqN4HCQu4UEUSVuZ`, https://picti-1w0uak6yx-dash-board4.vercel.app, étiquette git `v0.13.1`), 0.013.1 d'origine (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`), 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  pull request = mettre en ligne. **Production actuelle : 0.15.1** (`dpl_8MGLiue2e55LXVHuLAT93BhHxHSX`, commit `5a19ea7`, 06/10/2026 ; `main` avancée sans PR à la demande d'Eliott). Retour arrière possible : 0.15.0 (`dpl_5H8MFymL5FSrDjK4hHJxNJNCs7R6`, https://picti-hhcuypawj-dash-board4.vercel.app, étiquette git `v0.15.0`), 0.14.0 (`dpl_9TDSTZYJRyjE5TxMLy1h63DJWS7r`, https://picti-qid7yv1w0-dash-board4.vercel.app, étiquette git `v0.14.0`), 0.13.1 (`dpl_CWEBYDsasj4uGqN4HCQu4UEUSVuZ`, https://picti-1w0uak6yx-dash-board4.vercel.app, étiquette git `v0.13.1`), 0.013.1 d'origine (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`), 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -425,6 +470,12 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   par likes (bonus 24 h des photos neuves), galerie d'un lieu (trois tris) ; lieu = 5 m (jusqu'à
   10 m selon le GPS) et même direction. Notifications push : structure seulement.
 - 0.015.1 : ligne de version du menu sans l'heure de la mise à jour (« Version 0.015.1 · 6 oct. »).
+- 0.015.2 : Reproduire — guidage quand on s'éloigne de la vue de l'originale (orange au bord,
+  rouge hors de la vue après 2 s, « lieu quitté » à 50 m), image figée et choix « Revenir au point
+  de vue » / « Garder en photo classique » au déclenchement hors de la vue, jamais de photo perdue ;
+  GPS plus fiable à la prise : pastille orange au-delà de ±12 m, « Position imprécise » → Attendre /
+  Prendre quand même, moyenne pondérée des relevés à l'arrêt, précision enregistrée (EXIF pour les
+  imports), explication « Position exacte » sur iPhone.
 - 0.016.0 : fiche d'une photo (photo en grand, auteur → profil public, « Prise le … à … », « Au fil
   du temps » / « D'après la photo de … », détails techniques repliés) ; profil public et bouton
   d'amitié ; appui sur une photo = sa fiche partout (viseur : capture à moins de 5 m) ; fiche en
@@ -438,7 +489,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   sécurité des amitiés (A et B1 tout de suite, B2 après la 0.16.x en ligne) ; test sur iPhone de la
   fiche (défilement, feuille glissée vers le bas, bouton retour) ; test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
   l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ;
-  0.015.0 sur iPhone (reproduction avec le calque, notifications en temps réel) ; envoi des
+  0.015.0 sur iPhone (reproduction avec le calque, notifications en temps réel) ; 0.015.2 sur iPhone
+  (bandeaux en s'éloignant, feuilles du déclencheur, « Attendre », stabilité à l'arrêt) ; envoi des
   notifications push (voir la note du 06/10, « Likes et reproductions ») ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
   choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
   plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
@@ -471,4 +523,5 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Photo « carte », effacement à 2 m, capture par agrandissement (0.014.0)](claude/picti/2026-10-06-carte-et-capture.md)
 - [2026-10-06 — Amis : « amis » par défaut, choix à la prise, invitations, carte Monde / Amis (0.014.0)](claude/picti/2026-10-06-amis.md)
 - [2026-10-06 — Likes, capture = like, notifications, reproductions, galerie, lieux à 5 m (0.015.0)](claude/picti/2026-10-06-likes-et-reproductions.md)
+- [2026-10-06 — Reproduire hors de la vue, GPS plus fiable à la prise (0.015.2)](claude/picti/2026-10-06-reproduire-et-gps.md)
 - [2026-10-06 — Fiche d'une photo, profil public, bouton d'amitié, sécurité des amitiés (0.16.0)](claude/picti/2026-10-06-fiche-photo.md)

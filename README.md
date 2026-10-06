@@ -18,9 +18,9 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 
 | Service | Écran | Détail |
 | --- | --- | --- |
-| **Géocadrage en direct** | Accueil (viseur) | Le déclencheur rouge fige l'image de la caméra et enregistre position GPS (lissée), cap, inclinaison et roulis. |
+| **Géocadrage en direct** | Accueil (viseur) | Le déclencheur rouge fige l'image de la caméra et enregistre position GPS (lissée ; immobile, moyenne des relevés depuis l'arrêt), sa précision, cap, inclinaison et roulis. Pastille GPS orange au-delà de ±12 m ; déclencher alors fige l'image et demande « Attendre » (la photo se prend seule dès que le GPS repasse sous 12 m) ou « Prendre quand même ». |
 | **Selfie géocadré** | Accueil → bouton caméra | Caméra avant : on géocadre l'objectif avant (cap retourné). Le selfie se retrouve comme toute photo, en visant depuis la place du téléphone l'endroit où posait son auteur. |
-| **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement. |
+| **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement, avec la précision notée par l'appareil (`GPSHPositioningError`) quand elle existe. |
 | **Géocadrage en différé (sur place)** | Recaler | Pour les photos sans direction ou sans GPS : sur le lieu, on superpose le cliché (transparence + cadrage/focale) au décor réel, puis « Géocadrer ici ». |
 | **Chasse in situ** | Chasser | Guidage vers le point de vue (distance, direction), photo projetée en perspective dans la vue caméra (une carte, jamais plein écran), jauges cap/inclinaison ; à moins de 5 m du point de vue, « Capturer » (ou l'alignement tenu) : on ne bouge plus, la photo s'agrandit en 2 s jusqu'à couvrir l'écran en prenant ses couleurs ⇒ **capturée** à 100 % (marcher ou tourner le téléphone annule). |
 | Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
@@ -125,6 +125,12 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
   pendant quelques secondes) est rattrapé ; un saut confirmé ou une vitesse de véhicule sont
   suivis. Sans accéléromètre, la vitesse GPS dit si l'on bouge. Le viseur affiche la distance à
   la photo visée ; « · marche » sur la pastille GPS quand les pas sont détectés.
+  **Moyenne à l'arrêt** (depuis 0.15.2) : immobile depuis 2 s, la position est la moyenne
+  pondérée (1 / précision²) des relevés depuis l'arrêt, pris pendant au plus 10 s, puis tenue
+  comme ci-dessus — la photo est enregistrée à cette position, celle qui est affichée. Pas après
+  une marche comptée pas à pas : les pas, plus justes que le GPS sur quelques mètres, sont gardés.
+  Sur iPhone, une précision qui reste au-delà de 100 m pendant 15 s (réglage « position
+  approximative ») fait afficher, une fois, où activer « Position exacte ».
 - **Précision GPS et recalage** : un téléphone n'est précis qu'à quelques mètres. En chasse,
   quand la photo est alignée (sur place, bonne orientation, téléphone immobile) juste avant
   sa capture, l'écart restant avec le point de vue est attribué au GPS
@@ -135,7 +141,8 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
 
 ```
 src/
-  geo/        moteur pur et testé : géodésie, orientation, optique, projection, alignement, EXIF
+  geo/        moteur pur et testé : géodésie, orientation, optique, projection, alignement, suivi GPS,
+              lieux et vues, mode « Reproduire » (reproduce.ts), EXIF
   sensors/    hooks React : caméra, géolocalisation, orientation
   data/       modèle, client Supabase, store (photos, amis, captures), pipeline de création/import
 supabase/migrations/  schéma, règles d'accès (RLS), recherche à proximité, stockage

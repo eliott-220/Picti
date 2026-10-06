@@ -1,23 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlignGauges } from '../components/ar'
 import { viewportCamera, type GeoframedPhoto } from '../components/arProjection'
 import { ArSpotsLayer } from '../components/ArSpotsLayer'
 import { Icon } from '../components/Icon'
+import { PreciseLocationNotice } from '../components/PreciseLocationNotice'
 import { SensorStatus } from '../components/SensorStatus'
 import { useElementSize } from '../components/useElementSize'
-import { RoundButton, Thumb } from '../components/ui'
+import { useReproduceStatus } from '../components/useReproduceStatus'
+import { DirectionArrow, RoundButton, Sheet, Thumb } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { CELEBRATION_MS } from '../components/useCapture'
 import { VisibilityPill } from '../components/VisibilityPill'
 import { useImageUrl } from '../data/imageUrls'
 import { unreadCount } from '../data/notifications'
-import { createDirectPhoto } from '../data/pipeline'
+import { createDirectPhoto, type NewPhoto } from '../data/pipeline'
+import { viewOf } from '../data/photoSpots'
+import { outOfViewMessage, reproduceAlert, vaguePositionMessage, viewpointAt } from '../data/shotWarnings'
 import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, ofName, VISIBLE_BY, type GeoPhoto } from '../data/types'
 import { computeAlignment, guidance } from '../geo/alignment'
+import { angleDiffDeg, clamp } from '../geo/math'
 import { coverViewport, focalPx, FRONT_PHONE_FOCAL35 } from '../geo/optics'
-import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
+import { anglesFromBasis, frontCameraBasis, type CameraAngles } from '../geo/orientation'
+import { reproduceStatus, type ReproduceState } from '../geo/reproduce'
+import { GPS_GOOD_ACCURACY } from '../geo/tracking'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { goBack, navigate } from '../router'
 import { useCameraFocal } from '../sensors/cameraFocal'
@@ -30,8 +37,19 @@ import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
 import { PhotoSheet } from './PhotoDetail'
 
-/** Précision GPS (m) au-delà de laquelle une photo prise risque d'être mal placée. */
-const PRECISE_FIX = 15
+/**
+ * Prise de vue suspendue à un choix (feuille) : l'image est figée à l'écran dès le déclenchement.
+ * - `view` : « Reproduire », déclenché hors de la vue de l'originale ;
+ * - `gps` : position imprécise (au-delà de `GPS_GOOD_ACCURACY`).
+ */
+interface HeldShot {
+  kind: 'view' | 'gps'
+  shot: NewPhoto
+  /** Précision du GPS au déclenchement (m). */
+  accuracy: number
+  /** Hors de la vue : l'état au déclenchement (distance, cause). */
+  check: ReproduceState | null
+}
 
 /** Miniature de la photo qu'on vient de prendre, dans le coin bas-gauche (ms). */
 const LAST_SHOT_MS = 5000
@@ -76,6 +94,40 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   const friendRequests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
   useNearbyRefresh(geo.fix)
 
+  // Orientation enregistrée avec la photo : celle de l'objectif avant pour un selfie.
+  const shotAngles: CameraAngles | null = selfie
+    ? orientation.basis && anglesFromBasis(frontCameraBasis(orientation.basis))
+    : orientation.angles
+  const here = position ?? geo.fix
+  // Reproduire : où en est-on par rapport à la vue de l'originale (calculé en continu).
+  const parentView = useMemo(() => (reproduce ? viewOf(reproduce) : null), [reproduce])
+  const status = useReproduceStatus(parentView, here, orientation.absolute ? shotAngles : null)
+  // « Vous avez quitté le lieu » : la carte s'efface sur « Y retourner », jusqu'au retour.
+  const [lostSeen, setLostSeen] = useState(false)
+  if (lostSeen && status?.view !== 'lost') setLostSeen(false)
+  // Image figée et choix en attente ; attente d'un GPS précis (« Attendre »).
+  const [frozen, setFrozen] = useState<string | null>(null)
+  const [held, setHeld] = useState<HeldShot | null>(null)
+  const [waitGps, setWaitGps] = useState(false)
+  useEffect(() => () => {
+    if (frozen) URL.revokeObjectURL(frozen)
+  }, [frozen])
+  const release = () => {
+    setHeld(null)
+    setFrozen(null)
+  }
+  // « Attendre » : la photo se prend d'elle-même dès que le GPS redevient précis.
+  const liveAccuracy = here?.accuracy ?? null
+  const shootRef = useRef(shoot)
+  useEffect(() => {
+    shootRef.current = shoot
+  })
+  useEffect(() => {
+    if (!waitGps || busy || held || liveAccuracy == null || liveAccuracy > GPS_GOOD_ACCURACY) return
+    // `shoot` met fin à l'attente.
+    void shootRef.current({ skipGps: true })
+  }, [waitGps, busy, held, liveAccuracy])
+
   // Photos d'autres utilisateurs à chasser autour de soi.
   const captured = new Set(captures.map((c) => c.photoId))
   const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
@@ -109,8 +161,9 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
     }
   }
 
-  async function shoot() {
-    if (busy) return
+  async function shoot({ skipGps = false }: { skipGps?: boolean } = {}) {
+    if (busy || held) return
+    setWaitGps(false)
     if (orientation.status === 'needs-permission') {
       // iOS : l'accès à la boussole ne peut être demandé que sur un geste.
       const granted = await orientation.requestPermission()
@@ -124,55 +177,114 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
     setBusy(true)
     setFlash(true)
     setTimeout(() => setFlash(false), 160)
+    let kept = false
     try {
       const frame = await capture()
-      // Selfie : on géocadre l'objectif avant, qui regarde à l'opposé du téléphone.
-      const angles = selfie
-        ? orientation.basis && anglesFromBasis(frontCameraBasis(orientation.basis))
-        : orientation.angles
-      const { photo, images } = await createDirectPhoto(
+      // Position et orientation du déclenchement : celles qui seront enregistrées.
+      const fix = here
+      const angles = shotAngles
+      const located = fix != null && angles != null && orientation.absolute
+      // Reproduire : la règle exacte de `version_of` (`sameView`), pas l'état affiché (amorti).
+      const check =
+        located && parentView
+          ? reproduceStatus({ position: fix, heading: angles.heading, pitch: angles.pitch, time: Date.now() }, parentView, fix.accuracy, null)
+          : null
+      const kind: HeldShot['kind'] | null =
+        check && !check.inView ? 'view' : located && !skipGps && fix.accuracy > GPS_GOOD_ACCURACY ? 'gps' : null
+      // Un choix à faire : l'image est figée tout de suite, le moment n'est pas perdu.
+      if (kind) setFrozen(URL.createObjectURL(frame.blob))
+      const shot = await createDirectPhoto(
         frame,
-        { fix: position ?? geo.fix, angles, absolute: orientation.absolute },
+        { fix, angles, absolute: orientation.absolute },
         { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : focal35 },
       )
-      const saved = await addPhoto(photo, images, { visibility, versionOf: reproduce?.id })
-      navigator.vibrate?.(30)
-      if (reproduce && saved.versionOf === reproduce.id) {
-        // Reproduction réussie : sa fiche montre l'originale et le curseur avant / après.
-        toast(`Reproduction enregistrée · visible par ${VISIBLE_BY[saved.visibility]}`)
-        navigate(`/photo/${saved.id}`, { replace: true })
-      } else if (reproduce && photo.geoframe) {
-        toast(`${selfie ? 'Selfie' : 'Photo'} enregistrée, mais trop loin du cadrage de l’originale : pas rattachée`, {
-          label: 'Voir',
-          to: `/photo/${saved.id}`,
-        })
-      } else if (photo.geoframe) {
-        setLastShot(saved.id)
-        const accuracy = photo.geoframe.accuracy
-        // GPS encore imprécis (premières secondes, intérieur) : la photo pourra paraître décalée.
-        const vague = accuracy != null && accuracy > PRECISE_FIX
-        // Où elle est publiée (la miniature ouvre sa fiche, où l'on change la visibilité).
-        // Tombée dans la vue d'une photo existante : c'en est une reproduction (↻).
-        const parent = saved.versionOf ? photos.find((p) => p.id === saved.versionOf) : undefined
-        const sameView = parent ? ` · ↻ même vue que ${isMine(parent) ? 'votre photo' : `la photo ${ofName(parent.ownerName || 'quelqu’un')}`}` : ''
-        const published = `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'} · visible par ${VISIBLE_BY[saved.visibility]}${sameView}`
-        toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published)
-      } else {
-        const missing = !geo.fix ? 'position GPS' : 'boussole'
-        const kind = selfie ? 'Selfie gardé' : 'Photo gardée'
-        const text = `${kind} sans ${missing} : à géocadrer sur place`
-        if (reproduce) toast(text, { label: 'Voir', to: `/photo/${saved.id}` })
-        else {
-          setLastShot(saved.id)
-          toast(text)
-        }
+      if (kind && fix) {
+        setHeld({ kind, shot, accuracy: fix.accuracy, check })
+        kept = true
+        return
       }
+      await save(shot)
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Capture impossible')
     } finally {
+      if (!kept) setFrozen(null)
       setBusy(false)
     }
   }
+
+  /** Enregistre la photo prise ; `classic` : jamais rattachée à l'originale (« Garder en photo classique »). */
+  async function save({ photo, images }: NewPhoto, { classic = false } = {}) {
+    const saved = await addPhoto(photo, images, { visibility, versionOf: classic ? null : reproduce?.id })
+    navigator.vibrate?.(30)
+    const kind = selfie ? 'Selfie' : 'Photo'
+    if (reproduce && saved.versionOf === reproduce.id) {
+      // Reproduction réussie : sa fiche montre l'originale et le curseur avant / après.
+      toast(`Reproduction enregistrée · visible par ${VISIBLE_BY[saved.visibility]}`)
+      navigate(`/photo/${saved.id}`, { replace: true })
+    } else if (reproduce && photo.geoframe) {
+      // Gardée hors de la vue, ou refusée comme reproduction par la base (GPS qui a sauté) :
+      // elle n'est jamais perdue, et on le dit.
+      toast(
+        classic
+          ? `${selfie ? 'Selfie enregistré' : 'Enregistrée'} comme photo classique`
+          : `${selfie ? 'Selfie enregistré' : 'Enregistrée'} comme photo classique : vous n’étiez plus dans la vue de l’originale`,
+        { label: 'Voir', to: `/photo/${saved.id}` },
+      )
+    } else if (photo.geoframe) {
+      // Miniature dans le coin (appui = sa fiche, où l'on change la visibilité) : pas de bouton au toast.
+      setLastShot(saved.id)
+      const accuracy = photo.geoframe.accuracy
+      // GPS imprécis (« Prendre quand même ») : la photo pourra paraître décalée.
+      const vague = accuracy != null && accuracy > GPS_GOOD_ACCURACY
+      // Tombée dans la vue d'une photo existante : c'en est une reproduction (↻).
+      const parent = saved.versionOf ? photos.find((p) => p.id === saved.versionOf) : undefined
+      const sameView = parent ? ` · ↻ même vue que ${isMine(parent) ? 'votre photo' : `la photo ${ofName(parent.ownerName || 'quelqu’un')}`}` : ''
+      const published = `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'} · visible par ${VISIBLE_BY[saved.visibility]}${sameView}`
+      toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published)
+    } else {
+      const missing = !geo.fix ? 'position GPS' : 'boussole'
+      const text = `${kind} ${selfie ? 'gardé' : 'gardée'} sans ${missing} : à géocadrer sur place`
+      // En mode « Reproduire », le coin bas-gauche est le bouton ✕ : le toast garde « Voir ».
+      if (reproduce) toast(text, { label: 'Voir', to: `/photo/${saved.id}` })
+      else {
+        setLastShot(saved.id)
+        toast(text)
+      }
+    }
+  }
+
+  /** Choix fait sur la feuille : enregistrer l'image figée (`classic` : sans la rattacher). */
+  async function keepHeld(classic: boolean) {
+    if (!held) return
+    const { shot } = held
+    setHeld(null)
+    setBusy(true)
+    try {
+      await save(shot, { classic })
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Enregistrement impossible')
+    } finally {
+      setFrozen(null)
+      setBusy(false)
+    }
+  }
+
+  // Mode « Reproduire » : bandeau, calque pâli hors de la vue, masqué quand le lieu est quitté.
+  const away = status?.view === 'out' || status?.view === 'lost'
+  const lostCard = status?.view === 'lost' && !lostSeen
+  // Sens où l'on regarde (caméra principale, même en selfie : on tient l'écran devant soi).
+  const looking = orientation.angles?.heading ?? null
+  const alert = status ? reproduceAlert(status) : null
+  // Flèche du bandeau : vers le point de vue, ou le sens où tourner / incliner le téléphone.
+  const alertArrow = !status || !alert
+    ? null
+    : status.view === 'out' && status.reason === 'heading'
+      ? clamp(status.headingError, -90, 90)
+      : status.view === 'out' && status.reason === 'pitch'
+        ? status.pitchError > 0 ? 0 : 180
+        : status.bearing != null && looking != null
+          ? angleDiffDeg(looking, status.bearing)
+          : null
 
   return (
     <main className="screen viewfinder" ref={stageRef}>
@@ -185,7 +297,17 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           <p>{cameraError}</p>
         </div>
       )}
-      {reproduce && <ReproduceOverlay photo={reproduce} stage={stage} cameraSize={cameraSize} focal35={selfie ? FRONT_PHONE_FOCAL35 : focal35} />}
+      {reproduce && status?.view !== 'lost' && (
+        <ReproduceOverlay
+          photo={reproduce}
+          stage={stage}
+          cameraSize={cameraSize}
+          focal35={selfie ? FRONT_PHONE_FOCAL35 : focal35}
+          dim={away}
+        />
+      )}
+      {/* Image figée au déclenchement, le temps de choisir. */}
+      {frozen && <img className={`frozen-shot ${selfie ? 'mirror' : ''}`} src={frozen} alt="" />}
       {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie. */}
       {!sheet && !selfie && !reproduce && (
         <ArSpotsLayer
@@ -208,7 +330,15 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       {flash && <div className="flash" />}
 
       {reproduce ? (
-        <ReproduceGuide target={reproduce} position={position ?? geo.fix} angles={orientation.angles} absolute={orientation.absolute} />
+        <ReproduceGuide
+          target={reproduce}
+          position={here}
+          angles={shotAngles}
+          absolute={orientation.absolute}
+          status={status}
+          alert={lostCard ? null : alert}
+          alertArrow={alertArrow}
+        />
       ) : (
         <SensorStatus geo={geo} orientation={orientation} />
       )}
@@ -245,6 +375,18 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         <p className="selfie-hint"><strong>Selfie</strong> · on le retrouvera en visant, depuis la place du téléphone, l’endroit où vous vous tenez</p>
       )}
 
+      {waitGps && (
+        <div className="gps-wait" role="status">
+          <span>
+            En attente d’une position précise{liveAccuracy != null && ` (±${Math.round(liveAccuracy)}\u00a0m)`} : la photo
+            sera prise dès qu’elle passera sous {GPS_GOOD_ACCURACY}&nbsp;m
+          </span>
+          <button type="button" onClick={() => setWaitGps(false)}>
+            Annuler
+          </button>
+        </div>
+      )}
+
       <div className="bottom-bar">
         {reproduce ? (
           <RoundButton icon="close" label="Arrêter de reproduire" onClick={goBack} />
@@ -264,12 +406,17 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           {!sheet && <VisibilityPill value={visibility} onChange={setShotVisibility} className="shutter-visibility" />}
           <button
             type="button"
-            className="shutter"
-            onClick={shoot}
-            disabled={busy}
-            aria-label={selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}
+            className={`shutter ${away ? 'warn' : ''}`}
+            onClick={() => void shoot()}
+            disabled={busy || !!held}
+            aria-label={`${selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}${away ? ' — hors de la vue de la photo d’origine' : ''}`}
           >
             <Icon name="scan" size={40} />
+            {away && (
+              <span className="shutter-warn" aria-hidden="true">
+                <Icon name="warning" size={16} />
+              </span>
+            )}
           </button>
         </div>
         {reproduce ? (
@@ -293,6 +440,63 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           onClose={() => setCaptureSheet({ id: sheetPhoto.id, open: false })}
         />
       )}
+
+      {lostCard && status && (
+        <div className="captured" role="alertdialog" aria-label="Lieu de la photo quitté">
+          <div className="captured-card lost-card">
+            <Icon name="pin" size={32} />
+            <h2>Vous avez quitté le lieu de la photo</h2>
+            <p>{viewpointAt(status)}</p>
+            <div className="captured-actions">
+              <button type="button" className="btn" onClick={() => setLostSeen(true)}>
+                {status.bearing != null && looking != null && <DirectionArrow deg={angleDiffDeg(looking, status.bearing)} />}
+                Y retourner
+              </button>
+              <button type="button" className="btn ghost" onClick={goBack}>
+                Quitter Reproduire
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {held?.kind === 'view' && held.check && (
+        <Sheet onClose={release} label="Hors de la vue de la photo d’origine">
+          <div className="shot-sheet">
+            <Icon name="warning" size={28} />
+            <p>{outOfViewMessage(held.check, reproduce?.ownerName ?? '')}</p>
+            <button type="button" className="btn" onClick={release}>
+              <Icon name="reproduce" /> Revenir au point de vue
+            </button>
+            <button type="button" className="btn ghost" onClick={() => void keepHeld(true)}>
+              Garder en photo classique
+            </button>
+          </div>
+        </Sheet>
+      )}
+      {held?.kind === 'gps' && (
+        <Sheet onClose={release} label="Position imprécise">
+          <div className="shot-sheet">
+            <Icon name="pin" size={28} />
+            <p>{vaguePositionMessage(held.accuracy)}</p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                release()
+                setWaitGps(true)
+              }}
+            >
+              Attendre
+            </button>
+            <button type="button" className="btn ghost" onClick={() => void keepHeld(false)}>
+              Prendre quand même
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      <PreciseLocationNotice fix={geo.fix} />
     </main>
   )
 }
@@ -307,11 +511,14 @@ function ReproduceOverlay({
   stage,
   cameraSize,
   focal35,
+  dim,
 }: {
   photo: GeoframedPhoto
   stage: { width: number; height: number }
   cameraSize: { width: number; height: number } | null
   focal35: number
+  /** Hors de la vue : calque plus pâle. */
+  dim: boolean
 }) {
   const url = useImageUrl(photo.id, 'full')
   const [opacity, setOpacity] = useState(0.5)
@@ -328,7 +535,7 @@ function ReproduceOverlay({
         className="align-photo reproduce-photo"
         src={url}
         alt=""
-        style={{ width: w, height: h, left: (stage.width - w) / 2, top: (stage.height - h) / 2, opacity }}
+        style={{ width: w, height: h, left: (stage.width - w) / 2, top: (stage.height - h) / 2, opacity: dim ? opacity * 0.35 : opacity }}
         draggable={false}
       />
       <label className="slider reproduce-opacity">
@@ -347,32 +554,54 @@ function ReproduceOverlay({
   )
 }
 
-/** En-tête du mode « Reproduire » : consigne et jauges d'alignement de la chasse. */
+/**
+ * En-tête du mode « Reproduire » : consigne, bandeau quand on s'éloigne de la vue de l'originale
+ * (orange au bord, rouge hors de la vue), pastille du GPS imprécis, jauges de la chasse.
+ */
 function ReproduceGuide({
   target,
   position,
   angles,
   absolute,
+  status,
+  alert,
+  alertArrow,
 }: {
   target: GeoframedPhoto
   position: Parameters<typeof computeAlignment>[1]['position']
   angles: Parameters<typeof computeAlignment>[1]['angles']
   absolute: boolean
+  status: ReproduceState | null
+  alert: ReturnType<typeof reproduceAlert>
+  alertArrow: number | null
 }) {
   const g = target.geoframe
   const al = computeAlignment(
     { position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } },
     { position, angles },
   )
+  const inView = !status || status.view === 'in-view' || status.view === 'drifting'
+  const aligned = al.aligned && inView
   return (
     <header className="reproduce-guide">
-      <div className={`guide ${al.aligned ? 'ok' : ''}`}>
+      <div className={`guide ${aligned ? 'ok' : ''}`}>
         <Icon name="reproduce" />
         <div>
-          <strong>{al.aligned ? 'Cadrage retrouvé : déclenchez' : guidance(al, absolute)}</strong>
+          <strong>{aligned ? 'Cadrage retrouvé : déclenchez' : guidance(al, absolute)}</strong>
           <span>Reproduire la photo {ofName(target.ownerName || 'quelqu’un')} · superposez-la au décor</span>
         </div>
       </div>
+      {alert && (
+        <div className={`reproduce-alert ${alert.tone}`} role="status">
+          {alertArrow != null && <DirectionArrow deg={alertArrow} size={18} />}
+          <strong>{alert.text}</strong>
+        </div>
+      )}
+      {status?.status === 'gps-weak' && position && (
+        <span className="reproduce-chip" role="status">
+          <Icon name="pin" size={14} /> GPS imprécis (±{Math.round(position.accuracy)} m), patientez
+        </span>
+      )}
       <AlignGauges al={al} />
     </header>
   )
