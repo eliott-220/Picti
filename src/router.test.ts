@@ -42,6 +42,21 @@ describe('parseHash', () => {
     expect(parseHash('#/reproduire')).toEqual({ name: 'accueil' })
   })
 
+  it('ouvre la fiche d’une photo sur « Au fil du temps »', () => {
+    expect(parseHash('#/photo/abc/fil')).toEqual({ name: 'photo', id: 'abc', section: 'fil' })
+    expect(parseHash('#/photo/abc/autre')).toEqual({ name: 'photo', id: 'abc' })
+  })
+
+  it('ouvre le profil public d’un utilisateur', () => {
+    expect(parseHash('#/personne/00000000-0000-4000-8000-00000000000b')).toEqual({
+      name: 'personne',
+      id: '00000000-0000-4000-8000-00000000000b',
+    })
+    expect(parseHash('#/personne/abc?x')).toEqual({ name: 'personne', id: 'abc' })
+    expect(parseHash('#/personne')).toEqual({ name: 'accueil' })
+    expect(parseHash('#/personne/')).toEqual({ name: 'accueil' })
+  })
+
   it('lit les paramètres de recherche', () => {
     expect(parseHash('#/recherche')).toEqual({ name: 'recherche', filters: false })
     expect(parseHash('#/recherche?filtres')).toEqual({ name: 'recherche', filters: true })

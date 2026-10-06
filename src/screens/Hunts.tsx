@@ -1,6 +1,6 @@
 import { AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
-import { formatDateTime, isGeoframed } from '../data/types'
+import { formatDateTime, isGeoframed, ofName } from '../data/types'
 import { goBack, navigate } from '../router'
 
 /** « Mes chasses » : mes proies (auteurs des photos retrouvées) et mes captures. */
@@ -42,7 +42,7 @@ export function Hunts() {
           Mes proies ({proies.length})
         </h2>
         {proies.length ? (
-          <AvatarRow people={proies} />
+          <AvatarRow people={proies} onOpen={(id) => navigate(`/personne/${id}`)} />
         ) : (
           <EmptyState icon="user">
             Retrouvez sur place les photos des autres utilisateurs : leurs auteurs deviendront vos proies.
@@ -59,12 +59,22 @@ export function Hunts() {
             {captured.map((c) => {
               const p = byId.get(c.photoId)!
               return (
-                <PhotoTile
-                  key={c.id}
-                  id={c.photoId}
-                  caption={isMine(p) ? formatDateTime(c.capturedAt, { short: true }) : `${p.ownerName} · ${formatDateTime(c.capturedAt, { short: true })}`}
-                  onClick={() => navigate(`/photo/${c.photoId}`)}
-                />
+                <div className="grid-item" key={c.id}>
+                  <PhotoTile
+                    id={c.photoId}
+                    caption={formatDateTime(c.capturedAt, { short: true })}
+                    label={`Capture ${isMine(p) ? 'de ma photo' : `de la photo ${ofName(p.ownerName || 'quelqu’un')}`} : voir sa fiche`}
+                    onClick={() => navigate(`/photo/${c.photoId}`)}
+                  />
+                  {/* L'auteur, à part : appui = son profil public. */}
+                  {isMine(p) ? (
+                    <span className="tile-author">Ma photo</span>
+                  ) : (
+                    <button type="button" className="tile-author name-link" onClick={() => navigate(`/personne/${p.owner}`)}>
+                      {p.ownerName || 'Quelqu’un'}
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -83,7 +93,7 @@ export function Hunts() {
                   key={p.id}
                   id={p.id}
                   caption={isMine(p) ? p.title : p.ownerName}
-                  onClick={() => navigate(`/chasse/${p.id}`)}
+                  onClick={() => navigate(`/photo/${p.id}`)}
                 />
               ))}
             </div>

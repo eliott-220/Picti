@@ -49,15 +49,24 @@ export function groupNotifications(list: AppNotification[]): NotificationGroup[]
   return [...groups.values()].sort((a, b) => b.latest - a.latest)
 }
 
+/** Morceaux d'une ligne de notification : texte, ou auteur (nom cliquable vers son profil). */
+export type NotificationPart = string | { id: string; name: string }
+
+/** Ligne de notification en morceaux : « Paul », « et », « Léa », « aiment votre photo ». */
+export function notificationParts(g: Pick<NotificationGroup, 'kind' | 'actors'>): NotificationPart[] {
+  const [first, second] = g.actors
+  const who: NotificationPart = first ?? 'Quelqu’un'
+  if (g.kind === 'capture') return [who, ' a capturé votre photo']
+  if (g.actors.length <= 1) return [who, ' aime votre photo']
+  if (g.actors.length === 2) return [who, ' et ', second, ' aiment votre photo']
+  return [who, ` et ${g.actors.length - 1} autres aiment votre photo`]
+}
+
 /** Texte d'une ligne de notification. */
 export function notificationText(g: Pick<NotificationGroup, 'kind' | 'actors'>): string {
-  const [first, second] = g.actors
-  const name = first?.name ?? 'Quelqu’un'
-  if (g.kind === 'capture') return `${name} a capturé votre photo`
-  if (g.actors.length <= 1) return `${name} aime votre photo`
-  if (g.actors.length === 2) return `${name} et ${second.name} aiment votre photo`
-  const others = g.actors.length - 1
-  return `${name} et ${others} autres aiment votre photo`
+  return notificationParts(g)
+    .map((part) => (typeof part === 'string' ? part : part.name))
+    .join('')
 }
 
 /** Nombre de notifications non lues (pastille de la cloche). */

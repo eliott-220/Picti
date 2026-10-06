@@ -701,10 +701,334 @@ img {
 
 .detail-caption {
   position: absolute;
+  z-index: 1;
   left: var(--pad);
   right: 88px;
   bottom: calc(var(--r) + 20px);
   text-shadow: 0 1px 12px rgb(0 0 0 / 0.5);
+}
+
+/* Fiche : la photo occupe tout l'écran à l'ouverture ; la suite commence sous le pli (poignée). */
+.detail-photo.full {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Léger dégradé en bas : la légende reste lisible et l'on devine qu'il y a une suite. */
+.detail-photo::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.5));
+  pointer-events: none;
+}
+
+.detail-handle {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 32px;
+  margin: -26px 0 -12px;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  background: none;
+}
+
+.detail-handle span {
+  width: 44px;
+  height: 5px;
+  border-radius: 3px;
+  background: #cfd4d6;
+}
+
+.detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Auteur : toute la ligne mène à son profil public ; bouton d'amitié à droite. */
+.author-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.author-row {
+  flex: 1 1 200px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin: -8px;
+  padding: 8px;
+  border: none;
+  border-radius: var(--r-tile);
+  background: none;
+  text-align: left;
+}
+
+.link-row:active {
+  background: var(--paper-2);
+}
+
+.author-block .avatar {
+  background: var(--salmon);
+  color: #fff;
+}
+
+.author-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.author-text strong {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-text span {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ink-2);
+  transform: rotate(180deg);
+}
+
+/* Bouton d'amitié et son petit menu (annuler la demande, retirer de mes amis). */
+.friend-btn {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.friend-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: max-content;
+  max-width: min(300px, 80vw);
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.friend-menu p {
+  font-size: 15px;
+}
+
+.friend-btn.on-red {
+  align-self: flex-start;
+}
+
+.friend-btn.on-red > .btn {
+  background: #fff;
+  color: var(--red);
+}
+
+.friend-btn.on-red > .btn.ghost {
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
+}
+
+.friend-btn.on-red .friend-menu {
+  right: auto;
+  left: 0;
+}
+
+/* Prise de vue. */
+.shot-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shot-date {
+  font-size: 18px;
+}
+
+.shot-meta {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.shot-help {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* Photos liées : « D'après la photo de … », « Au fil du temps ». */
+.related {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 16px;
+}
+
+.related-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 400;
+}
+
+.related-title > span:not(.version-badge) {
+  color: var(--ink-2);
+  font-size: 16px;
+}
+
+.related.missing {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.related-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+}
+
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--red);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tile-wide {
+  aspect-ratio: 4 / 3;
+}
+
+.tile-wide .tile-caption {
+  font-size: 15px;
+}
+
+.tile-wide .tile-caption strong {
+  font-weight: 600;
+}
+
+.strip.fil {
+  margin-top: 0;
+  margin-bottom: 0;
+  list-style: none;
+}
+
+.fil-item {
+  flex: 0 0 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+
+.fil-item .tile {
+  flex: none;
+  width: 100%;
+}
+
+.fil-item .btn.small {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.fil-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--ink-2);
+}
+
+/* Ma photo : réglages de l'auteur. */
+.my-photo {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--paper-2);
+}
+
+.rename {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 17px;
+}
+
+.rename span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rename input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 16px;
+  border: 2px solid var(--paper-2);
+  border-radius: 999px;
+  font-size: 17px;
+}
+
+.tech-details {
+  padding-top: 16px;
+  border-top: 1px solid var(--paper-2);
+}
+
+.tech-details summary {
+  min-height: 32px;
+  color: var(--ink-2);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.tech-details .facts {
+  margin-top: 12px;
+}
+
+/* Nom d'une personne dans une phrase ou une liste : appui = son profil public. */
+.name-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgb(20 20 20 / 0.3);
+  text-underline-offset: 3px;
 }
 
 .detail-caption h1 {
@@ -999,6 +1323,39 @@ img {
   display: flex;
   gap: 12px;
   margin-top: 8px;
+}
+
+/* Chasse : célébration de la capture (≈ 1,5 s), avant la fiche en feuille ; un appui l'abrège.
+   Pas « .captured » : c'est aussi l'état final de `.capture-card` (voir plus bas). */
+.capture-celebration {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: var(--pad);
+  border: none;
+  background: rgb(0 0 0 / 0.35);
+  color: #fff;
+}
+
+.capture-celebration-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 340px;
+  padding: 32px 28px;
+  border-radius: 40px;
+  background: var(--red);
+  text-align: center;
+  animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.capture-celebration-title {
+  font-size: 34px;
+  font-weight: 400;
 }
 
 @keyframes pop {
@@ -1341,6 +1698,24 @@ img {
   text-align: center;
 }
 
+button.avatar-item {
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.person-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+
 .avatar-item strong {
   font-weight: 400;
   font-size: 16px;
@@ -1427,16 +1802,6 @@ img {
   flex-wrap: wrap;
 }
 
-.author {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.author .avatar {
-  background: var(--salmon);
-  color: #fff;
-}
 
 .paywall {
   display: flex;
@@ -1563,6 +1928,14 @@ img {
   transition: transform var(--back-ms, 0.3s) ease-out;
 }
 
+/* Capturée : elle couvre tout l'écran, boutons compris, le temps de la célébration. Sans hériter
+   de `.captured` (fenêtre de dialogue : z-index 30 qui cachait le message « Capturée ! »). */
+.capture-card.captured {
+  z-index: 6;
+  padding: 0;
+  background: none;
+}
+
 .capture-card .overlay-reveal {
   animation-timing-function: ease-in-out;
 }
@@ -1584,7 +1957,7 @@ img {
   top: 50%;
   left: 0;
   right: 0;
-  z-index: 5;
+  z-index: 7;
   width: fit-content;
   max-width: calc(100% - 32px);
   margin: 0 auto;
@@ -2820,11 +3193,16 @@ img {
 
 .likers li {
   display: inline-flex;
+}
+
+.likers .name-link {
+  display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--paper-2);
+  text-decoration: none;
 }
 
 /* Avant / après : la reproduction glisse sur l'originale. */
@@ -2937,14 +3315,34 @@ img {
 }
 
 .notif-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
   padding: 10px 0;
+}
+
+/* Toute la ligne ouvre la photo ; seuls les noms, par-dessus, reçoivent leur propre appui. */
+.notif-open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
   border: none;
+  border-radius: 12px;
   background: none;
-  text-align: left;
+}
+
+.notif-thumb,
+.notif-text,
+.notif-dot {
+  pointer-events: none;
+}
+
+.notif-text .name-link {
+  position: relative;
+  pointer-events: auto;
 }
 
 .notif-thumb {
@@ -2961,9 +3359,7 @@ img {
 }
 
 .notif-text strong {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-weight: 400;
 }
 
@@ -2972,8 +3368,9 @@ img {
 }
 
 .notif-text strong svg {
-  flex-shrink: 0;
+  margin-right: 2px;
   color: var(--red);
+  vertical-align: -3px;
 }
 
 .notif-text > span {
@@ -2987,4 +3384,166 @@ img {
   height: 10px;
   border-radius: 50%;
   background: var(--red);
+}
+
+/* ---------- Fiche en feuille, par-dessus la caméra (après une capture) ---------- */
+
+.photo-sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+}
+
+.photo-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: 88%;
+  overflow: hidden;
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 -10px 40px rgb(0 0 0 / 0.35);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: photo-sheet-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.photo-sheet.dragging {
+  transition: none;
+}
+
+@keyframes photo-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.photo-sheet-head {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 12px 8px var(--pad);
+  touch-action: none;
+  cursor: grab;
+}
+
+.sheet-grip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 44px;
+  height: 5px;
+  margin-left: -22px;
+  border-radius: 3px;
+  background: #cfd4d6;
+}
+
+.photo-sheet-head strong {
+  flex: 1;
+  color: var(--red);
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.photo-sheet-scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  background: var(--red-deep);
+}
+
+.detail-photo.in-sheet {
+  height: 42vh;
+  min-height: 240px;
+}
+
+/* Viseur : miniature de la photo qu'on vient de prendre (5 s), appui = sa fiche. */
+.last-shot {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  background: #222;
+  box-shadow: var(--shadow);
+  animation: last-shot-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.last-shot .thumb {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes last-shot-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* Mes captures : l'auteur sous la vignette (appui = son profil public). */
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tile-author {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.tile-author {
+  color: var(--ink);
+}
+
+/* ---------- Profil public ---------- */
+
+.person-id {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.person-id .display {
+  font-size: 36px;
+}
+
+.person-since {
+  margin-top: 6px;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.person-note {
+  margin-top: 16px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-sheet,
+  .last-shot {
+    animation: none;
+  }
+}
+
+.photo-sheet:focus-visible {
+  outline: none;
 }

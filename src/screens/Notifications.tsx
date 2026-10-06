@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { Icon } from '../components/Icon'
 import { EmptyState, RoundButton, Thumb } from '../components/ui'
 import { registerThumbs } from '../data/imageUrls'
-import { groupNotifications, notificationText } from '../data/notifications'
+import { groupNotifications, notificationParts, notificationText } from '../data/notifications'
 import { useStore } from '../data/storeContext'
 import { formatDateTime } from '../data/types'
 import { goBack, navigate } from '../router'
@@ -39,24 +39,42 @@ export function Notifications() {
         {groups.length ? (
           <ul className="notif-list">
             {groups.map((g) => (
-              <li key={g.key}>
+              <li key={g.key} className={`notif-row ${g.unread ? 'unread' : ''}`}>
+                {/* Toute la ligne ouvre la fiche de la photo ; les noms, par-dessus, ouvrent les profils. */}
                 <button
                   type="button"
-                  className={`notif-row ${g.unread ? 'unread' : ''}`}
+                  className="notif-open"
+                  aria-label={`${notificationText(g)}, ${formatDateTime(g.latest, { short: true })}${g.unread ? ', non lue' : ''} : voir la photo`}
                   onClick={() => {
                     void markNotificationsRead(g.ids)
                     navigate(`/photo/${g.photoId}`)
                   }}
-                >
-                  <Thumb id={g.photoId} className="notif-thumb" />
-                  <span className="notif-text">
-                    <strong>
-                      <Icon name={g.kind === 'capture' ? 'flag' : 'heart'} size={16} /> {notificationText(g)}
-                    </strong>
-                    <span>{formatDateTime(g.latest, { short: true })}</span>
-                  </span>
-                  {g.unread && <span className="notif-dot" aria-label="Non lue" />}
-                </button>
+                />
+                <Thumb id={g.photoId} className="notif-thumb" />
+                <span className="notif-text">
+                  <strong>
+                    <Icon name={g.kind === 'capture' ? 'flag' : 'heart'} size={16} />{' '}
+                    {notificationParts(g).map((part, i) =>
+                      typeof part === 'string' ? (
+                        part
+                      ) : (
+                        <button
+                          key={i}
+                          type="button"
+                          className="name-link"
+                          onClick={() => {
+                            void markNotificationsRead(g.ids)
+                            navigate(`/personne/${part.id}`)
+                          }}
+                        >
+                          {part.name}
+                        </button>
+                      ),
+                    )}
+                  </strong>
+                  <span>{formatDateTime(g.latest, { short: true })}</span>
+                </span>
+                {g.unread && <span className="notif-dot" aria-hidden="true" />}
               </li>
             ))}
           </ul>

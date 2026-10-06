@@ -130,6 +130,81 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - **Galerie d'un lieu** (`#/galerie/<id>`, appui sur les points) : grille de toutes les photos du
     lieu (`loadSpot` les charge depuis la carte, RPC `nearby_photos` à 10 m), tri « Les plus aimées »
     (par défaut) / « Les plus récentes » (ajout) / « Date de prise », mémorisé (`picti.galerie.tri`).
+- **Fiche d'une photo** (depuis 0.16.0, `src/screens/PhotoDetail.tsx`, route `#/photo/<id>`,
+  `#/photo/<id>/fil` = directement sur « Au fil du temps ») : la photo **en grand** occupe tout
+  l'écran à l'ouverture (`.detail-photo.full`, pile du lieu glissable, couleurs / N&B inchangés,
+  dégradé), poignée `.detail-handle` (bouton) qui fait défiler jusqu'à la fiche. De haut en bas :
+  actions (Chasser / Revoir in situ ou Géocadrer sur place, Reproduire si capturée, Enregistrer) ;
+  **auteur** (`AuthorBlock` : ligne entière → `#/personne/<owner>`, ville lue par
+  `usePublicProfile`, `FriendButton` ; ma photo : « Vous ») ; **prise de vue** (`shotDateText` :
+  « Prise le mardi 6 octobre 2026 à 14 h 32 », heure locale, espaces insécables ; importée et prise
+  un autre jour : « · ajoutée à PICTI le … » ; date inconnue : « Ajoutée à PICTI le … » ; distance,
+  mode, selfie, capturée) ; **photos liées** (remplacent `ParentBlock` / `VersionsBlock` de la
+  0.15.0) : `ParentSection` « D'après la photo de … » (grande vignette `PhotoTile size="wide"` de
+  l'originale → sa fiche, Avant / après, « Voir les n autres reproductions » → `/photo/<parente>/fil` ;
+  originale invisible : « Reproduction d'une photo qui n'est plus disponible ») puis
+  `TimelineSection` « Au fil du temps · refaite n fois » (frise `timelineOrder` : la photo d'abord,
+  « Originale » — « Cette photo » si elle-même est une reproduction —, puis ses reproductions
+  directes par date de prise ; Avant / après sur chacune ; `hiddenVersionsText` « et n autres que
+  vous ne pouvez pas voir » ; aucune : « Personne n'a encore refait cette photo » + Reproduire ou
+  « Capturez-la sur place… » ; montrée pour une photo géocadrée non privée, et pour une reproduction
+  seulement si elle a été refaite) — données : `useVersions` (une requête `version_of = id` par
+  photo et par visite, puis lues dans le store) ; **Ma photo** (`MyPhotoBlock` : titre / Renommer,
+  visibilité, distance du sujet, « Aimée par … » — noms → profils —, supprimer) ;
+  **Détails techniques** repliés (`<details>` : statut, cap, inclinaison, roulis, position — la
+  mienne —, précision, focale, dimensions). Logique pure : `src/data/versions.ts`.
+  - **Fiche en feuille** (`PhotoSheet`, même contenu, sans pile ni chasse) : juste après une
+    capture, chasse (`Hunt` : phases `hunting` → `captured` = célébration `CELEBRATION_MS` 1,5 s,
+    `.capture-celebration`, un appui l'abrège → `sheet` → `contemplating` avec bouton « Fiche ») et
+    viseur (`Home.captureHere` : la capture est enregistrée, puis la feuille monte à 1,5 s ; la
+    photo reste en plein écran le temps de la célébration avec « Capturée ! », puis revient à sa
+    place en couleur ; bouton « Fiche » dans la frise via `ArSpotsLayer actionFor`). En-tête
+    « Capturée ✓ · aimée sur place » (ou « Retrouvée ✓ »), Reproduire en avant, « Contempler in
+    situ ». On la ferme d'un glissement vers le bas sur l'en-tête (> 90 px), ✕, Échap, appui
+    au-dessus ou **bouton retour** : `useBackCloses` (`src/router.ts`) ajoute une entrée
+    d'historique sans changer d'adresse (numérotée `pictiOverlay`, comptée dans `depth`) et ferme
+    les feuilles plus récentes que l'entrée retrouvée ; aussi utilisé par l'avant / après. La
+    caméra ne s'arrête pas (même écran, `useCamera` partagé).
+  - **Ouverture** : appui sur une photo partout (carte, galerie, Mes photos, Mes captures, À
+    retrouver, À proximité, Recherche, notifications, profil public, frise) → `#/photo/<id>`. Viseur :
+    appui sur une photo → sa fiche (`onOpen`) ; à moins de 5 m, la photo d'un autre pas encore
+    capturée se **capture** (même déroulé que « Capturer ») ; le bouton « Chasser » de la frise
+    ouvre la chasse (`onHunt`). Après une prise de vue (accueil, hors « Reproduire ») : pas
+    d'ouverture automatique, **miniature** `.last-shot` 5 s à la place du « + » (appui = fiche) ;
+    le toast garde son texte, sans bouton.
+  - Collision corrigée : `.captured` (ancienne célébration de la chasse) s'appliquait aussi à
+    `.capture-card` dans son état `captured` (z-index 30 par-dessus le message) → la célébration
+    a sa classe `.capture-celebration` ; `.capture-card.captured` (z-index 6, sans fond ni marge)
+    neutralise `.captured`, gardée pour les fenêtres de dialogue (carte « lieu quitté » de la
+    0.15.2) ; `.capture-hint` z-index 7.
+- **Profil public** (depuis 0.16.0, `src/screens/Person.tsx`, route `#/personne/<id>`) : avatar,
+  nom, ville, « Sur PICTI depuis septembre 2026 » (`memberSince`), `FriendButton`, nombre et grille
+  de ses photos géocadrées **que je peux voir** (`loadPersonPhotos` : requête `photos` owner = id,
+  RLS ; une vignette par lieu, ↻, likes ; relue quand l'amitié change) ; pas amis : « Ses photos
+  réservées aux amis apparaîtront quand vous serez amis. » Mon id → `#/profil` ; inexistant :
+  message + Retour. Données : RPC `public_profile(p_id)` (migration
+  `20261006200000_profil_public.sql`, **à appliquer avec l'accord d'Eliott** : id, name, city,
+  created_at, amitié `none | outgoing | incoming | friends`, security definer, connectés seulement) ;
+  tant qu'elle n'existe pas, `fetchPublicProfile` lit ces colonnes dans `profiles` et l'amitié dans
+  `friendships`. Si l'amitié de la base diffère du store, `reloadFriends` (exposé par le store).
+  Noms cliquables vers le profil : notifications (`notificationParts`, bouton de ligne `.notif-open`
+  par-dessus lequel passent les noms), Mes captures (`.tile-author`), Mes proies / Mes chasseurs
+  (`AvatarRow onOpen`), « Aimée par … », amis / demandes / recherche (`PersonLink`).
+- **Bouton d'amitié** (depuis 0.16.0, `src/components/FriendButton.tsx`, fiche + profil public) :
+  état `friendState(friends, userId)` (`src/data/friends.ts`, testé) : « Ajouter en ami »
+  (`requestFriend`) → « Demande envoyée » (appui : « Annuler la demande ? » → `removeFriend`) ;
+  demande reçue → « Accepter » + « Refuser » ; « Amis ✓ » (appui : « Retirer de mes amis » puis
+  confirmation). Optimiste (`optimistic`), annulé si la base refuse ; menu fermé par Échap ou un
+  appui ailleurs (écouteur en phase de capture). Aucun changement de base.
+- **Sécurité des amitiés et des profils** (rapport du 06/10/2026, voir la note de session) : la
+  policy « Accepter une demande reçue » laisse le destinataire réécrire `requester` → devenir ami
+  de n'importe qui sans son accord (**vérifié sur la base, transaction annulée**). `friend_code`
+  seul ne suffit pas (il ne fait qu'envoyer une demande) mais il est lisible, avec `plan`, par tout
+  compte connecté. Correctif proposé, **non appliqué** :
+  `supabase/propositions/2026-10-06-droits-amities-et-profils.sql` (A : droit de mise à jour limité
+  à `status` ; B1 : `my_profile()`, `find_profile_by_friend_code()` — la 0.16.0 s'en sert si elles
+  existent, sinon lit la table ; B2, après la 0.16.x en ligne : `profiles` lisible seulement en
+  `id, name, city, created_at`).
 - Photos d'un même **lieu** (`src/geo/spots.ts`, depuis 0.15.0 : `sameSpot` = rayon de 5 m
   `SPOT_RADIUS_MIN`, élargi jusqu'à la moins bonne précision GPS des deux photos, plafonné à 10 m
   `SPOT_RADIUS_MAX`, précision inconnue → 10 m, ET caps à ±45° `SPOT_HEADING_TOLERANCE` près : deux
@@ -350,11 +425,18 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   par likes (bonus 24 h des photos neuves), galerie d'un lieu (trois tris) ; lieu = 5 m (jusqu'à
   10 m selon le GPS) et même direction. Notifications push : structure seulement.
 - 0.015.1 : ligne de version du menu sans l'heure de la mise à jour (« Version 0.015.1 · 6 oct. »).
+- 0.016.0 : fiche d'une photo (photo en grand, auteur → profil public, « Prise le … à … », « Au fil
+  du temps » / « D'après la photo de … », détails techniques repliés) ; profil public et bouton
+  d'amitié ; appui sur une photo = sa fiche partout (viseur : capture à moins de 5 m) ; fiche en
+  feuille juste après une capture ; miniature après une prise de vue ; noms cliquables. Rapport de
+  sécurité sur `friendships` / `profiles` (correctif proposé, en attente d'accord).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
-- Prochaines étapes : test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
+- Prochaines étapes : accord d'Eliott sur la migration `public_profile` et sur le correctif de
+  sécurité des amitiés (A et B1 tout de suite, B2 après la 0.16.x en ligne) ; test sur iPhone de la
+  fiche (défilement, feuille glissée vers le bas, bouton retour) ; test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
   l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ;
   0.015.0 sur iPhone (reproduction avec le calque, notifications en temps réel) ; envoi des
   notifications push (voir la note du 06/10, « Likes et reproductions ») ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
@@ -389,3 +471,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Photo « carte », effacement à 2 m, capture par agrandissement (0.014.0)](claude/picti/2026-10-06-carte-et-capture.md)
 - [2026-10-06 — Amis : « amis » par défaut, choix à la prise, invitations, carte Monde / Amis (0.014.0)](claude/picti/2026-10-06-amis.md)
 - [2026-10-06 — Likes, capture = like, notifications, reproductions, galerie, lieux à 5 m (0.015.0)](claude/picti/2026-10-06-likes-et-reproductions.md)
+- [2026-10-06 — Fiche d'une photo, profil public, bouton d'amitié, sécurité des amitiés (0.16.0)](claude/picti/2026-10-06-fiche-photo.md)

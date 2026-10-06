@@ -17,7 +17,7 @@ import {
   type GeoframedPhoto,
 } from './arProjection'
 import { Dots } from './Dots'
-import { useCapture } from './useCapture'
+import { CELEBRATION_MS, useCapture } from './useCapture'
 import { useCardSwipe } from './useCardSwipe'
 
 /** Distance maximale (m) à laquelle les photos apparaissent dans le viseur. */
@@ -26,8 +26,6 @@ export const AR_RANGE = 150
 const MAX_OVERLAYS = 4
 /** Nombre maximal de photos d'un même lieu prises en compte. */
 const MAX_PER_SPOT = 30
-/** Une fois capturée, la photo reste un instant en plein écran avant de revenir à sa place (ms). */
-const CAPTURED_HOLD_MS = 600
 
 interface Card {
   photo: GeoframedPhoto
@@ -40,7 +38,9 @@ interface Card {
  * aimées devant : on fait glisser celle du dessus (comme sur Tinder) pour voir
  * les autres ; les points sous la photo disent combien il y en a et ouvrent la
  * galerie du lieu.
- * « Capturer » : la photo visée s'agrandit jusqu'à couvrir l'écran (voir `useCapture`).
+ * Appui sur une photo : sa fiche ; à moins de 5 m de son point de vue, une photo d'un autre pas
+ * encore capturée se capture (comme « Capturer ») : elle s'agrandit jusqu'à couvrir l'écran
+ * (voir `useCapture`), reste en plein écran le temps de la célébration, puis revient à sa place.
  */
 export function ArSpotsLayer({
   photos,
@@ -49,15 +49,20 @@ export function ArSpotsLayer({
   cam,
   isMine,
   onOpen,
+  onHunt,
   onGallery,
   onCapture,
+  actionFor,
 }: {
   photos: GeoframedPhoto[]
   fix: GeoFix | null
   basis: CameraBasis | null
   cam: ViewportCamera | null
   isMine: (p: GeoPhoto) => boolean
+  /** Appui sur une photo (hors capture) : sa fiche. */
   onOpen: (p: GeoPhoto) => void
+  /** Bouton « Chasser » de la frise : la chasse de la photo visée. */
+  onHunt: (p: GeoPhoto) => void
   /** Galerie de toutes les photos du lieu (appui sur les points). */
   onGallery?: (p: GeoPhoto) => void
   /**
@@ -65,6 +70,8 @@ export function ArSpotsLayer({
    * achevé (bouton « Capturer ») ; résout `true` si elle est enregistrée.
    */
   onCapture?: (p: GeoPhoto) => Promise<boolean>
+  /** Bouton de la frise imposé pour une photo (ex. « Fiche » d'une photo qu'on vient de capturer). */
+  actionFor?: (p: GeoPhoto) => { label: string; onClick: () => void } | null
 }) {
   // Photo du dessus choisie pour chaque lieu.
   const [selection, setSelection] = useState<Record<string, string>>({})
@@ -119,11 +126,12 @@ export function ArSpotsLayer({
   useEffect(() => {
     capture.sync({ angles: basis ? anglesFromBasis(basis) : null, place: (id) => cardOf(id)?.ar.transform ?? null })
   })
-  // Capturée : un instant en plein écran, puis retour à sa place, en couleur.
+  // Capturée : en plein écran le temps de la célébration, puis retour à sa place, en couleur
+  // (la fiche monte alors par-dessus la caméra, voir l'accueil).
   const { state, release } = capture
   useEffect(() => {
     if (state.phase !== 'captured') return
-    const t = setTimeout(release, CAPTURED_HOLD_MS)
+    const t = setTimeout(release, CELEBRATION_MS)
     return () => clearTimeout(t)
   }, [state, release])
 
@@ -135,6 +143,15 @@ export function ArSpotsLayer({
     null,
   )
   const select = (key: string, photo: GeoPhoto) => setSelection((sel) => ({ ...sel, [key]: photo.id }))
+  /** Photo d'un autre pas encore capturée, à moins de 5 m de son point de vue : elle se capture sur place. */
+  const capturable = (c: Card) =>
+    !!onCapture && !inColor(c.photo) && !justCaptured.has(c.photo.id) && withinCaptureRadius(c.ar.distance)
+  /** Appui sur une photo : à moins de 5 m, sa capture ; sinon, sa fiche. */
+  const tap = (c: Card) => {
+    if (capturable(c)) {
+      if (capture.active == null) capture.start(c.photo.id, c.ar.transform!)
+    } else onOpen(c.photo)
+  }
   // La photo en cours de capture a quitté sa place : la carte d'agrandissement la remplace.
   const captured = capture.active ? photos.find((p) => p.id === capture.active) ?? null : null
   const capturedCard = captured && cardOf(captured.id)
@@ -151,7 +168,7 @@ export function ArSpotsLayer({
             cam={cam}
             color={color}
             onSelect={(photo) => select(s.key, photo)}
-            onOpen={onOpen}
+            onTap={tap}
             onGallery={onGallery}
           />
         ) : (
@@ -165,7 +182,7 @@ export function ArSpotsLayer({
             scale={overlayScale(s.cards[s.index].ar)}
             glass={!s.cards[s.index].ar.facing}
             version={s.cards[s.index].photo.versionOf != null}
-            onClick={() => onOpen(s.cards[s.index].photo)}
+            onClick={() => tap(s.cards[s.index])}
           />
         ),
       )}
@@ -179,7 +196,7 @@ export function ArSpotsLayer({
           scale={capturedCard ? overlayScale(capturedCard.ar) : undefined}
         />
       )}
-      <CaptureHint text={capture.hint} />
+      <CaptureHint text={capture.state.phase === 'captured' ? 'Capturée !' : capture.hint} />
       {focus && focusTop && (
         <div className="home-timeline">
           <SpotTimeline
@@ -191,16 +208,14 @@ export function ArSpotsLayer({
               // Photo d'un autre pas encore capturée, à moins de 5 m de son point de vue : on la
               // capture sur place (elle s'agrandit jusqu'à couvrir l'écran). Plus loin : « Chasser »
               // guide jusqu'au point de vue.
-              onCapture &&
-              !inColor(focusTop.photo) &&
-              !justCaptured.has(focusTop.photo.id) &&
-              withinCaptureRadius(focusTop.ar.distance)
+              actionFor?.(focusTop.photo) ??
+              (capturable(focusTop)
                 ? {
                     label: 'Capturer',
                     onClick: () => capture.start(focusTop.photo.id, focusTop.ar.transform!),
                     disabled: capture.active != null,
                   }
-                : { label: 'Chasser', onClick: () => onOpen(focusTop.photo) }
+                : { label: 'Chasser', onClick: () => onHunt(focusTop.photo) })
             }
             dots={false}
             distance={focusTop.ar.distance}
@@ -232,7 +247,7 @@ function ArDeck({
   cam,
   color,
   onSelect,
-  onOpen,
+  onTap,
   onGallery,
 }: {
   cards: Card[]
@@ -240,7 +255,8 @@ function ArDeck({
   cam: ViewportCamera
   color: (p: GeoPhoto) => { saturation: number }
   onSelect: (photo: GeoPhoto) => void
-  onOpen: (photo: GeoPhoto) => void
+  /** Appui sur la photo du dessus (fiche, ou capture à moins de 5 m). */
+  onTap: (card: Card) => void
   onGallery?: (photo: GeoPhoto) => void
 }) {
   const n = cards.length
@@ -288,7 +304,7 @@ function ArDeck({
           scale={overlayScale(top.ar)}
           glass={!top.ar.facing}
           version={top.photo.versionOf != null}
-          onClick={() => onOpen(top.photo)}
+          onClick={() => onTap(top)}
           handlers={n > 1 ? swipe.handlers : undefined}
         />
       </div>

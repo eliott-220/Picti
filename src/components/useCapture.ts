@@ -4,6 +4,12 @@ import type { CameraAngles } from '../geo/orientation'
 import { walkedSteps } from '../sensors/motion'
 
 /**
+ * Célébration d'une capture (ms) : la photo capturée couvre l'écran, puis sa fiche monte en
+ * feuille par-dessus la caméra (chasse et viseur).
+ */
+export const CELEBRATION_MS = 1500
+
+/**
  * Déroulé d'une capture (voir `geo/capture.ts`) :
  * - `growing` : la carte quitte sa place (`from`, sa transformation au départ) et s'agrandit ;
  * - `captured` : capturée, elle couvre tout l'écran ;

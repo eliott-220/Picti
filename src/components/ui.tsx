@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
+import { navigate } from '../router'
 import { Dots } from './Dots'
 import { Icon, type IconName } from './Icon'
 
@@ -64,7 +65,7 @@ export function PhotoTile({
   onClick?: () => void
   caption?: ReactNode
   badge?: ReactNode
-  size?: 'grid' | 'strip' | 'mini'
+  size?: 'grid' | 'strip' | 'mini' | 'wide'
   /** Nombre de photos empilées (prises au même endroit) : points en bas. */
   stack?: number
   /** Nombre de likes, affiché en haut à droite (rien sous 1). */
@@ -125,17 +126,59 @@ export function Avatar({ name, size = 64 }: { name: string; size?: number }) {
   )
 }
 
-export function AvatarRow({ people }: { people: { id: string; name: string; detail?: string }[] }) {
+/** Rangée de personnes (chasseurs, proies) ; `onOpen` : appui = son profil public. */
+export function AvatarRow({
+  people,
+  onOpen,
+}: {
+  people: { id: string; name: string; detail?: string }[]
+  onOpen?: (id: string) => void
+}) {
   return (
     <div className="avatars">
-      {people.map((p) => (
-        <div className="avatar-item" key={p.id}>
-          <Avatar name={p.name} />
-          <strong>{p.name || 'Sans nom'}</strong>
-          {p.detail && <span>{p.detail}</span>}
-        </div>
-      ))}
+      {people.map((p) => {
+        const content = (
+          <>
+            <Avatar name={p.name} />
+            <strong>{p.name || 'Sans nom'}</strong>
+            {p.detail && <span>{p.detail}</span>}
+          </>
+        )
+        return onOpen ? (
+          <button
+            type="button"
+            className="avatar-item"
+            key={p.id}
+            onClick={() => onOpen(p.id)}
+            aria-label={`${p.name || 'Sans nom'}${p.detail ? `, ${p.detail}` : ''} : voir son profil`}
+          >
+            {content}
+          </button>
+        ) : (
+          <div className="avatar-item" key={p.id}>
+            {content}
+          </div>
+        )
+      })}
     </div>
+  )
+}
+
+/** Personne d'une liste (amis, demandes, recherche) : avatar et nom, appui = son profil public. */
+export function PersonLink({ id, name, detail }: { id: string; name: string; detail?: string }) {
+  return (
+    <button
+      type="button"
+      className="person-link"
+      onClick={() => navigate(`/personne/${id}`)}
+      aria-label={`${name || 'Sans nom'}${detail ? `, ${detail}` : ''} : voir son profil`}
+    >
+      <Avatar name={name} size={44} />
+      <span className="friend-text">
+        <strong>{name || 'Sans nom'}</strong>
+        {detail && <span>{detail}</span>}
+      </span>
+    </button>
   )
 }
 

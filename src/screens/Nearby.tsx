@@ -32,7 +32,8 @@ export function Nearby() {
     })
     .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
 
-  const open = (id: string, geoframed: boolean) => navigate(geoframed ? `/chasse/${id}` : `/recaler/${id}`)
+  // Sa fiche : « Chasser in situ » (ou « Géocadrer sur place ») en est le premier bouton.
+  const open = (id: string) => navigate(`/photo/${id}`)
 
   return (
     <main className="screen page">
@@ -50,8 +51,8 @@ export function Nearby() {
           <ul className="nearby">
             {items.map(({ p, distance, bearing }) => (
               <li key={p.id}>
-                <PhotoTile id={p.id} size="strip" onClick={() => open(p.id, isGeoframed(p))} />
-                <button type="button" className="nearby-text" onClick={() => open(p.id, isGeoframed(p))}>
+                <PhotoTile id={p.id} size="strip" onClick={() => open(p.id)} />
+                <button type="button" className="nearby-text" onClick={() => open(p.id)}>
                   <strong>{isMine(p) ? p.title : `Photo de ${p.ownerName || 'quelqu’un'}`}</strong>
                   <span>
                     {distance != null ? formatDistance(distance) : '…'}

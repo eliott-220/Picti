@@ -11,7 +11,7 @@ import {
 import { Icon } from '../components/Icon'
 import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
-import { useCapture } from '../components/useCapture'
+import { CELEBRATION_MS, useCapture } from '../components/useCapture'
 import { useSpotCalibration } from '../components/useSpotCalibration'
 import { useStore } from '../data/storeContext'
 import { huntSaturation, usePhotoInColor } from '../data/photoColor'
@@ -24,6 +24,7 @@ import { basisFromAngles, type CameraAngles } from '../geo/orientation'
 import { sameSpot } from '../geo/spots'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { goBack, navigate } from '../router'
+import { PhotoSheet } from './PhotoDetail'
 import { useCameraFocal } from '../sensors/cameraFocal'
 import { useCamera } from '../sensors/useCamera'
 import { useFocalCalibration } from '../sensors/useFocalCalibration'
@@ -83,8 +84,8 @@ function HuntView({
   useFocalCalibration(videoRef, orientation.angles, cameraStatus === 'ready' && orientation.absolute)
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
   const [opacity, setOpacity] = useState(0.8)
-  // chasse → capturée (célébration) → contemplation, pour la photo affichée.
-  type Phase = 'hunting' | 'captured' | 'contemplating'
+  // chasse → capturée (célébration) → fiche en feuille → contemplation, pour la photo affichée.
+  type Phase = 'hunting' | 'captured' | 'sheet' | 'contemplating'
   const [phaseState, setPhaseState] = useState<{ id: string; phase: Phase; first: boolean }>({
     id: photo.id,
     phase: 'hunting',
@@ -172,6 +173,17 @@ function HuntView({
   useEffect(() => {
     startRef.current = startCapture
   })
+  // Après la célébration, la fiche monte en feuille (la capture est déjà enregistrée ou en cours).
+  useEffect(() => {
+    if (phase !== 'captured') return
+    const t = setTimeout(() => setPhaseState((s) => (s.phase === 'captured' ? { ...s, phase: 'sheet' } : s)), CELEBRATION_MS)
+    return () => clearTimeout(t)
+  }, [phase])
+  /** Feuille redescendue : la photo, en plein écran, revient à sa place dans le décor, en couleur. */
+  const contemplate = () => {
+    capture.release()
+    setPhase('contemplating')
+  }
   useEffect(() => {
     if (!al.aligned || phase !== 'hunting' || capture.active) return
     const t = setTimeout(() => startRef.current(), AUTO_CAPTURE_MS)
@@ -288,6 +300,11 @@ function HuntView({
             <Icon name="scan" /> {captureHint ?? 'Capturer'}
           </button>
         )}
+        {phase === 'contemplating' && (
+          <button type="button" className="btn capture-btn" onClick={() => setPhase('sheet')}>
+            <Icon name="image" /> Fiche
+          </button>
+        )}
         <div className="score-bar" aria-label="Qualité de l’alignement">
           <span style={{ width: `${Math.round(al.score * 100)}%` }} className={al.aligned ? 'holding' : ''} />
         </div>
@@ -307,39 +324,24 @@ function HuntView({
       </footer>
 
       {phase === 'captured' && (
-        <div className="captured" role="alertdialog" aria-label="Photo capturée">
-          <div className="captured-card">
+        // Célébration (~1,5 s) ; un appui passe directement à la fiche.
+        <button type="button" className="capture-celebration" aria-label="Photo capturée : voir sa fiche" onClick={() => setPhase('sheet')}>
+          <span className="capture-celebration-card" role="status">
             <Icon name="flag" size={36} />
-            <h2>{firstCapture ? 'Capturée !' : 'Retrouvée !'}</h2>
-            <p>
+            <strong className="capture-celebration-title">{firstCapture ? 'Capturée !' : 'Retrouvée !'}</strong>
+            <span>
               Vous êtes à l’endroit précis et sous l’angle exact où cette photo a été prise.
               {firstCapture && !isMine(photo) && ' Elle compte comme un like, aimée sur place.'}
-            </p>
-            <div className="captured-actions">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => navigate(`/reproduire/${photo.id}`, { replace: true })}
-              >
-                <Icon name="reproduce" /> Reproduire cette photo
-              </button>
-              <button
-                type="button"
-                className="btn light"
-                onClick={() => {
-                  // La photo, en plein écran, revient à sa place dans le décor.
-                  capture.release()
-                  setPhase('contemplating')
-                }}
-              >
-                Contempler
-              </button>
-              <button type="button" className="btn ghost" onClick={goBack}>
-                Terminer
-              </button>
-            </div>
-          </div>
-        </div>
+            </span>
+          </span>
+        </button>
+      )}
+      {phase === 'sheet' && (
+        <PhotoSheet
+          photo={photo}
+          banner={firstCapture && !isMine(photo) ? 'Capturée ✓ · aimée sur place' : 'Retrouvée ✓'}
+          onClose={contemplate}
+        />
       )}
     </main>
   )

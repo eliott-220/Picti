@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { photoTime } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { PremiumCard } from '../components/PremiumCard'
-import { Avatar, AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
+import { AvatarRow, EmptyState, PersonLink, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { inviteLink } from '../data/invite'
@@ -107,7 +107,7 @@ export function Profile({ section }: { section?: 'amis' }) {
           Mes chasseurs ({chasseurs.length})
         </h2>
         {chasseurs.length ? (
-          <AvatarRow people={chasseurs} />
+          <AvatarRow people={chasseurs} onOpen={(id) => navigate(`/personne/${id}`)} />
         ) : (
           <EmptyState icon="user">
             Quand quelqu’un retrouvera l’une de vos photos sur place, il apparaîtra ici.
@@ -278,11 +278,7 @@ function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
 
       {incoming.map((f) => (
         <div className="friend-row" key={f.userId}>
-          <Avatar name={f.name} size={44} />
-          <div className="friend-text">
-            <strong>{f.name}</strong>
-            <span>veut devenir votre ami</span>
-          </div>
+          <PersonLink id={f.userId} name={f.name} detail="veut devenir votre ami" />
           <button type="button" className="btn small" disabled={busy} onClick={() => void run(() => acceptFriend(f.userId))}>
             Accepter
           </button>
@@ -300,21 +296,13 @@ function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
 
       {accepted.map((f) => (
         <div className="friend-row" key={f.userId}>
-          <Avatar name={f.name} size={44} />
-          <div className="friend-text">
-            <strong>{f.name}</strong>
-            {f.city && <span>{f.city}</span>}
-          </div>
+          <PersonLink id={f.userId} name={f.name} detail={f.city || undefined} />
         </div>
       ))}
 
       {outgoing.map((f) => (
         <div className="friend-row" key={f.userId}>
-          <Avatar name={f.name} size={44} />
-          <div className="friend-text">
-            <strong>{f.name}</strong>
-            <span>demande envoyée</span>
-          </div>
+          <PersonLink id={f.userId} name={f.name} detail="demande envoyée" />
           <button
             type="button"
             className="icon-btn"
@@ -427,11 +415,7 @@ function FriendSearch() {
             const link = friends.find((f) => f.userId === p.id)
             return (
               <div className="friend-row" key={p.id}>
-                <Avatar name={p.name} size={44} />
-                <div className="friend-text">
-                  <strong>{p.name || 'Sans nom'}</strong>
-                  {p.city && <span>{p.city}</span>}
-                </div>
+                <PersonLink id={p.id} name={p.name} detail={p.city || undefined} />
                 {link?.status === 'accepted' ? (
                   <span className="friend-state">Ami</span>
                 ) : link?.outgoing ? (

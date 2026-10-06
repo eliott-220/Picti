@@ -5,6 +5,7 @@ import { SPOT_RADIUS_MAX } from '../geo/spots'
 import { capVisibility, chooseParent, sameView } from '../geo/views'
 import { NEARBY_RADIUS } from '../config'
 import { forgetImage, primeImage, registerImagePaths } from './imageUrls'
+import { friendState } from './friends'
 import { normalizeFriendCode } from './invite'
 import { viewOf } from './photoSpots'
 import type { PhotoDraft } from './pipeline'
@@ -32,8 +33,10 @@ import {
   type Liker,
   type MyLike,
   type PersonResult,
+  type FriendState,
   type Profile,
   type ProfileChanges,
+  type PublicProfile,
   type Visibility,
 } from './types'
 
@@ -113,6 +116,19 @@ async function fetchFriends(userId: string): Promise<Friendship[]> {
   })
 }
 
+/**
+ * Mon profil, code ami et offre compris : fonction `my_profile` (proposée pour que ces colonnes ne
+ * soient plus lisibles par les autres comptes) ; tant qu'elle n'existe pas, la table `profiles`.
+ */
+async function fetchOwnProfile(userId: string): Promise<ProfileRow> {
+  const viaRpc = await supabase.rpc('my_profile')
+  const row = ((viaRpc.data ?? []) as ProfileRow[])[0]
+  if (!viaRpc.error && row) return row
+  const { data, error } = await supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single()
+  fail(error, 'Profil')
+  return data as unknown as ProfileRow
+}
+
 /** Données de l'utilisateur connecté, synchronisées avec Supabase. */
 export function StoreProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [ready, setReady] = useState(false)
@@ -141,7 +157,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     let alive = true
     ;(async () => {
       const [prof, mine, caps, hunts, fr, myLikes, notifs] = await Promise.all([
-        supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
+        fetchOwnProfile(userId),
         supabase.from('photos').select(PHOTO_SELECT).eq('owner', userId).order('created_at', { ascending: false }),
         supabase
           .from('captures')
@@ -158,7 +174,6 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         supabase.from('photo_likes').select('photo_id, on_site').eq('user_id', userId),
         fetchNotifications(userId).catch(() => [] as AppNotification[]),
       ])
-      fail(prof.error, 'Profil')
       fail(mine.error, 'Photos')
       fail(caps.error, 'Captures')
       fail(hunts.error, 'Chasseurs')
@@ -168,7 +183,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         ...(mine.data as unknown as PhotoRow[]).map(rowToPhoto),
         ...captured.map((c) => rowToPhoto(c.photo!)),
       ])
-      setProfile(rowToProfile(prof.data as unknown as ProfileRow))
+      setProfile(rowToProfile(prof))
       setCaptures(captured.map(rowToCapture))
       setHunters((hunts.data as unknown as CaptureRow[]).map(rowToCapture))
       setFriends(fr)
@@ -390,6 +405,9 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
   const findByFriendCode = useCallback(async (rawCode: string) => {
     const code = normalizeFriendCode(rawCode)
     if (!code) return null
+    // Fonction dédiée (le code ami des autres n'est plus lisible dans `profiles`), sinon la table.
+    const viaRpc = await supabase.rpc('find_profile_by_friend_code', { p_code: code })
+    if (!viaRpc.error) return ((viaRpc.data ?? []) as PersonResult[])[0] ?? null
     const { data, error: e } = await supabase.from('profiles').select('id, name, city').eq('friend_code', code).maybeSingle()
     fail(e, 'Invitation')
     return (data as PersonResult | null) ?? null
@@ -545,6 +563,61 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     [mergePhotos],
   )
 
+  /**
+   * Profil public : fonction `public_profile` (seulement nom, ville, inscription, amitié). Tant
+   * qu'elle n'est pas en place dans la base, mêmes champs lus dans `profiles` et l'amitié dans
+   * ma liste d'amis.
+   */
+  const fetchPublicProfile = useCallback(
+    async (otherId: string): Promise<PublicProfile | null> => {
+      const { data, error: e } = await supabase.rpc('public_profile', { p_id: otherId })
+      if (!e) {
+        type Row = { id: string; name: string; city: string; created_at: string | null; friendship: FriendState }
+        const row = ((data ?? []) as Row[])[0]
+        if (!row) return null
+        return {
+          id: row.id,
+          name: row.name,
+          city: row.city,
+          memberSince: row.created_at ? Date.parse(row.created_at) : null,
+          friendship: row.friendship,
+        }
+      }
+      const { data: row, error: e2 } = await supabase
+        .from('profiles')
+        .select('id, name, city, created_at')
+        .eq('id', otherId)
+        .maybeSingle()
+      fail(e2, 'Profil')
+      if (!row) return null
+      const r = row as { id: string; name: string; city: string; created_at: string | null }
+      return {
+        id: r.id,
+        name: r.name,
+        city: r.city,
+        memberSince: r.created_at ? Date.parse(r.created_at) : null,
+        friendship: friendState(await fetchFriends(userId), otherId),
+      }
+    },
+    [userId],
+  )
+
+  /** Photos d'un utilisateur visibles pour moi (RLS : publiques, « amis » si nous le sommes). */
+  const loadPersonPhotos = useCallback(
+    async (otherId: string) => {
+      const { data, error: e } = await supabase
+        .from('photos')
+        .select(PHOTO_SELECT)
+        .eq('owner', otherId)
+        .order('created_at', { ascending: false })
+      fail(e, 'Photos')
+      const list = ((data ?? []) as unknown as PhotoRow[]).map(rowToPhoto)
+      mergePhotos(list)
+      return list
+    },
+    [mergePhotos],
+  )
+
   const reloadNotifications = useCallback(async () => {
     setNotifications(await fetchNotifications(userId))
   }, [userId])
@@ -624,6 +697,8 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       refreshNearby,
       loadSpot,
       loadVersions,
+      fetchPublicProfile,
+      loadPersonPhotos,
       addPhoto,
       updatePhoto,
       removePhoto,
@@ -635,6 +710,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       searchPeople,
       acceptFriend,
       removeFriend,
+      reloadFriends,
       redeemPremiumCode,
       toggleLike,
       fetchLikers,
@@ -660,6 +736,8 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       refreshNearby,
       loadSpot,
       loadVersions,
+      fetchPublicProfile,
+      loadPersonPhotos,
       addPhoto,
       updatePhoto,
       removePhoto,
@@ -671,6 +749,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       searchPeople,
       acceptFriend,
       removeFriend,
+      reloadFriends,
       redeemPremiumCode,
       toggleLike,
       fetchLikers,

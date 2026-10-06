@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlignGauges } from '../components/ar'
 import { viewportCamera, type GeoframedPhoto } from '../components/arProjection'
 import { ArSpotsLayer } from '../components/ArSpotsLayer'
 import { Icon } from '../components/Icon'
 import { SensorStatus } from '../components/SensorStatus'
 import { useElementSize } from '../components/useElementSize'
-import { RoundButton } from '../components/ui'
+import { RoundButton, Thumb } from '../components/ui'
 import { useToast } from '../components/toastContext'
+import { CELEBRATION_MS } from '../components/useCapture'
 import { VisibilityPill } from '../components/VisibilityPill'
 import { useImageUrl } from '../data/imageUrls'
 import { unreadCount } from '../data/notifications'
@@ -27,9 +28,13 @@ import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
+import { PhotoSheet } from './PhotoDetail'
 
 /** Précision GPS (m) au-delà de laquelle une photo prise risque d'être mal placée. */
 const PRECISE_FIX = 15
+
+/** Miniature de la photo qu'on vient de prendre, dans le coin bas-gauche (ms). */
+const LAST_SHOT_MS = 5000
 
 /**
  * Accueil : le viseur, point de départ du géocadrage en direct. Avec `reproduce` (bouton
@@ -57,6 +62,16 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   const toast = useToast()
   // Visibilité de la prochaine photo : réglage du profil, ou choix fait avec la pastille.
   const visibility = useShotVisibility(profile?.defaultVisibility ?? 'amis')
+  // Photo capturée depuis le viseur : sa fiche monte en feuille après la célébration ; « Fiche » la rouvre.
+  const [captureSheet, setCaptureSheet] = useState<{ id: string; open: boolean } | null>(null)
+  const sheetPhoto = captureSheet ? photos.find((p) => p.id === captureSheet.id) : undefined
+  // Photo que je viens de prendre : miniature (comme l'appareil photo de l'iPhone), appui = sa fiche.
+  const [lastShot, setLastShot] = useState<string | null>(null)
+  useEffect(() => {
+    if (!lastShot) return
+    const t = setTimeout(() => setLastShot(null), LAST_SHOT_MS)
+    return () => clearTimeout(t)
+  }, [lastShot])
   // Demandes d'ami reçues : pastille sur le bouton du menu.
   const friendRequests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
   useNearbyRefresh(geo.fix)
@@ -70,10 +85,12 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
 
   /**
    * Capture depuis le viseur : la photo visée, d'un autre, s'est agrandie jusqu'à couvrir l'écran
-   * (lancée à moins de 5 m de son point de vue, voir `ArSpotsLayer`) ; on l'enregistre.
+   * (lancée à moins de 5 m de son point de vue, voir `ArSpotsLayer`) ; on l'enregistre, puis sa
+   * fiche monte en feuille une fois la célébration passée.
    */
   async function captureHere(p: GeoPhoto): Promise<boolean> {
     if (!isGeoframed(p)) return false
+    const started = performance.now()
     const g = p.geoframe
     // Score conservé avec la capture : l'alignement du moment, comme en chasse.
     const { score } = computeAlignment(
@@ -82,8 +99,9 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
     )
     try {
       await addCapture(p.id, score)
-      // Capturer = aimer sur place ; on peut ensuite la reproduire (calque de l'originale).
-      toast('Photo capturée · aimée sur place', { label: 'Reproduire', to: `/reproduire/${p.id}` })
+      // Capturer = aimer sur place : la fiche le dit et propose de la reproduire.
+      const wait = Math.max(0, CELEBRATION_MS - (performance.now() - started))
+      setTimeout(() => setCaptureSheet({ id: p.id, open: true }), wait)
       return true
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Capture impossible')
@@ -129,22 +147,25 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           to: `/photo/${saved.id}`,
         })
       } else if (photo.geoframe) {
+        setLastShot(saved.id)
         const accuracy = photo.geoframe.accuracy
         // GPS encore imprécis (premières secondes, intérieur) : la photo pourra paraître décalée.
         const vague = accuracy != null && accuracy > PRECISE_FIX
-        // Où elle est publiée ; « Modifier » ouvre le détail (choix de la visibilité).
+        // Où elle est publiée (la miniature ouvre sa fiche, où l'on change la visibilité).
         // Tombée dans la vue d'une photo existante : c'en est une reproduction (↻).
         const parent = saved.versionOf ? photos.find((p) => p.id === saved.versionOf) : undefined
         const sameView = parent ? ` · ↻ même vue que ${isMine(parent) ? 'votre photo' : `la photo ${ofName(parent.ownerName || 'quelqu’un')}`}` : ''
         const published = `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'} · visible par ${VISIBLE_BY[saved.visibility]}${sameView}`
-        toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published, {
-          label: 'Modifier',
-          to: `/photo/${photo.id}`,
-        })
+        toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published)
       } else {
         const missing = !geo.fix ? 'position GPS' : 'boussole'
         const kind = selfie ? 'Selfie gardé' : 'Photo gardée'
-        toast(`${kind} sans ${missing} : à géocadrer sur place`, { label: 'Voir', to: `/photo/${photo.id}` })
+        const text = `${kind} sans ${missing} : à géocadrer sur place`
+        if (reproduce) toast(text, { label: 'Voir', to: `/photo/${saved.id}` })
+        else {
+          setLastShot(saved.id)
+          toast(text)
+        }
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Capture impossible')
@@ -173,9 +194,15 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           basis={orientation.absolute ? orientation.basis : null}
           cam={viewportCamera(stage, cameraSize, focal35)}
           isMine={isMine}
-          onOpen={(p) => navigate(`/chasse/${p.id}`)}
+          onOpen={(p) => navigate(`/photo/${p.id}`)}
+          onHunt={(p) => navigate(`/chasse/${p.id}`)}
           onGallery={(p) => navigate(`/galerie/${p.id}`)}
           onCapture={captureHere}
+          actionFor={(p) =>
+            captureSheet?.id === p.id && !captureSheet.open
+              ? { label: 'Fiche', onClick: () => setCaptureSheet({ id: p.id, open: true }) }
+              : null
+          }
         />
       )}
       {flash && <div className="flash" />}
@@ -221,6 +248,15 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       <div className="bottom-bar">
         {reproduce ? (
           <RoundButton icon="close" label="Arrêter de reproduire" onClick={goBack} />
+        ) : lastShot ? (
+          <button
+            type="button"
+            className="last-shot"
+            onClick={() => navigate(`/photo/${lastShot}`)}
+            aria-label="Voir la fiche de la photo que vous venez de prendre"
+          >
+            <Thumb id={lastShot} />
+          </button>
         ) : (
           <RoundButton icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
         )}
@@ -250,6 +286,13 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
 
       {sheet === 'import' && <ImportSheet onClose={() => setSheet(null)} fix={geo.fix} />}
       {sheet === 'menu' && <MenuSheet onClose={() => setSheet(null)} />}
+      {captureSheet?.open && sheetPhoto && (
+        <PhotoSheet
+          photo={sheetPhoto}
+          banner={isMine(sheetPhoto) ? 'Retrouvée ✓' : 'Capturée ✓ · aimée sur place'}
+          onClose={() => setCaptureSheet({ id: sheetPhoto.id, open: false })}
+        />
+      )}
     </main>
   )
 }

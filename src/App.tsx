@@ -15,6 +15,7 @@ import { Invite } from './screens/Invite'
 import { Nearby } from './screens/Nearby'
 import { NewPassword } from './screens/NewPassword'
 import { Notifications } from './screens/Notifications'
+import { Person } from './screens/Person'
 import { PhotoDetail } from './screens/PhotoDetail'
 import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
@@ -91,7 +92,7 @@ function Screens() {
     case 'recherche':
       return <Search filters={route.filters} />
     case 'photo':
-      return <PhotoDetail key={route.id} id={route.id} />
+      return <PhotoDetail key={route.id} id={route.id} section={route.section} />
     case 'chasse':
       return <Hunt key={route.id} id={route.id} />
     case 'recaler':
@@ -102,6 +103,8 @@ function Screens() {
       return <Notifications />
     case 'reproduire':
       return <Reproduce key={route.id} id={route.id} />
+    case 'personne':
+      return <Person key={route.id} id={route.id} />
     default:
       return <Home />
   }

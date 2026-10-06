@@ -26,15 +26,17 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
 | À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
 
-| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place, comme des **cartes** (cadre blanc, taille plafonnée), et **y restent quand on se déplace** ; pour un même lieu (5 m, jusqu'à 10 m selon le GPS, et même direction), **la plus aimée est devant** (une photo de moins de 24 h passe en tête) ; la frise et le glissement font défiler la pile, les points ouvrent la **galerie du lieu**. |
+| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place, comme des **cartes** (cadre blanc, taille plafonnée), et **y restent quand on se déplace** ; pour un même lieu (5 m, jusqu'à 10 m selon le GPS, et même direction), **la plus aimée est devant** (une photo de moins de 24 h passe en tête) ; la frise et le glissement font défiler la pile, les points ouvrent la **galerie du lieu**. Appui sur une photo : sa **fiche** (à moins de 5 m, la photo d'un autre se **capture**, puis sa fiche monte en feuille) ; après une prise de vue, **miniature** 5 s dans le coin (appui = sa fiche). |
 | **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus aimée, compteur), **position exacte** en zoomant ; fiche du groupe des plus aimées aux moins aimées, avec cœurs ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut ; filtre **Monde / Amis** (toutes les photos visibles, ou seulement les miennes et celles de mes amis). |
 | **Visibilité** | Accueil, Import, Moi, Détail | Nouvelles photos **réservées aux amis** par défaut (réglable dans Moi) ; pastille au-dessus du déclencheur (Amis / Public / Privé) pour la prochaine photo, même choix pour un lot importé ; modifiable après coup dans le détail. |
 | **Likes** | Fiche, viseur, carte | Cœur et nombre de likes ; **capturer une photo = l'aimer sur place** (cœur épinglé) ; l'auteur voit qui l'a aimée. |
 | **Notifications** | Cloche (accueil) | « Paul a capturé votre photo », « Paul et 4 autres aiment votre photo » (likes regroupés), en temps réel. |
-| **Reproductions** | Après une capture, Détail | **Reproduire cette photo** : la caméra avec l'originale en calque pour retrouver son cadrage. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
+| **Fiche d'une photo** | Appui sur une photo, partout | La photo **en grand** (plein écran, pile du lieu glissable), puis en descendant : Chasser / Revoir in situ, Reproduire, Enregistrer ; **l'auteur** (→ son profil public, bouton d'amitié) ; **« Prise le mardi 6 octobre 2026 à 14 h 32 »** (et la date d'ajout pour une photo importée) ; les **photos liées** : « **Au fil du temps** » (l'originale puis ses reproductions par date de prise, avant / après) ou « **D'après la photo de …** » (l'originale d'une reproduction) ; mes réglages ; détails techniques repliés. Juste après une capture, elle monte **en feuille** par-dessus la caméra (on la redescend pour contempler la photo in situ). |
+| **Profil public** | Auteur d'une photo, noms | Nom, ville, « Sur PICTI depuis … », **bouton d'amitié** (Ajouter / Demande envoyée / Accepter / Amis ✓) et ses photos que j'ai le droit de voir — jamais son code ami ni son offre. |
+| **Reproductions** | Après une capture, Fiche | **Reproduire cette photo** : la caméra avec l'originale en calque pour retrouver son cadrage. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
 | **Galerie d'un lieu** | Points d'une pile | Toutes les photos du lieu, triées par likes, date d'ajout ou date de prise. |
 | **Amis** | Moi › Mes amis | **Lien d'invitation** (`#/ami/<code>`, à partager ou en **QR code**), ajout par code ou **par nom** ; demandes à accepter (pastille sur le menu), retrait. |
-| Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
+| Enregistrer une photo | Fiche | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
 
 Sur ordinateur (sans boussole), la chasse passe en **mode démo** : on se place au point de
 vue et on regarde autour de soi en faisant glisser l'image.
@@ -137,7 +139,8 @@ src/
   sensors/    hooks React : caméra, géolocalisation, orientation
   data/       modèle, client Supabase, store (photos, amis, captures), pipeline de création/import
 supabase/migrations/  schéma, règles d'accès (RLS), recherche à proximité, stockage
-  screens/    écrans (Accueil, Import, Profil, Mes chasses, Détail, Chasse, Recaler…)
+supabase/propositions/ SQL proposé, pas encore appliqué (à valider avant)
+  screens/    écrans (Accueil, Import, Profil, Mes chasses, Fiche d'une photo, Profil public, Chasse, Recaler…)
   components/ icônes, boutons, feuilles, notifications
 ```
 

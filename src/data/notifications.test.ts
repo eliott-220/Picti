@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupNotifications, notificationText, unreadCount } from './notifications'
+import { groupNotifications, notificationParts, notificationText, unreadCount } from './notifications'
 import type { AppNotification } from './types'
 
 let seq = 0
@@ -54,5 +54,13 @@ describe('groupNotifications', () => {
     const twice = groupNotifications([notif('like', 'x', 'paul', 1), notif('like', 'x', 'paul', 2)])
     expect(twice[0].actors).toHaveLength(1)
     expect(notificationText(twice[0])).toBe('Paul aime votre photo')
+  })
+
+  it('noms des auteurs à part (cliquables vers leur profil)', () => {
+    const paul = { id: 'paul', name: 'Paul' }
+    const marie = { id: 'marie', name: 'Marie' }
+    expect(notificationParts({ kind: 'capture', actors: [paul] })).toEqual([paul, ' a capturé votre photo'])
+    expect(notificationParts({ kind: 'like', actors: [paul, marie] })).toEqual([paul, ' et ', marie, ' aiment votre photo'])
+    expect(notificationParts({ kind: 'like', actors: [paul, marie, marie] })).toEqual([paul, ' et 2 autres aiment votre photo'])
   })
 })

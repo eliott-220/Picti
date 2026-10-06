@@ -11,6 +11,7 @@ import type {
   PersonResult,
   Profile,
   ProfileChanges,
+  PublicProfile,
   Visibility,
 } from './types'
 
@@ -45,6 +46,13 @@ export interface Store {
   /** Versions (reproductions) visibles d'une photo. */
   loadVersions(photoId: string): Promise<GeoPhoto[]>
   /**
+   * Profil public d'un utilisateur (nom, ville, inscription, amitié avec moi), ou null s'il
+   * n'existe pas.
+   */
+  fetchPublicProfile(userId: string): Promise<PublicProfile | null>
+  /** Photos d'un utilisateur que j'ai le droit de voir (RLS), les plus récentes d'abord. */
+  loadPersonPhotos(userId: string): Promise<GeoPhoto[]>
+  /**
    * Publie une photo. `visibility` : sans elle, celle choisie par défaut dans le profil.
    * `versionOf` : photo à reproduire (bouton « Reproduire »), `null` pour ne rattacher à rien ;
    * sans lui, la photo de la même vue choisie par `chooseParent`.
@@ -68,6 +76,8 @@ export interface Store {
   searchPeople(query: string): Promise<PersonResult[]>
   acceptFriend(userId: string): Promise<void>
   removeFriend(userId: string): Promise<void>
+  /** Relit mes amitiés (demande reçue ou acceptée entre-temps). */
+  reloadFriends(): Promise<void>
   /** Passe le compte en Premium avec un code (seconde option de paiement). */
   redeemPremiumCode(code: string): Promise<{ ok: boolean; message: string }>
   /** Like / unlike (pas sa propre photo, pas le like d'une capture). */

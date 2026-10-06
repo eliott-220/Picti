@@ -171,6 +171,19 @@ export interface PersonResult {
   city: string
 }
 
+/** Amitié avec quelqu'un, vue de l'utilisateur connecté. */
+export type FriendState = 'none' | 'outgoing' | 'incoming' | 'friends'
+
+/**
+ * Profil public (`public_profile`) : rien d'autre que le nom, la ville, la date d'inscription et
+ * l'amitié avec moi — jamais le code ami, l'offre ni l'e-mail.
+ */
+export interface PublicProfile extends PersonResult {
+  /** Inscription (ms). */
+  memberSince: number | null
+  friendship: FriendState
+}
+
 /** Lien d'amitié vu depuis l'utilisateur connecté. */
 export interface Friendship {
   /** L'autre personne. */
@@ -246,6 +259,43 @@ export function photoTitleAndDate(p: GeoPhoto): string {
   const when = formatDateTime(p.takenAt ?? p.addedAt)
   return formatDate(p.takenAt ?? p.addedAt) === p.title || !p.title ? when : `${p.title} · ${when}`
 }
+
+/** Espace insécable : « 14 h 32 » et « 6 octobre » ne se coupent pas en fin de ligne. */
+const NBSP = ' '
+
+/** Date longue avec le jour, ex. « mardi 6 octobre 2026 », « jeudi 1er octobre 2026 ». */
+export function formatLongDate(ts: number): string {
+  const d = new Date(ts)
+  const weekday = d.toLocaleDateString('fr-FR', { weekday: 'long' })
+  const month = d.toLocaleDateString('fr-FR', { month: 'long' })
+  const day = d.getDate() === 1 ? '1er' : String(d.getDate())
+  return `${weekday} ${day}${NBSP}${month} ${d.getFullYear()}`
+}
+
+/** Heure à la française, ex. « 14 h 32 », « 9 h 05 » (heure locale de l'appareil). */
+export function formatClock(ts: number): string {
+  const d = new Date(ts)
+  return `${d.getHours()}${NBSP}h${NBSP}${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+const sameDay = (a: number, b: number) => new Date(a).toDateString() === new Date(b).toDateString()
+
+/**
+ * Prise de vue sur la fiche : « Prise le mardi 6 octobre 2026 à 14 h 32 ». Photo importée (différé)
+ * prise un autre jour que sa publication : « Prise le … · ajoutée à PICTI le 6 octobre 2026 ». Date de
+ * prise inconnue : « Ajoutée à PICTI le … ».
+ */
+export function shotDateText(p: Pick<GeoPhoto, 'takenAt' | 'addedAt' | 'mode'>): string {
+  const at = (ts: number) => `${formatLongDate(ts)} à ${formatClock(ts)}`
+  if (p.takenAt == null) return `Ajoutée à PICTI le ${at(p.addedAt)}`
+  const taken = `Prise le ${at(p.takenAt)}`
+  if (p.mode === 'direct' || sameDay(p.takenAt, p.addedAt)) return taken
+  return `${taken} · ajoutée à PICTI le ${formatDate(p.addedAt).replace(' ', NBSP)}`
+}
+
+/** « Sur PICTI depuis septembre 2026 » (profil public). */
+export const memberSince = (ts: number) =>
+  `Sur PICTI depuis ${new Date(ts).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
 
 /** « de Paul », « d’Alice » : complément du nom avec élision devant une voyelle ou un h. */
 export const ofName = (name: string) => (/^[aeiouyàâäéèêëîïôöùûüh]/i.test(name) ? `d’${name}` : `de ${name}`)
