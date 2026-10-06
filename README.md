@@ -22,11 +22,11 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | **Selfie géocadré** | Accueil → bouton caméra | Caméra avant : on géocadre l'objectif avant (cap retourné). Le selfie se retrouve comme toute photo, en visant depuis la place du téléphone l'endroit où posait son auteur. |
 | **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement. |
 | **Géocadrage en différé (sur place)** | Recaler | Pour les photos sans direction ou sans GPS : sur le lieu, on superpose le cliché (transparence + cadrage/focale) au décor réel, puis « Géocadrer ici ». |
-| **Chasse in situ** | Chasser | Guidage vers le point de vue (distance, direction), photo projetée en perspective dans la vue caméra, jauges cap/inclinaison ; alignement tenu 1,5 s ⇒ photo **capturée**. |
+| **Chasse in situ** | Chasser | Guidage vers le point de vue (distance, direction), photo projetée en perspective dans la vue caméra (une carte, jamais plein écran), jauges cap/inclinaison ; à moins de 5 m du point de vue, « Capturer » (ou l'alignement tenu) : on ne bouge plus, la photo s'agrandit en 2 s jusqu'à couvrir l'écran en prenant ses couleurs ⇒ **capturée** à 100 % (marcher ou tourner le téléphone annule). |
 | Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
 | À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
 
-| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place et **y restent quand on se déplace** ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
+| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place, comme des **cartes** (cadre blanc, taille plafonnée), et **y restent quand on se déplace** ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
 | **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut. |
 | Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
 
@@ -96,8 +96,17 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
   d'inclinaison et de roulis, score global et consignes de guidage.
 - **Photo ancrée dans le décor** (`src/geo/alignment.ts`, `viewerEye`) : la projection part
   toujours de la position réelle du spectateur, même tout près du point de vue ; quand on se
-  déplace, la photo reste à sa place (elle se décale, grandit, rapetisse, disparaît une fois
-  dépassée — vue de dos, elle n'est pas affichée). L'altitude GPS, trop imprécise, est ignorée.
+  déplace, la photo reste à sa place (elle se décale, grandit, rapetisse ; vue de dos, elle
+  reste visible comme sur une vitre dépolie). L'altitude GPS, trop imprécise, est ignorée.
+- **Photo « carte »** (`src/geo/projection.ts`, depuis 0.014.0) : sa taille à l'écran est
+  plafonnée (`CARD_MAX` : 60 % de la largeur, 45 % de la hauteur), réduite autour de son centre
+  projeté sans changer de place ni d'orientation — en se promenant, elle ne remplit jamais
+  l'écran. À moins de 2 m de son plan (des deux côtés), elle se floute et s'efface
+  (`panelProximityFade`) : invisible sous 0,5 m, plus de disparition sèche quand on la traverse.
+- **Capture** (`src/geo/capture.ts`, `useCapture`) : à moins de 5 m du point de vue, la photo
+  visée s'agrandit en 2 s jusqu'à couvrir l'écran pendant que la couleur l'envahit ; elle n'est
+  capturée qu'à 100 %. Deux pas, un écart de plus de ~10° du cap ou de l'inclinaison, ou la
+  photo hors de l'écran annulent : elle revient à sa place, rien n'est enregistré.
 - **Suivi de la position** (`src/geo/tracking.ts`, `src/geo/motion.ts`) : filtre de Kalman
   « vitesse constante » sur le GPS ; entre deux relevés (un par seconde), la position avance à
   la vitesse de marche et les corrections sont amorties à l'écran (`useLivePosition`).

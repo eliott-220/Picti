@@ -9,9 +9,12 @@ import {
   displayScale,
   edgeFade,
   facesViewer,
+  panelDistance,
+  panelProximityFade,
   photoPlaneCorners,
-  projectPhoto,
+  projectCard,
   quadTransform,
+  toCssMatrix3d,
   viewCosine,
   type PhotoProjection,
   type Quad,
@@ -48,9 +51,19 @@ export interface ArProjection {
   eye: Vec3
   /** On voit la photo de face (on ne l'a pas dépassée) ; sinon de dos, comme sur une vitre. */
   facing: boolean
-  /** Opacité selon l'angle de vue : 1 de face ou de dos, 0 par la tranche (`edgeFade`). */
+  /**
+   * Opacité : par la tranche (`edgeFade` : 1 de face ou de dos, 0 par la tranche) × à l'approche
+   * du plan-photo (`panelProximityFade` : 1 à 2 m et plus, 0 sous 0,5 m).
+   */
   fade: number
+  /** Flou à l'approche du plan-photo (px à l'écran) : 0 à 2 m et plus. */
+  blur: number
+  /** Distance au plan-photo (m), voir `panelDistance`. */
+  panelDistance: number
+  /** Carte à l'écran : coins projetés, réduits si la photo dépasse `CARD_MAX`. */
   projection: PhotoProjection
+  /** Réduction de la carte à l'écran (`CARD_MAX`) : 1 si elle tient sans réduction. */
+  cardScale: number
   /** Transformation CSS de la photo, null si elle n'est pas visible d'ici. */
   transform: string | null
   /** Distance du centre de la photo projetée au centre de l'écran (px). */
@@ -61,9 +74,11 @@ export interface ArProjection {
 /**
  * Projette une photo depuis la position du spectateur : elle reste à sa
  * place dans le décor quand il se déplace, et paraît lointaine de loin
- * (`displayScale`). Une fois dépassée, elle reste visible de dos, comme
- * imprimée sur une vitre : l'homographie du plan vu de derrière donne
- * d'elle-même l'image en miroir. Par la tranche, elle s'efface (`fade`).
+ * (`displayScale`). C'est une carte : de près, sa taille à l'écran est
+ * plafonnée (`CARD_MAX`), elle ne remplit jamais l'écran. Une fois dépassée,
+ * elle reste visible de dos, comme imprimée sur une vitre : l'homographie du
+ * plan vu de derrière donne d'elle-même l'image en miroir. Par la tranche, ou
+ * à moins de 2 m de son plan, elle s'efface en douceur (`fade`, `blur`).
  * Sans position, on le suppose au point de vue.
  * `offset` : recalage au point de vue (chasse).
  */
@@ -80,18 +95,42 @@ export function projectGeoPhoto(
   const photoBasis = basisFromAngles(g)
   const corners = photoPlaneCorners(photoBasis, photo, undefined, displayScale(photoBasis, photo, eye))
   const facing = facesViewer(photoBasis, photo.depth, eye)
-  const fade = edgeFade(viewCosine(photoBasis, photo.depth, eye))
-  const raw = projectPhoto(corners, eye, basis, cam)
-  const visible = fade > 0 && raw.inFront
-  const projection = visible ? raw : { ...raw, onScreen: false }
+  const toPanel = panelDistance(corners, eye)
+  const near = panelProximityFade(toPanel)
+  const fade = edgeFade(viewCosine(photoBasis, photo.depth, eye)) * near.opacity
+  const { scale: cardScale, ...card } = projectCard(corners, eye, basis, cam)
+  const visible = fade > 0 && card.inFront
+  const projection = visible ? card : { ...card, onScreen: false }
   const transform = visible ? quadTransform(OVERLAY_W, overlayHeight(photo), projection.corners) : null
   const cx = projection.corners.reduce((s, c) => s + c.x, 0) / 4
   const cy = projection.corners.reduce((s, c) => s + c.y, 0) / 4
   const centerOffset = visible ? Math.hypot(cx - cam.width / 2, cy - cam.height / 2) : Infinity
-  return { corners, eye, facing, fade, projection, transform, centerOffset, distance }
+  return {
+    corners,
+    eye,
+    facing,
+    fade,
+    blur: near.blur,
+    panelDistance: toPanel,
+    projection,
+    cardScale,
+    transform,
+    centerOffset,
+    distance,
+  }
 }
 
 export const overlayHeight = (photo: GeoPhoto) => (OVERLAY_W * photo.height) / photo.width
+
+/**
+ * Transformation CSS de la photo couvrant tout l'écran, centrée (mode « cover » : bords rognés
+ * si le format diffère) : la fin de l'agrandissement de la capture.
+ */
+export function coverTransform(photo: GeoPhoto, cam: { width: number; height: number }): string {
+  const h = overlayHeight(photo)
+  const s = Math.max(cam.width / OVERLAY_W, cam.height / h)
+  return toCssMatrix3d([s, 0, (cam.width - OVERLAY_W * s) / 2, 0, s, (cam.height - h * s) / 2, 0, 0, 1])
+}
 
 /** Échelle d'affichage de la photo (px d'écran par px de rendu), le long de son bord haut. */
 export function overlayScale(ar: ArProjection): number {

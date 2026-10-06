@@ -9,7 +9,7 @@ import { useToast } from '../components/toastContext'
 import { createDirectPhoto } from '../data/pipeline'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, type GeoPhoto } from '../data/types'
-import { CAPTURE_RADIUS, computeAlignment, withinCaptureRadius } from '../geo/alignment'
+import { computeAlignment } from '../geo/alignment'
 import { FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
@@ -53,25 +53,25 @@ export function Home() {
   // une photo qu'on vient de prendre y apparaît aussitôt, sans attendre la recherche à proximité.
   const arPhotos = useMemo(() => photos.filter((p): p is GeoframedPhoto => isGeoframed(p)), [photos])
 
-  /** Capture directe depuis le viseur : la photo visée, d'un autre, passe en couleur. */
-  async function captureHere(p: GeoPhoto) {
-    if (!isGeoframed(p)) return
+  /**
+   * Capture depuis le viseur : la photo visée, d'un autre, s'est agrandie jusqu'à couvrir l'écran
+   * (lancée à moins de 5 m de son point de vue, voir `ArSpotsLayer`) ; on l'enregistre.
+   */
+  async function captureHere(p: GeoPhoto): Promise<boolean> {
+    if (!isGeoframed(p)) return false
     const g = p.geoframe
     // Score conservé avec la capture : l'alignement du moment, comme en chasse.
-    const { score, distance } = computeAlignment(
+    const { score } = computeAlignment(
       { position: g.position, angles: { heading: g.heading, pitch: g.pitch, roll: g.roll } },
       { position: position ?? geo.fix, angles: orientation.angles },
     )
-    if (!withinCaptureRadius(distance)) {
-      toast(`Approchez-vous à moins de ${CAPTURE_RADIUS} m de l’endroit de la prise de vue`)
-      return
-    }
-    navigator.vibrate?.([60, 40, 120])
     try {
       await addCapture(p.id, score)
       toast('Photo capturée', { label: 'Voir', to: `/photo/${p.id}` })
+      return true
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Capture impossible')
+      return false
     }
   }
 

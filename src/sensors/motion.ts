@@ -40,9 +40,12 @@ export function currentMotion(): MotionState {
 }
 
 /**
- * Pas comptés depuis le début (marches reconnues seulement), sens de la marche en cours dans
- * le repère de l'objectif (avant, droite) et pesanteur mesurée ; null sans accéléromètre.
+ * Pas comptés depuis le début (marches reconnues seulement : `walked` ; tous les rebonds : `steps`),
+ * sens de la marche en cours dans le repère de l'objectif (avant, droite) et pesanteur mesurée ;
+ * null sans accéléromètre.
  */
 export function walkedSteps() {
-  return detector ? { walked: detector.walked, direction: detector.direction, gravity: detector.gravity } : null
+  return detector
+    ? { walked: detector.walked, steps: detector.total, direction: detector.direction, gravity: detector.gravity }
+    : null
 }

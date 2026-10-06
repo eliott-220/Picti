@@ -1,24 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useColorRule } from '../data/photoColor'
 import { withinCaptureRadius } from '../geo/alignment'
 import type { GeoPhoto } from '../data/types'
 import { distanceMeters, type GeoFix } from '../geo/geodesy'
 import type { ViewportCamera } from '../geo/optics'
-import type { CameraBasis } from '../geo/orientation'
+import { anglesFromBasis, type CameraBasis } from '../geo/orientation'
 import { cycle, groupBySpot } from '../geo/spots'
-import { ArPhoto, SpotTimeline } from './ar'
-import { overlayScale, photoTime, projectGeoPhoto, type ArProjection, type GeoframedPhoto } from './arProjection'
+import { ArPhoto, CaptureCard, CaptureHint, SpotTimeline } from './ar'
+import {
+  coverTransform,
+  overlayScale,
+  photoTime,
+  projectGeoPhoto,
+  type ArProjection,
+  type GeoframedPhoto,
+} from './arProjection'
 import { Dots } from './Dots'
+import { useCapture } from './useCapture'
 import { useCardSwipe } from './useCardSwipe'
 
-/** Durée de la révélation de la couleur à la capture (ms), un peu plus que l'animation CSS. */
-const REVEAL_MS = 900
 /** Distance maximale (m) à laquelle les photos apparaissent dans le viseur. */
 export const AR_RANGE = 150
 /** Nombre maximal de lieux affichés simultanément. */
 const MAX_OVERLAYS = 4
 /** Nombre maximal de photos d'un même lieu prises en compte. */
 const MAX_PER_SPOT = 30
+/** Une fois capturée, la photo reste un instant en plein écran avant de revenir à sa place (ms). */
+const CAPTURED_HOLD_MS = 600
 
 interface Card {
   photo: GeoframedPhoto
@@ -27,9 +35,10 @@ interface Card {
 
 /**
  * Viseur augmenté : les photos géocadrées autour de soi flottent à leur
- * place. Les photos d'un même endroit sont empilées, la plus récente
- * devant : on fait glisser celle du dessus (comme sur Tinder) pour voir les
- * autres, les points sous la photo indiquant combien il y en a.
+ * place, comme des cartes. Les photos d'un même endroit sont empilées, la
+ * plus récente devant : on fait glisser celle du dessus (comme sur Tinder)
+ * pour voir les autres, les points sous la photo indiquant combien il y en a.
+ * « Capturer » : la photo visée s'agrandit jusqu'à couvrir l'écran (voir `useCapture`).
  */
 export function ArSpotsLayer({
   photos,
@@ -46,30 +55,34 @@ export function ArSpotsLayer({
   cam: ViewportCamera | null
   isMine: (p: GeoPhoto) => boolean
   onOpen: (p: GeoPhoto) => void
-  /** Capture directe d'une photo d'un autre, pas encore capturée (bouton « Capturer »). */
-  onCapture?: (p: GeoPhoto) => Promise<void>
+  /**
+   * Enregistre la capture d'une photo d'un autre, pas encore capturée, une fois l'agrandissement
+   * achevé (bouton « Capturer ») ; résout `true` si elle est enregistrée.
+   */
+  onCapture?: (p: GeoPhoto) => Promise<boolean>
 }) {
   // Photo du dessus choisie pour chaque lieu.
   const [selection, setSelection] = useState<Record<string, string>>({})
   // Photos des autres pas encore capturées : noir et blanc.
   const inColor = useColorRule()
-  // Photos qu'on vient de capturer : la couleur les envahit depuis leur centre.
-  const [revealing, setRevealing] = useState<ReadonlySet<string>>(() => new Set())
-  const capture = (p: GeoPhoto) => {
-    if (!onCapture) return
-    setRevealing((r) => new Set(r).add(p.id))
-    setTimeout(() => {
-      setRevealing((r) => {
-        const next = new Set(r)
-        next.delete(p.id)
+  // Photos qu'on vient de capturer : en couleur sans attendre l'enregistrement.
+  const [justCaptured, setJustCaptured] = useState<ReadonlySet<string>>(() => new Set())
+  const capture = useCapture((id) => {
+    const p = photos.find((photo) => photo.id === id)
+    if (!p || !onCapture) return
+    navigator.vibrate?.([60, 40, 120])
+    setJustCaptured((done) => new Set(done).add(id))
+    void onCapture(p).then((saved) => {
+      if (saved) return
+      setJustCaptured((done) => {
+        const next = new Set(done)
+        next.delete(id)
         return next
       })
-    }, REVEAL_MS)
-    void onCapture(p)
-  }
-  /** Saturation et révélation d'une photo du viseur. */
-  const color = (p: GeoPhoto) =>
-    revealing.has(p.id) ? { saturation: 0, reveal: true } : { saturation: inColor(p) ? 1 : 0, reveal: false }
+    })
+  })
+  /** Saturation d'une photo du viseur. */
+  const color = (p: GeoPhoto) => ({ saturation: inColor(p) || justCaptured.has(p.id) ? 1 : 0 })
 
   const spots = useMemo(() => {
     if (!fix) return []
@@ -77,23 +90,39 @@ export function ArSpotsLayer({
     return groupBySpot(around, (p) => p.geoframe.position, photoTime)
   }, [photos, fix])
 
-  if (!basis || !cam || !spots.length) return null
+  const projected =
+    basis && cam
+      ? spots
+          .map((spot) => {
+            // Clé stable : la plus ancienne photo du lieu (une nouvelle photo ne la change pas).
+            const key = spot.items[spot.items.length - 1].id
+            // Pile : les photos du lieu visibles dans cette direction.
+            const cards: Card[] = spot.items
+              .slice(0, MAX_PER_SPOT)
+              .map((photo) => ({ photo, ar: projectGeoPhoto(photo, fix, basis, cam) }))
+              .filter((c) => c.ar.transform && c.ar.projection.onScreen)
+            const index = Math.max(0, cards.findIndex((c) => c.photo.id === selection[key]))
+            return { key, cards, index }
+          })
+          .filter((s) => s.cards.length)
+          .sort((a, b) => (b.cards[b.index].ar.distance ?? 0) - (a.cards[a.index].ar.distance ?? 0))
+          .slice(-MAX_OVERLAYS)
+      : []
+  const cardOf = (id: string) => projected.flatMap((s) => s.cards).find((c) => c.photo.id === id) ?? null
 
-  const projected = spots
-    .map((spot) => {
-      // Clé stable : la plus ancienne photo du lieu (une nouvelle photo ne la change pas).
-      const key = spot.items[spot.items.length - 1].id
-      // Pile : les photos du lieu visibles dans cette direction.
-      const cards: Card[] = spot.items
-        .slice(0, MAX_PER_SPOT)
-        .map((photo) => ({ photo, ar: projectGeoPhoto(photo, fix, basis, cam) }))
-        .filter((c) => c.ar.transform && c.ar.projection.onScreen)
-      const index = Math.max(0, cards.findIndex((c) => c.photo.id === selection[key]))
-      return { key, cards, index }
-    })
-    .filter((s) => s.cards.length)
-    .sort((a, b) => (b.cards[b.index].ar.distance ?? 0) - (a.cards[a.index].ar.distance ?? 0))
-    .slice(-MAX_OVERLAYS)
+  // Capture en cours : orientation et place de la photo à l'écran, vérifiées à chaque image.
+  useEffect(() => {
+    capture.sync({ angles: basis ? anglesFromBasis(basis) : null, place: (id) => cardOf(id)?.ar.transform ?? null })
+  })
+  // Capturée : un instant en plein écran, puis retour à sa place, en couleur.
+  const { state, release } = capture
+  useEffect(() => {
+    if (state.phase !== 'captured') return
+    const t = setTimeout(release, CAPTURED_HOLD_MS)
+    return () => clearTimeout(t)
+  }, [state, release])
+
+  if (!basis || !cam) return null
 
   // Lieu visé : celui dont la photo est la plus proche du centre de l'écran.
   const focus = projected.reduce<(typeof projected)[number] | null>(
@@ -101,11 +130,15 @@ export function ArSpotsLayer({
     null,
   )
   const select = (key: string, photo: GeoPhoto) => setSelection((sel) => ({ ...sel, [key]: photo.id }))
+  // La photo en cours de capture a quitté sa place : la carte d'agrandissement la remplace.
+  const captured = capture.active ? photos.find((p) => p.id === capture.active) ?? null : null
+  const capturedCard = captured && cardOf(captured.id)
+  const focusTop = focus && focus.cards[focus.index]
 
   return (
     <>
       {projected.map((s) =>
-        s === focus ? (
+        s.cards[s.index].photo.id === capture.active ? null : s === focus ? (
           <ArDeck
             key={s.key}
             cards={s.cards}
@@ -122,13 +155,25 @@ export function ArSpotsLayer({
             transform={s.cards[s.index].ar.transform!}
             opacity={0.8 * s.cards[s.index].ar.fade}
             {...color(s.cards[s.index].photo)}
+            blur={s.cards[s.index].ar.blur}
             scale={overlayScale(s.cards[s.index].ar)}
             glass={!s.cards[s.index].ar.facing}
             onClick={() => onOpen(s.cards[s.index].photo)}
           />
         ),
       )}
-      {focus && (
+      {captured && capture.state.phase !== 'idle' && (
+        <CaptureCard
+          key={captured.id}
+          photo={captured}
+          state={capture.state}
+          cover={coverTransform(captured, cam)}
+          {...color(captured)}
+          scale={capturedCard ? overlayScale(capturedCard.ar) : undefined}
+        />
+      )}
+      <CaptureHint text={capture.hint} />
+      {focus && focusTop && (
         <div className="home-timeline">
           <SpotTimeline
             items={focus.cards.map((c) => c.photo)}
@@ -137,16 +182,21 @@ export function ArSpotsLayer({
             isMine={isMine}
             action={
               // Photo d'un autre pas encore capturée, à moins de 5 m de son point de vue : on la
-              // capture directement, sur place. Plus loin : « Chasser » guide jusqu'au point de vue.
+              // capture sur place (elle s'agrandit jusqu'à couvrir l'écran). Plus loin : « Chasser »
+              // guide jusqu'au point de vue.
               onCapture &&
-              !inColor(focus.cards[focus.index].photo) &&
-              !revealing.has(focus.cards[focus.index].photo.id) &&
-              withinCaptureRadius(focus.cards[focus.index].ar.distance)
-                ? { label: 'Capturer', onClick: () => capture(focus.cards[focus.index].photo) }
-                : { label: 'Chasser', onClick: () => onOpen(focus.cards[focus.index].photo) }
+              !inColor(focusTop.photo) &&
+              !justCaptured.has(focusTop.photo.id) &&
+              withinCaptureRadius(focusTop.ar.distance)
+                ? {
+                    label: 'Capturer',
+                    onClick: () => capture.start(focusTop.photo.id, focusTop.ar.transform!),
+                    disabled: capture.active != null,
+                  }
+                : { label: 'Chasser', onClick: () => onOpen(focusTop.photo) }
             }
             dots={false}
-            distance={focus.cards[focus.index].ar.distance}
+            distance={focusTop.ar.distance}
           />
         </div>
       )}
@@ -180,7 +230,7 @@ function ArDeck({
   cards: Card[]
   index: number
   cam: ViewportCamera
-  color: (p: GeoPhoto) => { saturation: number; reveal: boolean }
+  color: (p: GeoPhoto) => { saturation: number }
   onSelect: (photo: GeoPhoto) => void
   onOpen: (photo: GeoPhoto) => void
 }) {
@@ -209,6 +259,7 @@ function ArDeck({
             transform={below.ar.transform!}
             opacity={0.9 * below.ar.fade}
             {...color(below.photo)}
+            blur={below.ar.blur}
             scale={overlayScale(below.ar)}
             glass={!below.ar.facing}
           />
@@ -224,6 +275,7 @@ function ArDeck({
           transform={top.ar.transform!}
           opacity={top.ar.fade}
           {...color(top.photo)}
+          blur={top.ar.blur}
           scale={overlayScale(top.ar)}
           glass={!top.ar.facing}
           onClick={() => onOpen(top.photo)}

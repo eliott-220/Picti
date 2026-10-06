@@ -1,12 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
-import { ArPhoto, SpotTimeline } from '../components/ar'
-import { overlayScale, photoTime, projectGeoPhoto, viewportCamera, type GeoframedPhoto } from '../components/arProjection'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { ArPhoto, CaptureCard, SpotTimeline } from '../components/ar'
+import {
+  coverTransform,
+  overlayScale,
+  photoTime,
+  projectGeoPhoto,
+  viewportCamera,
+  type GeoframedPhoto,
+} from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
+import { useCapture } from '../components/useCapture'
 import { useSpotCalibration } from '../components/useSpotCalibration'
 import { useStore } from '../data/storeContext'
-import { HUNT_COLOR, huntSaturation, usePhotoInColor } from '../data/photoColor'
+import { huntSaturation, usePhotoInColor } from '../data/photoColor'
 import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
 import { ALIGN_TOLERANCE, CAPTURE_RADIUS, computeAlignment, guidance, viewerEye } from '../geo/alignment'
@@ -22,8 +30,11 @@ import { useGeolocation } from '../sensors/useGeolocation'
 import { useLivePosition } from '../sensors/useLivePosition'
 import { useOrientation } from '../sensors/useOrientation'
 
-/** Temps d'alignement continu requis pour capturer une photo (ms). */
-const HOLD_MS = 1500
+/**
+ * Alignement tenu (ms) au bout duquel la capture se lance d'elle-même (même déroulé qu'un appui
+ * sur « Capturer ») : évite de la lancer en passant simplement par l'alignement.
+ */
+const AUTO_CAPTURE_MS = 500
 
 export function Hunt({ id }: { id: string }) {
   const { photos } = useStore()
@@ -49,10 +60,10 @@ export function Hunt({ id }: { id: string }) {
 }
 
 /**
- * Chasse in situ : le téléphone devient une fenêtre sur le passé. La
- * photo flotte dans l'espace augmenté, de biais et lointaine quand on
- * est loin, puis se confond avec le décor une fois le point de vue exact
- * retrouvé — la photo est alors « capturée ».
+ * Chasse in situ : la photo flotte dans l'espace augmenté comme une carte,
+ * de biais et lointaine quand on est loin. Une fois sur place (à moins de
+ * 5 m du point de vue), on la capture : on ne bouge plus et c'est elle qui
+ * vient à nous, en s'agrandissant jusqu'à couvrir l'écran (`useCapture`).
  */
 function HuntView({
   photo,
@@ -86,8 +97,8 @@ function HuntView({
   const alreadyCaptured = captures.some((c) => c.photoId === photo.id)
   // Couleurs inversées : une photo d'un autre pas encore capturée est en noir et blanc.
   const inColor = usePhotoInColor(photo.id, photo.owner)
-  // En chassant, la couleur revient à mesure qu'on s'aligne (jusqu'à 40 %). Première capture
-  // d'une photo d'un autre : la couleur envahit la photo depuis son centre, par-dessus.
+  // En chassant, la couleur revient à mesure qu'on s'aligne (jusqu'à 40 %). Capture : la
+  // couleur envahit la photo pendant qu'elle s'agrandit.
 
   const g = photo.geoframe
   const target = useMemo(
@@ -140,26 +151,37 @@ function HuntView({
     edgeArrow = (Math.atan2(dot(d, viewerBasis.r), dot(d, viewerBasis.u)) * 180) / Math.PI
   }
 
-  // Capture : d'un appui sur « Capturer », ou alignement maintenu pendant HOLD_MS.
+  // Capture : d'un appui sur « Capturer », ou alignement tenu AUTO_CAPTURE_MS. La photo
+  // s'agrandit jusqu'à couvrir l'écran ; elle n'est capturée qu'à 100 % (immobile jusque-là).
   const scoreRef = useRef(al.score)
   useEffect(() => {
     scoreRef.current = al.score
   })
-  const capture = useCallback(() => {
-    setPhaseState({ id: photo.id, phase: 'captured', first: !alreadyCaptured })
+  const capture = useCapture((id) => {
+    if (id !== photo.id) return
+    setPhaseState({ id, phase: 'captured', first: !alreadyCaptured })
     navigator.vibrate?.([60, 40, 120])
-    if (!alreadyCaptured) void addCapture(photo.id, scoreRef.current).catch(() => undefined)
-  }, [alreadyCaptured, addCapture, photo.id])
+    if (!alreadyCaptured) void addCapture(id, scoreRef.current).catch(() => undefined)
+  })
   useEffect(() => {
-    if (!al.aligned || phase !== 'hunting') return
-    const t = setTimeout(capture, HOLD_MS)
+    capture.sync({ angles: viewerAngles, place: (id) => (id === photo.id ? transform : null) })
+  })
+  const startCapture = () => {
+    if (transform) capture.start(photo.id, transform)
+  }
+  const startRef = useRef(startCapture)
+  useEffect(() => {
+    startRef.current = startCapture
+  })
+  useEffect(() => {
+    if (!al.aligned || phase !== 'hunting' || capture.active) return
+    const t = setTimeout(() => startRef.current(), AUTO_CAPTURE_MS)
     return () => clearTimeout(t)
-  }, [al.aligned, phase, capture])
-  // Rester immobile devant la photo était trop difficile (le moindre mouvement annulait la
-  // capture) : la photo d'un autre, visible à l'écran, se capture directement.
-  // Capturable seulement à moins de 5 m du point de vue (`CAPTURE_RADIUS`), photo visible.
+  }, [al.aligned, phase, capture.active])
+  // La photo d'un autre, visible à l'écran, se capture d'un appui : seulement à moins de 5 m du
+  // point de vue (`CAPTURE_RADIUS`), et pas pendant un agrandissement.
   const capturable = phase === 'hunting' && !isMine(photo) && !alreadyCaptured
-  const canCapture = capturable && al.onSpot && transform != null
+  const canCapture = capturable && al.onSpot && transform != null && capture.active == null
   const captureHint = !capturable
     ? null
     : al.distance == null
@@ -171,8 +193,9 @@ function HuntView({
           : null
 
   const hasOrientation = demo || (orientation.status === 'active' && orientation.absolute)
-  const message = phase === 'hunting' ? guidance(al, hasOrientation) : 'Photo retrouvée ✓'
-  const revealing = phase !== 'hunting' && firstCapture && !isMine(photo)
+  // Capture en cours ou interrompue : son message (« Ne bougez plus… ») prend la place de la consigne.
+  const message = capture.hint ?? (phase === 'hunting' ? guidance(al, hasOrientation) : 'Photo retrouvée ✓')
+  const saturation = inColor || phase !== 'hunting' ? 1 : huntSaturation(al.score)
   const approachArrow =
     !al.onSpot && al.bearing != null && viewerAngles ? angleDiffDeg(viewerAngles.heading, al.bearing) : null
 
@@ -188,15 +211,26 @@ function HuntView({
       <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
       {cameraStatus === 'error' && <div className="camera-fallback sky" />}
 
-      {transform && (
+      {transform && capture.active !== photo.id && (
         <ArPhoto
           photo={photo}
           transform={transform}
           opacity={(al.aligned ? Math.max(opacity, 0.95) : opacity) * (ar?.fade ?? 1)}
-          saturation={revealing ? HUNT_COLOR.max : inColor || phase !== 'hunting' ? 1 : huntSaturation(al.score)}
-          reveal={revealing}
+          saturation={saturation}
+          blur={ar?.blur}
           scale={ar ? overlayScale(ar) : 1}
           glass={ar ? !ar.facing : false}
+        />
+      )}
+      {/* Capture : la carte quitte sa place et s'agrandit jusqu'à couvrir l'écran. */}
+      {cam && capture.active === photo.id && capture.state.phase !== 'idle' && (
+        <CaptureCard
+          key={photo.id}
+          photo={photo}
+          state={capture.state}
+          cover={coverTransform(photo, cam)}
+          saturation={saturation}
+          scale={ar && transform ? overlayScale(ar) : undefined}
         />
       )}
 
@@ -266,7 +300,7 @@ function HuntView({
           />
         </div>
         {capturable && (
-          <button type="button" className="btn capture-btn" onClick={capture} disabled={!canCapture}>
+          <button type="button" className="btn capture-btn" onClick={startCapture} disabled={!canCapture}>
             <Icon name="scan" /> {captureHint ?? 'Capturer'}
           </button>
         )}
@@ -289,13 +323,21 @@ function HuntView({
       </footer>
 
       {phase === 'captured' && (
-        <div className={`captured ${revealing ? 'after-reveal' : ''}`} role="alertdialog" aria-label="Photo capturée">
+        <div className="captured" role="alertdialog" aria-label="Photo capturée">
           <div className="captured-card">
             <Icon name="flag" size={36} />
             <h2>{firstCapture ? 'Capturée !' : 'Retrouvée !'}</h2>
             <p>Vous êtes à l’endroit précis et sous l’angle exact où cette photo a été prise.</p>
             <div className="captured-actions">
-              <button type="button" className="btn light" onClick={() => setPhase('contemplating')}>
+              <button
+                type="button"
+                className="btn light"
+                onClick={() => {
+                  // La photo, en plein écran, revient à sa place dans le décor.
+                  capture.release()
+                  setPhase('contemplating')
+                }}
+              >
                 Contempler
               </button>
               <button type="button" className="btn ghost" onClick={goBack}>

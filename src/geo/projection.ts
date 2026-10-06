@@ -7,7 +7,7 @@
 // parfaitement le décor réel ; vu d'ailleurs, il apparaît de biais,
 // plus petit ou décalé — c'est l'effet « fenêtre sur le passé ».
 
-import { add, DEG, dot, norm, scale, sub, type Vec3 } from './math'
+import { add, DEG, dot, norm, normalize, scale, sub, type Vec3 } from './math'
 import { focalPx, type ViewportCamera } from './optics'
 import type { CameraBasis } from './orientation'
 
@@ -104,10 +104,57 @@ export function viewCosine(basis: CameraBasis, depth: number, eye: Vec3): number
  */
 export const EDGE_FADE = { hidden: 0.08, full: 0.35 }
 
+/** Courbe douce (« smoothstep ») : 0 sous `from`, 1 au-delà de `to`. */
+const smoothstep = (from: number, to: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - from) / (to - from)))
+  return t * t * (3 - 2 * t)
+}
+
 /** Opacité de 0 à 1 selon `viewCosine` (courbe douce, « smoothstep »). */
 export function edgeFade(cos: number): number {
-  const t = Math.min(1, Math.max(0, (cos - EDGE_FADE.hidden) / (EDGE_FADE.full - EDGE_FADE.hidden)))
-  return t * t * (3 - 2 * t)
+  return smoothstep(EDGE_FADE.hidden, EDGE_FADE.full, cos)
+}
+
+/**
+ * Distance (m) entre l'œil et le point le plus proche du plan-photo (rectangle `corners`,
+ * dans l'ordre de `photoPlaneCorners`). L'œil est à la hauteur du photographe (altitude GPS
+ * ignorée, voir `viewerEye`) : pour une photo prise à l'horizontale, c'est la distance
+ * horizontale au rectangle ; une photo du sol ou du ciel, loin au-dessous ou au-dessus, n'est
+ * jamais « traversée ». Passer à côté du plan, même tout près de son prolongement, ne compte pas.
+ */
+export function panelDistance(corners: Quad<Vec3>, eye: Vec3): number {
+  const [tl, tr, br, bl] = corners
+  const center = scale(add(tl, br), 0.5)
+  const halfW = norm(sub(tr, tl)) / 2
+  const halfH = norm(sub(tl, bl)) / 2
+  const right = normalize(sub(tr, tl))
+  const up = normalize(sub(tl, bl))
+  // Point du rectangle le plus proche : coordonnées de l'œil dans le plan, bornées au rectangle.
+  const d = sub(eye, center)
+  const a = Math.max(-halfW, Math.min(halfW, dot(d, right)))
+  const b = Math.max(-halfH, Math.min(halfH, dot(d, up)))
+  return norm(sub(d, add(scale(right, a), scale(up, b))))
+}
+
+/**
+ * Effacement à l'approche du plan-photo (les deux côtés, recto et vitre) : nette à `clear` m
+ * et au-delà, de plus en plus floue (jusqu'à `blur` px à l'écran) et transparente en s'en
+ * approchant, invisible sous `hidden` m. Plus de disparition sèche quand on le traverse.
+ * Le point de vue est à 6 m du plan : la capture n'est jamais concernée.
+ */
+export const NEAR_FADE = {
+  /** Distance au plan (m) à partir de laquelle la photo commence à s'effacer. */
+  clear: 2,
+  /** Distance au plan (m) sous laquelle elle est invisible. */
+  hidden: 0.5,
+  /** Flou maximal (px à l'écran), juste avant de disparaître. */
+  blur: 16,
+}
+
+/** Opacité (0 → 1) et flou (px à l'écran) de la photo à `distance` m de son plan (`panelDistance`). */
+export function panelProximityFade(distance: number): { opacity: number; blur: number } {
+  const opacity = smoothstep(NEAR_FADE.hidden, NEAR_FADE.clear, distance)
+  return { opacity, blur: NEAR_FADE.blur * (1 - opacity) }
 }
 
 /** Point projeté à l'écran ; `z` = profondeur le long de l'axe de visée. */
@@ -146,15 +193,79 @@ export function projectPhoto(
 ): PhotoProjection {
   const projected = corners.map((c) => projectPoint(c, eye, basis, cam)) as Quad<ScreenPoint>
   const inFront = projected.every((p) => p.z > near)
-  const xs = projected.map((p) => p.x)
-  const ys = projected.map((p) => p.y)
-  const onScreen =
-    inFront &&
-    Math.max(...xs) > 0 &&
-    Math.min(...xs) < cam.width &&
-    Math.max(...ys) > 0 &&
-    Math.min(...ys) < cam.height
-  return { corners: projected, inFront, onScreen }
+  return { corners: projected, inFront, onScreen: inFront && overlapsScreen(projected, cam) }
+}
+
+/** Le quadrilatère `quad` recouvre-t-il au moins en partie l'écran ? */
+function overlapsScreen(quad: Quad<ScreenPoint>, cam: { width: number; height: number }): boolean {
+  const xs = quad.map((p) => p.x)
+  const ys = quad.map((p) => p.y)
+  return Math.max(...xs) > 0 && Math.min(...xs) < cam.width && Math.max(...ys) > 0 && Math.min(...ys) < cam.height
+}
+
+/**
+ * La photo est une « carte » (depuis 0.14.0) : ancrée à sa place et en perspective, mais sa
+ * taille à l'écran est plafonnée — en se promenant, elle ne remplit jamais l'écran. Si sa boîte
+ * projetée dépasse ces fractions de la largeur ou de la hauteur de l'écran, elle est réduite
+ * uniformément autour de son centre projeté (même forme, juste plus petite). Seule la capture
+ * l'agrandit jusqu'à couvrir l'écran.
+ */
+export const CARD_MAX = { width: 0.6, height: 0.45 }
+
+/** Réduction (≤ 1) qui ramène la boîte projetée de `quad` dans les limites de `CARD_MAX`. */
+export function cardScale(quad: Quad<ScreenPoint>, cam: { width: number; height: number }): number {
+  const xs = quad.map((p) => p.x)
+  const ys = quad.map((p) => p.y)
+  const w = Math.max(...xs) - Math.min(...xs)
+  const h = Math.max(...ys) - Math.min(...ys)
+  return Math.min(1, (CARD_MAX.width * cam.width) / w, (CARD_MAX.height * cam.height) / h)
+}
+
+/** `quad` réduit d'un facteur `k` autour du point `center` (px). */
+export function scaleQuad(quad: Quad<ScreenPoint>, center: { x: number; y: number }, k: number): Quad<ScreenPoint> {
+  const scaled = quad.map((p) => ({ x: center.x + k * (p.x - center.x), y: center.y + k * (p.y - center.y), z: p.z }))
+  return scaled as Quad<ScreenPoint>
+}
+
+/**
+ * Plan-photo vu de tout près, de biais : un coin peut passer derrière l'objectif alors que le
+ * centre est devant — la projection devient impossible et la photo disparaissait d'un coup. On
+ * le réduit alors autour de son centre (même place, même orientation) jusqu'à ce que chaque coin
+ * soit devant, à au moins la moitié de la profondeur du centre ; plafonnée ensuite, la carte n'en
+ * change guère. Centre derrière l'objectif (ou presque) : null, la photo n'est pas de ce côté.
+ */
+export function cornersInFront(corners: Quad<Vec3>, eye: Vec3, basis: CameraBasis, near = 0.1): Quad<Vec3> | null {
+  const center = scale(add(corners[0], corners[2]), 0.5)
+  const zc = dot(sub(center, eye), basis.f)
+  if (zc <= 2 * near) return null
+  const min = zc / 2
+  let k = 1
+  for (const c of corners) {
+    const z = dot(sub(c, eye), basis.f)
+    if (z < min) k = Math.min(k, (zc - min) / (zc - z))
+  }
+  return k < 1 ? (corners.map((c) => add(center, scale(sub(c, center), k))) as Quad<Vec3>) : corners
+}
+
+/**
+ * Projection de la photo en « carte » : coins ramenés devant l'objectif (`cornersInFront`), puis
+ * taille plafonnée autour du centre projeté (`CARD_MAX`). La position et l'orientation projetées
+ * ne changent pas ; `scale` = réduction appliquée à l'écran (1 si la photo tient déjà).
+ */
+export function projectCard(
+  corners: Quad<Vec3>,
+  eye: Vec3,
+  basis: CameraBasis,
+  cam: ViewportCamera,
+  near = 0.1,
+): PhotoProjection & { scale: number } {
+  const front = cornersInFront(corners, eye, basis, near)
+  if (!front) return { ...projectPhoto(corners, eye, basis, cam, near), inFront: false, onScreen: false, scale: 1 }
+  const raw = projectPhoto(front, eye, basis, cam, near)
+  const center = projectPoint(scale(add(front[0], front[2]), 0.5), eye, basis, cam)
+  const k = cardScale(raw.corners, cam)
+  const capped = k < 1 ? scaleQuad(raw.corners, center, k) : raw.corners
+  return { corners: capped, inFront: raw.inFront, onScreen: raw.inFront && overlapsScreen(capped, cam), scale: k }
 }
 
 export type Point2 = readonly [number, number]

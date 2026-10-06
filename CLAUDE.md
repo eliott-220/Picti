@@ -107,7 +107,36 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   douceur : `viewCosine` (|cos| entre la visée vers le centre du plan et l'axe de prise de vue)
   → `edgeFade` (smoothstep, `EDGE_FADE` : 0 sous 0,08, 1 au-delà de 0,35) → `ArProjection.fade`,
   multiplié à l'opacité (viseur, pile, chasse). Pas de texte sur la vitre (il serait en miroir).
-  La capture ne change pas.
+- **Photo « carte »** (depuis 0.014.0, `src/geo/projection.ts`) : la photo ne remplit **jamais**
+  l'écran en se promenant. `projectCard` : si des coins du plan passent derrière l'objectif (tout
+  près, de biais), le plan est d'abord réduit autour de son centre (`cornersInFront`) ; puis la
+  boîte projetée est plafonnée à `CARD_MAX` (60 % de la largeur, 45 % de la hauteur), réduite
+  uniformément autour du **centre projeté** (`cardScale`, `scaleQuad`) : même place, même
+  orientation, même forme (ne jamais recaler l'œil pour la rapetisser). `ArProjection.cardScale`
+  = réduction appliquée (les tests de perspective divisent la largeur par elle). Style : cadre
+  blanc, coins arrondis, ombre légère, de taille constante à l'écran (`cardVars` : `--px`,
+  `--radius`, `--near-blur` depuis `overlayScale`). **Effacement à 2 m** : `panelDistance` =
+  distance de l'œil (à la hauteur du photographe) au point le plus proche du rectangle du
+  plan-photo — pas au point de vue ; passer à côté ne compte pas ; une photo du sol ou du ciel
+  n'est jamais traversée — → `panelProximityFade` (`NEAR_FADE` : nette à 2 m, smoothstep jusqu'à
+  0,5 m, flou jusqu'à 16 px à l'écran, invisible en deçà), recto comme vitre, multiplié à
+  `edgeFade` dans `ArProjection.fade` ; flou dans `ArProjection.blur` → classe `.near`.
+- **Capture par agrandissement** (depuis 0.014.0, remplace l'alignement tenu `HOLD_MS` et la
+  révélation sur place de 0.013.0) : l'utilisateur ne bouge plus, c'est la photo qui vient à lui.
+  Départ : à moins de 5 m du point de vue et photo à l'écran, appui sur « Capturer » (viseur,
+  chasse) ou, en chasse, alignement tenu `AUTO_CAPTURE_MS` (0,5 s). La carte quitte sa place et
+  s'agrandit en `CAPTURE.growMs` (2 s) jusqu'à couvrir tout l'écran (`coverTransform`, mode
+  « cover »), la couleur l'envahissant (`.overlay-reveal`, même `clip-path` qu'en 0.013.0, étalé
+  sur 2 s) ; message « Ne bougez plus… » ; bouton désactivé. **Capturée seulement à 100 %**
+  (enregistrement à ce moment-là). Logique pure `checkCapture` (`src/geo/capture.ts`, testée),
+  vérifiée à chaque image par `useCapture` : annulation si `CAPTURE.steps` (2) pas comptés depuis
+  le départ (`walkedSteps().steps` ; la marche reconnue au 3e pas viendrait trop tard), cap
+  > 12° ou inclinaison > 10° d'écart (cap ignoré objectif à plus de 70° de l'horizon), ou photo
+  hors de l'écran. Annulée : retour à sa place en `CAPTURE.backMs` (0,3 s), couleur retirée,
+  « Capture interrompue : restez immobile », rien d'enregistré. Animation : transitions CSS
+  `transform` de `.capture-card` (une annulation repart de là où en est l'agrandissement), aucun
+  rendu React par image. Après la capture : viseur, retour à sa place après 0,6 s, en couleur
+  avec surbrillance ; chasse, plein écran sous « Capturée ! », retour à sa place sur « Contempler ».
 - **Cap sur iPhone** (depuis 0.010.1, `src/geo/heading.ts`) : les mouvements viennent du
   gyroscope (`alpha`) ; le nord de `webkitCompassHeading` n'est recalé que **lentement**
   (τ 2 s), téléphone stable (< 8°/s) et objectif à moins de 55° de l'horizon ; recalage rapide
@@ -152,20 +181,18 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   carte) et à l'en-tête du détail. En chasse, la saturation suit le score d'alignement existant :
   `huntSaturation` = 0 sous 0,15, courbe douce jusqu'à 40 % au score atteint à la limite des
   tolérances de capture (`TOLERANCE_SCORE`, calculé depuis `ALIGN_TOLERANCE` et `ALIGN_SCORE`).
-  Première capture d'une photo d'un autre : copie en couleur révélée depuis le centre en 600 ms
-  (`.overlay-reveal`, `clip-path`), immédiate avec `prefers-reduced-motion` ; la carte « Capturée ! »
-  attend la fin (`.captured.after-reveal`). **Capture directe** : rester immobile était trop dur
-  (le moindre mouvement annulait le maintien `HOLD_MS`) → bouton « Capturer » dans la chasse
-  (photo d'un autre visible à l'écran) et dans l'étiquette du viseur (`onCapture`, révélation sur
-  place) ; la capture automatique par alignement maintenu reste. **Capture à moins de 5 m** du
+  À la capture, la couleur envahit la photo depuis le centre (`.overlay-reveal`, `clip-path`)
+  pendant qu'elle s'agrandit (voir « Capture par agrandissement », 0.014.0). Bouton « Capturer »
+  dans la chasse (photo d'un autre visible à l'écran) et dans l'étiquette du viseur
+  (`onCapture`, appelé une fois l'agrandissement achevé). **Capture à moins de 5 m** du
   point de vue (`CAPTURE_RADIUS`, `withinCaptureRadius`, depuis 0.013.1), quelle que soit la
   précision du GPS : au-delà, bouton désactivé « Capturer à moins de 5 m : encore X m » (chasse)
   ou « Chasser » (viseur). Photos en couleur (miennes ou
   capturées), de face : **surbrillance animée** `.overlay-shine` (bord clair ≈ 4 px à l'écran quelle
   que soit la distance, `--shine` via `overlayScale`, halo qui respire, éclat qui traverse ;
   opacité/translation seulement ; figée avec `prefers-reduced-motion`). Filtres CSS sur les
-  images seulement (`--sat`, `--glass-sat` pour la vitre), jamais sur la vidéo ; liseré clair fin +
-  ombre légère sur les photos en noir et blanc du viseur (`.overlay-photo.tinted`).
+  images seulement (`--sat`, `--glass-sat` pour la vitre), jamais sur la vidéo ; cadre blanc de
+  carte sur toutes les photos du viseur (`.overlay-photo`).
 - Selfies (`photos.selfie`) : géocadrage en direct avec la caméra avant ; on enregistre
   l'orientation de l'objectif avant (`frontCameraBasis` : cap +180°, inclinaison et roulis
   inversés), focale 23 mm, image non inversée (seul l'aperçu est en miroir). Distance du sujet
@@ -230,11 +257,17 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   partagé entre les écrans, pas au sens inconnu ignorés (plus de glissement en se balançant),
   dérive GPS < 8 m ignorée à l'arrêt, même position pour accueil / chasse / recalage, avertissement
   quand une photo est prise avec un GPS imprécis (> ±15 m).
+- 0.014.0 : la photo est une « carte » (cadre blanc, taille plafonnée à 60 % × 45 % de l'écran),
+  qui ne remplit plus jamais l'écran en se promenant ; à moins de 2 m de la photo elle-même, elle
+  se floute et s'efface (plus de disparition sèche en la traversant, recto comme vitre) ; capture
+  par agrandissement : on ne bouge plus, la photo grandit en 2 s jusqu'à couvrir l'écran en prenant
+  ses couleurs, capturée à 100 % — marcher ou tourner le téléphone annule.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
-- Prochaines étapes : test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
+- Prochaines étapes : test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
+  l'approche, tolérances d'immobilité) ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
   choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
   plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
   d'e-mails français dans `supabase/templates/`, à coller dans Supabase › Authentication › Emails ;
@@ -263,3 +296,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-30 — Photos vues de dos, comme sur une vitre dépolie (0.012.0)](claude/picti/2026-09-30-photos-de-dos-vitre.md)
 - [2026-09-30 — Couleurs inversées : la couleur, récompense de la chasse (0.013.0)](claude/picti/2026-09-30-couleurs-inversees.md)
 - [2026-09-30 — Capture à moins de 5 m, photo qui ne bouge plus (0.013.1)](claude/picti/2026-09-30-capture-5m-ancrage.md)
+- [2026-10-06 — Photo « carte », effacement à 2 m, capture par agrandissement (0.014.0)](claude/picti/2026-10-06-carte-et-capture.md)
