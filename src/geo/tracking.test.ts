@@ -242,3 +242,115 @@ describe('position avancée pas à pas', () => {
     expect(track.mode).toBe('moving')
   })
 })
+
+describe('moyenne à l’arrêt', () => {
+  /** Relevés immobiles à ±4 m autour de l'origine, de précisions variées, un par seconde. */
+  const scattered: [number, number, number][] = [
+    [3, -2, 8],
+    [-4, 1, 4],
+    [2, 3, 6],
+    [-1, -3, 4],
+    [4, 2, 10],
+    [-3, 0, 5],
+    [1, 4, 4],
+    [0, -4, 6],
+    [-2, 2, 4],
+    [3, 1, 5],
+  ]
+  const weighted = (list: [number, number, number][]) => {
+    const w = list.reduce((s, [, , a]) => s + 1 / a ** 2, 0)
+    return {
+      e: list.reduce((s, [e, , a]) => s + e / a ** 2, 0) / w,
+      n: list.reduce((s, [, n, a]) => s + n / a ** 2, 0) / w,
+    }
+  }
+
+  it('immobile depuis 2 s : la position est la moyenne pondérée (1 / précision²) des relevés depuis l’arrêt', () => {
+    const history = run(
+      scattered.map(([e, n, a], i) => fixAt(e, n, i, a)),
+      'still',
+    )
+    for (let i = 2; i < scattered.length; i++) {
+      const expected = weighted(scattered.slice(0, i + 1))
+      const p = where(history[i])
+      expect(p.e).toBeCloseTo(expected.e, 6)
+      expect(p.n).toBeCloseTo(expected.n, 6)
+    }
+    // Les relevés précis pèsent davantage : la moyenne simple serait ailleurs.
+    const last = where(history[scattered.length - 1])
+    expect(Math.hypot(last.e - 0.3, last.n - 0.4)).toBeGreaterThan(0.05)
+  })
+
+  it('au-delà de 10 s, la moyenne est tenue : une dérive du GPS ne déplace plus la position', () => {
+    const fixes = [
+      ...scattered.map(([e, n, a], i) => fixAt(e, n, i, a)),
+      // Le GPS glisse ensuite de 3 m vers l'est (sous le seuil d'un écart persistant).
+      ...Array.from({ length: 20 }, (_, i) => fixAt(3, 0, 10 + i, 5)),
+    ]
+    const history = run(fixes, 'still')
+    const held = weighted(scattered)
+    for (const t of history.slice(10)) {
+      expect(where(t).e).toBeCloseTo(held.e, 1)
+      expect(where(t).n).toBeCloseTo(held.n, 1)
+    }
+  })
+
+  it('un saut isolé n’entre pas dans la moyenne', () => {
+    const fixes = [...scattered.slice(0, 5).map(([e, n, a], i) => fixAt(e, n, i, a)), fixAt(40, 0, 5, 5)]
+    const history = run(fixes, 'still')
+    const expected = weighted(scattered.slice(0, 5))
+    expect(where(history[5]).e).toBeCloseTo(expected.e, 6)
+  })
+
+  it('reprend aussitôt le GPS quand la marche est détectée', () => {
+    const settled = run(
+      scattered.map(([e, n, a], i) => fixAt(e, n, i, a)),
+      'still',
+    ).at(-1)!
+    // On repart vers le nord à 1,3 m/s.
+    const walk = run(
+      Array.from({ length: 6 }, (_, i) => fixAt(0, 1.3 * (i + 1), 10 + i, 4)),
+      'moving',
+      settled,
+    )
+    expect(walk[0].mode).toBe('moving')
+    expect(walk[0].stillSince).toBeNull()
+    expect(where(walk[5]).n).toBeGreaterThan(5)
+    // À l'arrêt suivant, une nouvelle moyenne repart de zéro, au nouvel endroit.
+    const stop = run(
+      Array.from({ length: 4 }, (_, i) => fixAt(0, 8, 16 + i, 4)),
+      'still',
+      walk[5],
+    )
+    expect(stop[3].stillSince).toBe(16_000)
+    expect(where(stop[3]).n).toBeCloseTo(8, 6)
+  })
+
+  it('un écart persistant après la moyenne est toujours rattrapé', () => {
+    const settled = run(
+      scattered.map(([e, n, a], i) => fixAt(e, n, i, a)),
+      'still',
+    ).at(-1)!
+    // Déplacement de 6 m vers le sud que l'accéléromètre n'a pas vu.
+    const after = run(
+      Array.from({ length: 20 }, (_, i) => fixAt(0, -6, 10 + i, 4)),
+      'still',
+      settled,
+    )
+    expect(where(after[19]).n).toBeLessThan(-5)
+  })
+
+  it('après une marche comptée pas à pas, la position reste celle des pas', () => {
+    let track = run(
+      scattered.map(([e, n, a], i) => fixAt(e, n, i, a)),
+      'still',
+    ).at(-1)!
+    const start = where(track)
+    for (let i = 0; i < 4; i++) track = walkTrack(track, 0.65, 0)
+    expect(track.stepped).toBe(true)
+    // Immobile ensuite, le GPS n'a pas vu les 2,6 m : pas de moyenne qui les déferait.
+    for (let t = 11; t < 25; t++) track = updateTrack(track, fixAt(0, 0, t, 4), t < 15 ? 'settling' : 'still', true)
+    expect(where(track).e - start.e).toBeCloseTo(2.6, 1)
+    expect(track.average).toBeNull()
+  })
+})

@@ -105,6 +105,12 @@ const PATHS = {
     </>
   ),
   reproduce: <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v4.5H15" />,
+  warning: (
+    <>
+      <path d="M12 3.5 21.5 20h-19Z" />
+      <path d="M12 10v4.5M12 17.4v.1" />
+    </>
+  ),
   qr: (
     <>
       <rect x="4" y="4" width="6" height="6" rx="1" />

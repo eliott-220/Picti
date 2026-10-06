@@ -18,9 +18,9 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 
 | Service | Écran | Détail |
 | --- | --- | --- |
-| **Géocadrage en direct** | Accueil (viseur) | Le déclencheur rouge fige l'image de la caméra et enregistre position GPS (lissée), cap, inclinaison et roulis. |
+| **Géocadrage en direct** | Accueil (viseur) | Le déclencheur rouge fige l'image de la caméra et enregistre position GPS (lissée ; immobile, moyenne des relevés depuis l'arrêt), sa précision, cap, inclinaison et roulis. Pastille GPS orange au-delà de ±12 m ; déclencher alors fige l'image et demande « Attendre » (la photo se prend seule dès que le GPS repasse sous 12 m) ou « Prendre quand même ». |
 | **Selfie géocadré** | Accueil → bouton caméra | Caméra avant : on géocadre l'objectif avant (cap retourné). Le selfie se retrouve comme toute photo, en visant depuis la place du téléphone l'endroit où posait son auteur. |
-| **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement. |
+| **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement, avec la précision notée par l'appareil (`GPSHPositioningError`) quand elle existe. |
 | **Géocadrage en différé (sur place)** | Recaler | Pour les photos sans direction ou sans GPS : sur le lieu, on superpose le cliché (transparence + cadrage/focale) au décor réel, puis « Géocadrer ici ». |
 | **Chasse in situ** | Chasser | Guidage vers le point de vue (distance, direction), photo projetée en perspective dans la vue caméra (une carte, jamais plein écran), jauges cap/inclinaison ; à moins de 5 m du point de vue, « Capturer » (ou l'alignement tenu) : on ne bouge plus, la photo s'agrandit en 2 s jusqu'à couvrir l'écran en prenant ses couleurs ⇒ **capturée** à 100 % (marcher ou tourner le téléphone annule). |
 | Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
@@ -31,7 +31,7 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | **Visibilité** | Accueil, Import, Moi, Détail | Nouvelles photos **réservées aux amis** par défaut (réglable dans Moi) ; pastille au-dessus du déclencheur (Amis / Public / Privé) pour la prochaine photo, même choix pour un lot importé ; modifiable après coup dans le détail. |
 | **Likes** | Fiche, viseur, carte | Cœur et nombre de likes ; **capturer une photo = l'aimer sur place** (cœur épinglé) ; l'auteur voit qui l'a aimée. |
 | **Notifications** | Cloche (accueil) | « Paul a capturé votre photo », « Paul et 4 autres aiment votre photo » (likes regroupés), en temps réel. |
-| **Reproductions** | Après une capture, Détail | **Reproduire cette photo** : la caméra avec l'originale en calque pour retrouver son cadrage. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
+| **Reproductions** | Après une capture, Détail | **Reproduire cette photo** : la caméra avec l'originale en calque pour retrouver son cadrage. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. En s'éloignant de la vue : bandeau orange « Revenez de 2 m », puis rouge « Trop loin de la photo d'origine (14 m) » (ou « Tournez-vous… ») avec flèche, calque pâli et ⚠ sur le déclencheur ; à plus de 50 m, « Vous avez quitté le lieu de la photo » (Y retourner / Quitter). Déclencher hors de la vue fige l'image et propose « Revenir au point de vue » ou « Garder en photo classique » : une photo n'est jamais perdue. |
 | **Galerie d'un lieu** | Points d'une pile | Toutes les photos du lieu, triées par likes, date d'ajout ou date de prise. |
 | **Amis** | Moi › Mes amis | **Lien d'invitation** (`#/ami/<code>`, à partager ou en **QR code**), ajout par code ou **par nom** ; demandes à accepter (pastille sur le menu), retrait. |
 | Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
@@ -123,6 +123,12 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
   pendant quelques secondes) est rattrapé ; un saut confirmé ou une vitesse de véhicule sont
   suivis. Sans accéléromètre, la vitesse GPS dit si l'on bouge. Le viseur affiche la distance à
   la photo visée ; « · marche » sur la pastille GPS quand les pas sont détectés.
+  **Moyenne à l'arrêt** (depuis 0.15.2) : immobile depuis 2 s, la position est la moyenne
+  pondérée (1 / précision²) des relevés depuis l'arrêt, pris pendant au plus 10 s, puis tenue
+  comme ci-dessus — la photo est enregistrée à cette position, celle qui est affichée. Pas après
+  une marche comptée pas à pas : les pas, plus justes que le GPS sur quelques mètres, sont gardés.
+  Sur iPhone, une précision qui reste au-delà de 100 m pendant 15 s (réglage « position
+  approximative ») fait afficher, une fois, où activer « Position exacte ».
 - **Précision GPS et recalage** : un téléphone n'est précis qu'à quelques mètres. En chasse,
   quand la photo est alignée (sur place, bonne orientation, téléphone immobile) juste avant
   sa capture, l'écart restant avec le point de vue est attribué au GPS
@@ -133,7 +139,8 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
 
 ```
 src/
-  geo/        moteur pur et testé : géodésie, orientation, optique, projection, alignement, EXIF
+  geo/        moteur pur et testé : géodésie, orientation, optique, projection, alignement, suivi GPS,
+              lieux et vues, mode « Reproduire » (reproduce.ts), EXIF
   sensors/    hooks React : caméra, géolocalisation, orientation
   data/       modèle, client Supabase, store (photos, amis, captures), pipeline de création/import
 supabase/migrations/  schéma, règles d'accès (RLS), recherche à proximité, stockage

@@ -12,13 +12,22 @@ describe('geoframeFromExif', () => {
       GPSImgDirectionRef: 'T',
       FocalLengthIn35mmFormat: 26,
       DateTimeOriginal: new Date(2022, 6, 12, 18, 4, 33),
+      GPSHPositioningError: 4.7,
     })
     expect(g.position).toEqual({ lat: 46.1557, lon: -1.1533, alt: 4.2 })
+    expect(g.accuracy).toBe(4.7)
     expect(g.heading).toBeCloseTo(251.3)
     expect(g.headingRef).toBe('T')
     expect(g.focal35).toBe(26)
     expect(g.takenAt).toBe(new Date(2022, 6, 12, 18, 4, 33).getTime())
     expect(exifCompleteness(g)).toBe('complet')
+  })
+
+  it('précision de la position : celle de l’EXIF, sinon inconnue', () => {
+    expect(geoframeFromExif({ latitude: 46.1, longitude: -1.1 }).accuracy).toBeNull()
+    expect(geoframeFromExif({ latitude: 46.1, longitude: -1.1, GPSHPositioningError: 0 }).accuracy).toBeNull()
+    // Sans position, pas de précision.
+    expect(geoframeFromExif({ GPSHPositioningError: 5 }).accuracy).toBeNull()
   })
 
   it('signale une direction manquante', () => {

@@ -1,3 +1,4 @@
+import { GPS_GOOD_ACCURACY } from '../geo/tracking'
 import type { GeolocationState } from '../sensors/useGeolocation'
 import { currentMotion } from '../sensors/motion'
 import { isRemembered } from '../sensors/permissions'
@@ -6,13 +7,15 @@ import { Icon } from './Icon'
 
 /** Pastilles d'état du GPS et de la boussole, indispensables au géocadrage. */
 export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orientation: OrientationState }) {
+  // Au-delà de ±12 m, la pastille passe à l'orange : une photo prise risque d'être mal placée.
   const gps = geo.fix
     ? {
-        ok: geo.fix.accuracy <= 25,
+        ok: geo.fix.accuracy <= GPS_GOOD_ACCURACY,
+        warn: geo.fix.accuracy > GPS_GOOD_ACCURACY,
         // « marche » : l'accéléromètre voit les pas (la position suit alors le GPS de près).
         text: `GPS ±${Math.round(geo.fix.accuracy)} m${currentMotion() === 'moving' ? ' · marche' : ''}`,
       }
-    : { ok: false, text: geo.error ?? 'GPS…' }
+    : { ok: false, warn: false, text: geo.error ?? 'GPS…' }
 
   let compass: { ok: boolean; text: string }
   switch (orientation.status) {
@@ -35,7 +38,7 @@ export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orie
 
   return (
     <div className="sensor-status">
-      <span className={`chip ${gps.ok ? 'ok' : ''}`}>
+      <span className={`chip ${gps.ok ? 'ok' : ''} ${gps.warn ? 'warn' : ''}`}>
         <Icon name="pin" size={14} /> {gps.text}
       </span>
       {orientation.status === 'needs-permission' ? (

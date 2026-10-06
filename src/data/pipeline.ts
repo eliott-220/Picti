@@ -103,7 +103,8 @@ export async function importPhotoFile(file: File): Promise<ImportResult> {
         completeness === 'complet'
           ? {
               position: exif.position!,
-              accuracy: null,
+              // Précision notée par l'appareil (GPSHPositioningError), sinon inconnue.
+              accuracy: exif.accuracy,
               heading: exif.heading!,
               pitch: 0,
               roll: 0,

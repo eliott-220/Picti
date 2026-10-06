@@ -22,9 +22,10 @@ const SMOOTHING_MS = 300
  */
 export function useLivePosition(track: Track | null, basis: CameraBasis | null = null): GeoFix | null {
   const [live, setLive] = useState<GeoFix | null>(null)
-  // Position affichée, conservée d'un relevé à l'autre, et dernière position rendue.
+  // Position affichée, conservée d'un relevé à l'autre, et dernière position rendue (avec sa
+  // précision : elle est enregistrée avec la photo et décide des avertissements du déclencheur).
   const shown = useRef<{ at: GeoPoint; time: number } | null>(null)
-  const rendered = useRef<GeoPoint | null>(null)
+  const rendered = useRef<{ at: GeoPoint; accuracy: number } | null>(null)
   // Orientation actuelle et pas déjà pris en compte.
   const basisRef = useRef(basis)
   const counted = useRef<number | null>(null)
@@ -50,11 +51,12 @@ export function useLivePosition(track: Track | null, basis: CameraBasis | null =
       }
       const at = fromENU(track.origin, next)
       shown.current = { at, time: now }
-      // Nouveau rendu dès qu'on s'est déplacé d'un centimètre.
+      // Nouveau rendu dès qu'on s'est déplacé d'un centimètre, ou que la précision a changé
+      // (immobile, la position ne bouge pas mais le GPS peut s'améliorer).
       const last = rendered.current
-      const [de, dn] = last ? toENU(last, at) : [Infinity, 0]
-      if (Math.hypot(de, dn) >= 0.01) {
-        rendered.current = at
+      const [de, dn] = last ? toENU(last.at, at) : [Infinity, 0]
+      if (Math.hypot(de, dn) >= 0.01 || last?.accuracy !== track.accuracy) {
+        rendered.current = { at, accuracy: track.accuracy }
         setLive(trackFix(track, [next[0], next[1]]))
       }
       frame = requestAnimationFrame(tick)

@@ -9,6 +9,7 @@ import {
   type GeoframedPhoto,
 } from '../components/arProjection'
 import { Icon } from '../components/Icon'
+import { PreciseLocationNotice } from '../components/PreciseLocationNotice'
 import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
 import { useCapture } from '../components/useCapture'
@@ -305,6 +306,8 @@ function HuntView({
         </label>
         {demo && <p className="demo-hint">Mode démo : faites glisser pour regarder autour de vous.</p>}
       </footer>
+
+      <PreciseLocationNotice fix={geo.fix} />
 
       {phase === 'captured' && (
         <div className="captured" role="alertdialog" aria-label="Photo capturée">
