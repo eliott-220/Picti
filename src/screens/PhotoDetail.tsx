@@ -11,7 +11,17 @@ import { canSaveOthersPhotos } from '../data/premium'
 import { savePhotoToDevice } from '../data/savePhoto'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
-import { isGeoframed, MODE_LABEL, photoDate, photoTitleAndDate, SELFIE_DEPTH, VISIBILITY_LABEL, type GeoPhoto, type Visibility } from '../data/types'
+import {
+  isGeoframed,
+  MODE_LABEL,
+  photoDate,
+  photoTitleAndDate,
+  SELFIE_DEPTH,
+  VISIBILITIES,
+  VISIBILITY_LABEL,
+  visibilityHelp,
+  type GeoPhoto,
+} from '../data/types'
 import { compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { goBack, navigate } from '../router'
@@ -19,12 +29,6 @@ import { goBack, navigate } from '../router'
 const DEPTHS = [2, 4, 6, 10, 20, 50]
 /** Selfie : l'auteur à bout de bras, en plus des distances habituelles. */
 const SELFIE_DEPTHS = [SELFIE_DEPTH, ...DEPTHS]
-const VISIBILITIES: Visibility[] = ['public', 'amis', 'prive']
-const VISIBILITY_HELP: Record<Visibility, string> = {
-  public: 'Tous les utilisateurs de PICTI qui passent sur place peuvent la découvrir.',
-  amis: 'Seuls vos amis peuvent la découvrir sur place.',
-  prive: 'Vous seul pouvez la voir.',
-}
 
 const fmt = (x: number, digits = 0) =>
   (Number(x.toFixed(digits)) || 0).toLocaleString('fr-FR', { maximumFractionDigits: digits })
@@ -177,7 +181,7 @@ function PhotoDetailView({ photo }: { photo: GeoPhoto }) {
                 </button>
               ))}
             </div>
-            <small>{VISIBILITY_HELP[photo.visibility]}</small>
+            <small>{visibilityHelp(photo.visibility)}</small>
           </div>
         )}
 

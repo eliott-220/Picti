@@ -70,6 +70,13 @@ Maquette du viseur (photo du Vieux-Port au centre, bouton « Capturer · 3 m »)
 - **À vérifier sur iPhone** : fluidité de l'agrandissement et du flou (filtre `blur` sur l'image
   transformée près du plan), tolérances d'immobilité avec la vraie boussole, rendu du cadre.
 
+## Amis et vie privée (même version)
+
+Ajoutés à la 0.14.0 sur la même branche, commit séparé : nouvelles photos réservées aux amis par
+défaut (réglable dans le profil), pastille de visibilité à la prise et à l'import, invitations
+(lien, QR code, recherche par nom), carte filtrable Monde / Amis. Détail :
+[Amis (0.14.0)](2026-10-06-amis.md).
+
 ## Mise en ligne
 
 Pull request vers `main`, **non fusionnée** : fusionner = mise en production automatique sur

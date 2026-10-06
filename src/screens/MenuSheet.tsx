@@ -8,13 +8,22 @@ import { isGeoframed } from '../data/types'
 import { navigate } from '../router'
 
 export function MenuSheet({ onClose }: { onClose: () => void }) {
-  const { myPhotos, captures, profile } = useStore()
+  const { myPhotos, captures, profile, friends } = useStore()
   const { focal35, measured } = useCameraFocal()
   const geoframed = myPhotos.filter(isGeoframed).length
   const hunted = new Set(captures.map((c) => c.photoId)).size
+  const requests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
 
-  const items: { icon: IconName; label: string; detail: string; to: string }[] = [
-    { icon: 'user', label: 'Mon profil', detail: `${geoframed} photo${geoframed > 1 ? 's' : ''} géocadrée${geoframed > 1 ? 's' : ''}`, to: '/profil' },
+  const items: { icon: IconName; label: string; detail: string; to: string; badge?: number }[] = [
+    requests
+      ? {
+          icon: 'user',
+          label: 'Mon profil',
+          detail: `${requests} demande${requests > 1 ? 's' : ''} d’ami à accepter`,
+          to: '/profil/amis',
+          badge: requests,
+        }
+      : { icon: 'user', label: 'Mon profil', detail: `${geoframed} photo${geoframed > 1 ? 's' : ''} géocadrée${geoframed > 1 ? 's' : ''}`, to: '/profil' },
     { icon: 'flag', label: 'Mes chasses', detail: `${hunted} capture${hunted > 1 ? 's' : ''}`, to: '/chasses' },
     { icon: 'compass', label: 'Carte du monde', detail: 'Les photos géocadrées partout sur Terre', to: '/carte' },
     { icon: 'pin', label: 'À proximité', detail: 'Photos à retrouver autour de moi', to: '/proximite' },
@@ -39,6 +48,11 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
             <button type="button" onClick={() => navigate(it.to)}>
               <span className="menu-icon">
                 <Icon name={it.icon} />
+                {!!it.badge && (
+                  <span className="round-badge" aria-label={`${it.badge} demande${it.badge > 1 ? 's' : ''} d’ami`}>
+                    {it.badge > 99 ? '99+' : it.badge}
+                  </span>
+                )}
               </span>
               <span className="menu-text">
                 <strong>{it.label}</strong>

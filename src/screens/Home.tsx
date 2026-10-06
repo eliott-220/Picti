@@ -6,9 +6,11 @@ import { SensorStatus } from '../components/SensorStatus'
 import { useElementSize } from '../components/useElementSize'
 import { RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
+import { VisibilityPill } from '../components/VisibilityPill'
 import { createDirectPhoto } from '../data/pipeline'
+import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
-import { isGeoframed, type GeoPhoto } from '../data/types'
+import { isGeoframed, VISIBLE_BY, type GeoPhoto } from '../data/types'
 import { computeAlignment } from '../geo/alignment'
 import { FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis } from '../geo/orientation'
@@ -42,8 +44,12 @@ export function Home() {
   // Focale de la caméra principale, mesurée en tournant le téléphone.
   const { focal35 } = useCameraFocal()
   useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)
-  const { addPhoto, addCapture, nearby, captures, isMine, photos } = useStore()
+  const { addPhoto, addCapture, nearby, captures, isMine, photos, profile, friends } = useStore()
   const toast = useToast()
+  // Visibilité de la prochaine photo : réglage du profil, ou choix fait avec la pastille.
+  const visibility = useShotVisibility(profile?.defaultVisibility ?? 'amis')
+  // Demandes d'ami reçues : pastille sur le bouton du menu.
+  const friendRequests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
   useNearbyRefresh(geo.fix)
 
   // Photos d'autres utilisateurs à chasser autour de soi.
@@ -101,20 +107,18 @@ export function Home() {
         { fix: position ?? geo.fix, angles, absolute: orientation.absolute },
         { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : focal35 },
       )
-      await addPhoto(photo, images)
+      const saved = await addPhoto(photo, images, visibility)
       navigator.vibrate?.(30)
       if (photo.geoframe) {
         const accuracy = photo.geoframe.accuracy
         // GPS encore imprécis (premières secondes, intérieur) : la photo pourra paraître décalée.
         const vague = accuracy != null && accuracy > PRECISE_FIX
-        toast(
-          vague
-            ? `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'}, mais GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée`
-            : selfie
-              ? 'Selfie géocadré et publié'
-              : 'Photo géocadrée et publiée',
-          { label: 'Voir', to: `/photo/${photo.id}` },
-        )
+        // Où elle est publiée ; « Modifier » ouvre le détail (choix de la visibilité).
+        const published = `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'} · visible par ${VISIBLE_BY[saved.visibility]}`
+        toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published, {
+          label: 'Modifier',
+          to: `/photo/${photo.id}`,
+        })
       } else {
         const missing = !geo.fix ? 'position GPS' : 'boussole'
         const kind = selfie ? 'Selfie gardé' : 'Photo gardée'
@@ -179,16 +183,19 @@ export function Home() {
 
       <div className="bottom-bar">
         <RoundButton icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
-        <button
-          type="button"
-          className="shutter"
-          onClick={shoot}
-          disabled={busy}
-          aria-label={selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}
-        >
-          <Icon name="scan" size={40} />
-        </button>
-        <RoundButton icon="grid" label="Menu" onClick={() => setSheet('menu')} />
+        <div className="shutter-group">
+          {!sheet && <VisibilityPill value={visibility} onChange={setShotVisibility} className="shutter-visibility" />}
+          <button
+            type="button"
+            className="shutter"
+            onClick={shoot}
+            disabled={busy}
+            aria-label={selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}
+          >
+            <Icon name="scan" size={40} />
+          </button>
+        </div>
+        <RoundButton icon="grid" label="Menu" onClick={() => setSheet('menu')} badge={friendRequests} />
       </div>
 
       {sheet === 'import' && <ImportSheet onClose={() => setSheet(null)} fix={geo.fix} />}

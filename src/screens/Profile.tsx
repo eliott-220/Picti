@@ -1,22 +1,39 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { photoTime } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { PremiumCard } from '../components/PremiumCard'
 import { Avatar, AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
+import { inviteLink } from '../data/invite'
+import { setShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
-import { isGeoframed, VISIBILITY_LABEL } from '../data/types'
+import {
+  isGeoframed,
+  VISIBILITIES,
+  VISIBILITY_AUDIENCE,
+  VISIBILITY_LABEL,
+  visibilityHelp,
+  type PersonResult,
+  type Visibility,
+} from '../data/types'
 import { groupBySpot } from '../geo/spots'
 import { goBack, navigate } from '../router'
 
 /** « Moi » : profil, chasseurs, amis et photos géocadrées. */
-export function Profile() {
+export function Profile({ section }: { section?: 'amis' }) {
   const { profile, myPhotos, hunters, saveProfile } = useStore()
   const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(profile?.name ?? '')
   const [city, setCity] = useState(profile?.city ?? '')
+  const friendsRef = useRef<HTMLDivElement>(null)
+  const defaultVisibility = profile?.defaultVisibility ?? 'amis'
+
+  // Arrivée par « Mes amis » (menu, carte) : directement sur la liste d'amis.
+  useEffect(() => {
+    if (section === 'amis') friendsRef.current?.scrollIntoView({ block: 'start' })
+  }, [section])
 
   const geoframed = myPhotos.filter(isGeoframed)
   // Photos prises au même endroit : une seule vignette, empilée (on les fait défiler dans le détail).
@@ -42,6 +59,17 @@ export function Profile() {
     try {
       await saveProfile({ name: name.trim(), city: city.trim() })
       setEditing(false)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Enregistrement impossible')
+    }
+  }
+
+  async function chooseDefault(v: Visibility) {
+    if (v === defaultVisibility) return
+    try {
+      await saveProfile({ defaultVisibility: v })
+      // La pastille du viseur repart du nouveau réglage.
+      setShotVisibility(null)
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Enregistrement impossible')
     }
@@ -84,11 +112,32 @@ export function Profile() {
             Quand quelqu’un retrouvera l’une de vos photos sur place, il apparaîtra ici.
           </EmptyState>
         )}
-        <Friends />
+        <Friends ref={friendsRef} />
       </section>
 
       <section className="card white">
         <PremiumCard />
+        <div className="visibility default-visibility">
+          Mes nouvelles photos sont visibles par :
+          <div className="chips" role="radiogroup" aria-label="Visibilité par défaut de mes nouvelles photos">
+            {VISIBILITIES.map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={defaultVisibility === v}
+                className={`chip ${defaultVisibility === v ? 'selected' : ''}`}
+                onClick={() => void chooseDefault(v)}
+              >
+                {VISIBILITY_AUDIENCE[v]}
+              </button>
+            ))}
+          </div>
+          <small>
+            {visibilityHelp(defaultVisibility, { plural: true })} Vous pouvez changer avant chaque photo (pastille au-dessus
+            du déclencheur) ou après coup, dans le détail de la photo.
+          </small>
+        </div>
         <h2 className="section-title">
           Mes photos géocadrées ({geoframed.length})
         </h2>
@@ -98,7 +147,8 @@ export function Profile() {
               <PhotoTile
                 key={p.id}
                 id={p.id}
-                badge={p.visibility !== 'public' ? VISIBILITY_LABEL[p.visibility] : undefined}
+                // Seules les photos qui ne suivent pas mon réglage par défaut sont signalées.
+                badge={p.visibility !== defaultVisibility ? VISIBILITY_LABEL[p.visibility] : undefined}
                 stack={1 + others.length}
                 label={others.length ? `${1 + others.length} photos au même endroit` : undefined}
                 onClick={() => navigate(`/photo/${p.id}`)}
@@ -124,16 +174,18 @@ export function Profile() {
   )
 }
 
-/** Mes amis : code à partager, ajout par code, demandes reçues. */
-function Friends() {
+/** Mes amis : invitation (lien, QR code), ajout par code ou par nom, demandes reçues. */
+function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
   const { profile, friends, addFriend, acceptFriend, removeFriend } = useStore()
   const toast = useToast()
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showQr, setShowQr] = useState(false)
 
   const accepted = friends.filter((f) => f.status === 'accepted')
   const incoming = friends.filter((f) => f.status === 'pending' && !f.outgoing)
   const outgoing = friends.filter((f) => f.status === 'pending' && f.outgoing)
+  const link = profile ? inviteLink(profile.friendCode) : ''
 
   async function run(action: () => Promise<string | void>) {
     setBusy(true)
@@ -147,18 +199,27 @@ function Friends() {
     }
   }
 
-  async function share() {
-    const text = `Ajoute-moi sur PICTI avec mon code ami : ${profile?.friendCode}`
+  async function invite() {
+    const text = `Ajoute-moi en ami sur PICTI (mon code : ${profile?.friendCode}) :`
     if (navigator.share) {
-      await navigator.share({ title: 'PICTI', text, url: window.location.origin }).catch(() => undefined)
-    } else {
-      await navigator.clipboard?.writeText(text)
-      toast('Code copié')
+      try {
+        await navigator.share({ title: 'PICTI', text, url: link })
+        return
+      } catch (err) {
+        // Partage annulé : rien à faire ; autre échec : on copie le lien.
+        if (err instanceof DOMException && err.name === 'AbortError') return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${link}`)
+      toast('Lien d’invitation copié')
+    } catch {
+      toast(link)
     }
   }
 
   return (
-    <div className="friends">
+    <div className="friends" ref={ref}>
       <h2 className="section-title">
         Mes amis ({accepted.length})
       </h2>
@@ -169,10 +230,22 @@ function Friends() {
           <br />
           <strong>{profile?.friendCode}</strong>
         </div>
-        <button type="button" className="btn small light" onClick={() => void share()}>
-          Partager
-        </button>
+        <div className="friend-code-actions">
+          <button type="button" className="btn small light" onClick={() => void invite()}>
+            <Icon name="share" size={18} /> Inviter
+          </button>
+          <button
+            type="button"
+            className={`icon-btn qr-toggle ${showQr ? 'active' : ''}`}
+            aria-label={showQr ? 'Masquer le QR code' : 'Afficher le QR code de mon lien'}
+            aria-expanded={showQr}
+            onClick={() => setShowQr((v) => !v)}
+          >
+            <Icon name="qr" />
+          </button>
+        </div>
       </div>
+      {showQr && link && <InviteQr link={link} />}
 
       <form
         className="friend-add"
@@ -197,6 +270,8 @@ function Friends() {
           Ajouter
         </button>
       </form>
+
+      <FriendSearch />
 
       {incoming.map((f) => (
         <div className="friend-row" key={f.userId}>
@@ -248,6 +323,139 @@ function Friends() {
           </button>
         </div>
       ))}
+    </div>
+  )
+}
+
+/** QR code du lien d'invitation, à scanner avec l'appareil photo (bibliothèque chargée à la demande). */
+function InviteQr({ link }: { link: string }) {
+  const [svg, setSvg] = useState<{ link: string; markup: string | null } | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    import('qrcode')
+      .then((qr) =>
+        qr.toString(link, {
+          type: 'svg',
+          margin: 1,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#141414', light: '#ffffff' },
+        }),
+      )
+      .then((markup) => alive && setSvg({ link, markup }))
+      .catch(() => alive && setSvg({ link, markup: null }))
+    return () => {
+      alive = false
+    }
+  }, [link])
+
+  const markup = svg?.link === link ? svg.markup : undefined
+  return (
+    <div className="invite-qr">
+      {markup ? (
+        <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`} alt="QR code de mon lien d’invitation" />
+      ) : (
+        <span className="invite-qr-placeholder">{markup === null ? 'QR code indisponible' : 'Chargement…'}</span>
+      )}
+      <small>À scanner avec l’appareil photo du téléphone de votre ami.</small>
+    </div>
+  )
+}
+
+/** Chercher un ami par nom (3 lettres au moins) : ni moi, ni mes amis. */
+function FriendSearch() {
+  const { friends, searchPeople, requestFriend, acceptFriend } = useStore()
+  const toast = useToast()
+  const [query, setQuery] = useState('')
+  const [found, setFound] = useState<{ query: string; people: PersonResult[] } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const q = query.trim()
+  const active = q.length >= 3
+  const people = found?.query === q ? found.people : null
+
+  useEffect(() => {
+    if (!active) return
+    let alive = true
+    const t = setTimeout(() => {
+      searchPeople(q)
+        .then((list) => alive && setFound({ query: q, people: list }))
+        .catch((err: unknown) => {
+          if (!alive) return
+          setFound({ query: q, people: [] })
+          toast(err instanceof Error ? err.message : 'Recherche impossible')
+        })
+    }, 300)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [q, active, searchPeople, toast])
+
+  async function act(person: PersonResult, action: () => Promise<string | void>) {
+    setBusy(person.id)
+    try {
+      const message = await action()
+      if (message) toast(message)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Action impossible')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="friend-search">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Chercher un ami par nom"
+        aria-label="Chercher un ami par nom"
+        autoComplete="off"
+        enterKeyHint="search"
+      />
+      {active &&
+        (people == null ? (
+          <p className="friend-search-note">Recherche…</p>
+        ) : people.length === 0 ? (
+          <p className="friend-search-note">Personne de ce nom (hors vos amis).</p>
+        ) : (
+          people.map((p) => {
+            const link = friends.find((f) => f.userId === p.id)
+            return (
+              <div className="friend-row" key={p.id}>
+                <Avatar name={p.name} size={44} />
+                <div className="friend-text">
+                  <strong>{p.name || 'Sans nom'}</strong>
+                  {p.city && <span>{p.city}</span>}
+                </div>
+                {link?.status === 'accepted' ? (
+                  <span className="friend-state">Ami</span>
+                ) : link?.outgoing ? (
+                  <span className="friend-state">Demande envoyée</span>
+                ) : link ? (
+                  <button
+                    type="button"
+                    className="btn small"
+                    disabled={busy === p.id}
+                    onClick={() => void act(p, () => acceptFriend(p.id))}
+                  >
+                    Accepter
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn small"
+                    disabled={busy === p.id}
+                    onClick={() => void act(p, () => requestFriend(p))}
+                  >
+                    Ajouter
+                  </button>
+                )}
+              </div>
+            )
+          })
+        ))}
     </div>
   )
 }

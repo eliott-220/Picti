@@ -15,6 +15,19 @@ describe('parseHash', () => {
     expect(parseHash('#/carte')).toEqual({ name: 'carte' })
   })
 
+  it('ouvre « Mes amis » dans le profil', () => {
+    expect(parseHash('#/profil/amis')).toEqual({ name: 'profil', section: 'amis' })
+    expect(parseHash('#/profil/autre')).toEqual({ name: 'profil' })
+  })
+
+  it('lit le code d’un lien d’invitation', () => {
+    expect(parseHash('#/ami/A1B2C3')).toEqual({ name: 'ami', code: 'A1B2C3' })
+    expect(parseHash('#/ami/a1b2c3?x')).toEqual({ name: 'ami', code: 'a1b2c3' })
+    expect(parseHash('#/ami/A1%20B2')).toEqual({ name: 'ami', code: 'A1 B2' })
+    expect(parseHash('#/ami')).toEqual({ name: 'accueil' })
+    expect(parseHash('#/ami/')).toEqual({ name: 'accueil' })
+  })
+
   it('lit les identifiants de photo', () => {
     expect(parseHash('#/photo/abc-123')).toEqual({ name: 'photo', id: 'abc-123' })
     expect(parseHash('#/chasse/abc')).toEqual({ name: 'chasse', id: 'abc' })

@@ -14,5 +14,8 @@ export const DIFFERE_PREMIUM_REQUIRED = true
 /** Enregistrer sur son téléphone la photo d'un autre utilisateur : réservé à PICTI Premium. */
 export const SAVE_OTHERS_PREMIUM_REQUIRED = true
 
+/** Adresse de l'application en ligne (liens d'invitation). */
+export const APP_URL = 'https://picti.vercel.app'
+
 /** Rayon de recherche des photos à proximité (m). */
 export const NEARBY_RADIUS = 500

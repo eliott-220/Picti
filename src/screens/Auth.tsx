@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Icon, Logo } from '../components/Icon'
 import { authErrorMessage, authLinkErrorMessage } from '../data/auth'
+import { rememberInvite } from '../data/invite'
 import { authLinkError, supabase } from '../data/supabase'
+import { parseHash } from '../router'
 
 const STEPS = [
   {
@@ -23,10 +25,19 @@ const STEPS = [
 
 type Mode = 'inscription' | 'connexion' | 'oubli'
 
+/** Lien d'invitation ouvert sans être connecté : le code est gardé pour après la connexion. */
+function invitationInLink(): boolean {
+  const route = parseHash(window.location.hash)
+  if (route.name !== 'ami') return false
+  rememberInvite(route.code)
+  return true
+}
+
 /** Première connexion : présentation du géocadrage, création de compte ou connexion. */
 export function Auth() {
   // Lien de l'e-mail expiré : on revient directement sur la demande d'un nouveau lien.
   const [mode, setMode] = useState<Mode>(authLinkError ? 'oubli' : 'inscription')
+  const [invited] = useState(invitationInLink)
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [email, setEmail] = useState('')
@@ -110,6 +121,11 @@ export function Auth() {
       </section>
 
       <form className="card white welcome-form" onSubmit={submit}>
+        {invited && (
+          <p className="form-message">
+            Un ami vous invite sur PICTI : créez votre compte (ou connectez-vous), son invitation vous attendra.
+          </p>
+        )}
         <div className="chips auth-tabs" role="tablist">
           <button
             type="button"
@@ -186,7 +202,7 @@ export function Auth() {
             Retour à la connexion
           </button>
         )}
-        {signup && <p className="fine">Vos photos sont publiques par défaut ; vous pouvez les réserver à vos amis ou les garder privées.</p>}
+        {signup && <p className="fine">Vos photos sont réservées à vos amis par défaut ; vous pouvez les rendre publiques ou les garder privées.</p>}
       </form>
     </main>
   )

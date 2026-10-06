@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { photoToRow, rowToPhoto, storagePaths, type PhotoRow } from './rows'
+import { photoToRow, profileChangesToRow, rowToPhoto, rowToProfile, storagePaths, type PhotoRow } from './rows'
 import type { GeoPhoto } from './types'
 
 const photo: GeoPhoto = {
@@ -64,6 +64,36 @@ describe('conversion photo ⇄ ligne', () => {
     const row = { ...asRow(photo), heading: null }
     expect(rowToPhoto(row).geoframe).toBeNull()
     expect(rowToPhoto(row).mode).toBeNull()
+  })
+})
+
+describe('profil ⇄ ligne', () => {
+  const row = {
+    id: 'u1',
+    name: 'Eliott',
+    city: 'La Rochelle',
+    friend_code: 'A1B2C3',
+    plan: 'free' as const,
+    default_visibility: 'amis' as const,
+  }
+
+  it('lit la visibilité par défaut des nouvelles photos', () => {
+    expect(rowToProfile(row)).toEqual({
+      id: 'u1',
+      name: 'Eliott',
+      city: 'La Rochelle',
+      friendCode: 'A1B2C3',
+      plan: 'free',
+      defaultVisibility: 'amis',
+    })
+    expect(rowToProfile({ ...row, default_visibility: 'prive' }).defaultVisibility).toBe('prive')
+  })
+
+  it('n’écrit que les colonnes modifiées, jamais le plan', () => {
+    expect(profileChangesToRow({ defaultVisibility: 'public' })).toEqual({ default_visibility: 'public' })
+    expect(profileChangesToRow({ name: 'Eliott', city: '' })).toEqual({ name: 'Eliott', city: '' })
+    const all = profileChangesToRow({ name: 'E', city: 'Paris', defaultVisibility: 'prive', plan: 'premium' } as never)
+    expect(all).toEqual({ name: 'E', city: 'Paris', default_visibility: 'prive' })
   })
 })
 

@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { GeoPoint } from '../geo/geodesy'
 import type { PhotoDraft } from './pipeline'
-import type { Capture, Friendship, GeoPhoto, Profile, Visibility } from './types'
+import type { Capture, Friendship, GeoPhoto, PersonResult, Profile, ProfileChanges, Visibility } from './types'
 
 export interface Store {
   userId: string
@@ -23,13 +23,20 @@ export interface Store {
   isMine(photo: GeoPhoto): boolean
   loadPhoto(id: string): Promise<GeoPhoto | null>
   refreshNearby(position: GeoPoint): Promise<void>
+  /** Sans visibilité : celle choisie par défaut dans le profil. */
   addPhoto(draft: PhotoDraft, images: { full: Blob; thumb: Blob }, visibility?: Visibility): Promise<GeoPhoto>
   updatePhoto(photo: GeoPhoto): Promise<void>
   removePhoto(id: string): Promise<void>
   addCapture(photoId: string, score: number): Promise<void>
-  saveProfile(changes: { name: string; city: string }): Promise<void>
-  /** Envoie une demande d'ami ; renvoie un message à afficher. */
+  saveProfile(changes: ProfileChanges): Promise<void>
+  /** Envoie une demande d'ami (ou accepte la sienne) ; renvoie un message à afficher. */
   addFriend(code: string): Promise<string>
+  /** Même chose depuis la recherche par nom ou un lien d'invitation. */
+  requestFriend(other: { id: string; name: string }): Promise<string>
+  /** Compte correspondant à un code ami (lien d'invitation), ou null. */
+  findByFriendCode(code: string): Promise<PersonResult | null>
+  /** Recherche d'amis par nom (3 lettres au moins) : ni moi, ni mes amis. */
+  searchPeople(query: string): Promise<PersonResult[]>
   acceptFriend(userId: string): Promise<void>
   removeFriend(userId: string): Promise<void>
   /** Passe le compte en Premium avec un code (seconde option de paiement). */

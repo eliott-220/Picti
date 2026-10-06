@@ -3,9 +3,11 @@ import { Icon } from '../components/Icon'
 import { EmptyState, PhotoTile, Sheet } from '../components/ui'
 import { importPhotoFile } from '../data/pipeline'
 import { PremiumCard } from '../components/PremiumCard'
+import { VisibilityPill } from '../components/VisibilityPill'
 import { canUseDiffere } from '../data/premium'
+import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
-import { isGeoframed } from '../data/types'
+import { isGeoframed, VISIBLE_BY } from '../data/types'
 import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
 import { navigate } from '../router'
 
@@ -27,6 +29,8 @@ function plural(n: number, word: string) {
 export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix | null }) {
   const { myPhotos, addPhoto, profile } = useStore()
   const allowed = canUseDiffere(profile)
+  // Même choix que la pastille du viseur, appliqué à tout le lot importé.
+  const visibility = useShotVisibility(profile?.defaultVisibility ?? 'amis')
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -38,7 +42,7 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
     for (const file of Array.from(files)) {
       try {
         const r = await importPhotoFile(file)
-        await addPhoto(r.photo, r.images)
+        await addPhoto(r.photo, r.images, visibility)
         if (r.completeness === 'complet') s.auto++
         else s.pending++
       } catch {
@@ -77,6 +81,15 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
           onChange={(e) => void onFiles(e.target.files)}
         />
       </div>
+
+      {allowed && (
+        <div className="import-visibility">
+          <span>
+            Photos importées visibles par <strong>{VISIBLE_BY[visibility]}</strong>
+          </span>
+          <VisibilityPill value={visibility} onChange={setShotVisibility} what="les photos importées" />
+        </div>
+      )}
 
       {summary && (
         <p className="import-summary">

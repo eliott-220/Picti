@@ -39,7 +39,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   (e-mail + mot de passe ; **mot de passe oublié** depuis 0.010.0 : `resetPasswordForEmail` → lien vers `window.location.origin` → écran `NewPassword`, repéré par `openedFromRecoveryLink` lu avant que Supabase n'efface l'adresse, et par l'événement `PASSWORD_RECOVERY`), tables `profiles`, `friendships`, `photos`, `captures`, RPC
   `nearby_photos`, bucket privé `photos` (dossier par utilisateur, URLs signées). Toutes les
   règles d'accès sont en RLS : voir `supabase/migrations/`. Visibilité par photo :
-  `public` (défaut) / `amis` / `prive`. Config client : `src/config.ts`.
+  `public` / `amis` / `prive` — **`amis` par défaut** depuis 0.14.0 (voir « Amis et visibilité »).
+  Config client : `src/config.ts`.
 - Modèle économique : géocadrage en direct gratuit ; **Premium** (colonne `profiles.plan`,
   non modifiable par l'utilisateur) : enregistrer les photos des autres
   (`SAVE_OTHERS_PREMIUM_REQUIRED = true`) et le géocadrage en différé
@@ -57,7 +58,36 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   conteneur de la carte) **replacés directement à chaque événement `move`** (`place`, attributs
   `data-lon`/`data-lat`/`data-heading`) : sur iPhone, le rendu React attend la fin du geste et
   les vignettes restaient figées 2 à 3 s (corrigé en 0.011.3). Le processus de fond MapLibre est assemblé par Vite
-  (`?worker&url` + `setWorkerUrl`).
+  (`?worker&url` + `setWorkerUrl`). Filtre **Monde / Amis** (depuis 0.14.0) : voir « Amis et visibilité ».
+- **Amis et visibilité** (depuis 0.14.0, migration `20261006120000_amis.sql`) :
+  - **Visibilité par défaut** : `profiles.default_visibility` (`amis` par défaut, modifiable par
+    son propriétaire — droit de colonne accordé, `plan` toujours exclu) ; défaut de
+    `photos.visibility` passé à `amis` (les photos déjà publiées gardent la leur). Réglage dans
+    Moi (« Mes nouvelles photos sont visibles par : Tout le monde / Mes amis / Moi seul »).
+    `addPhoto` sans visibilité → `profile.defaultVisibility`. Libellés partagés dans
+    `src/data/types.ts` (`VISIBILITIES`, `VISIBILITY_SHORT`, `VISIBILITY_AUDIENCE`, `VISIBLE_BY`,
+    `visibilityHelp`). Vignettes de « Mes photos » : badge seulement si la visibilité diffère du réglage.
+  - **Choix à la prise** : `VisibilityPill` au-dessus du déclencheur (un appui fait défiler
+    `nextVisibility` : public → amis → privé) ; part du réglage du profil, le choix tient pour la
+    session (`useShotVisibility` / `setShotVisibility`, `src/data/shotVisibility.ts`, en mémoire,
+    remis à zéro quand on change le réglage) ; même pastille dans `ImportSheet` (tout le lot).
+    Toast « Photo géocadrée · visible par vos amis » + « Modifier » (détail de la photo).
+  - **Invitations** : lien `https://picti.vercel.app/#/ami/<CODE>` (`inviteLink`, `APP_URL`,
+    `src/data/invite.ts` ; route `ami`) → écran `Invite` (« <Nom> (<ville>) veut être votre ami
+    sur PICTI », « Ajouter » = `requestFriend`, qui accepte si l'autre m'a déjà demandé ;
+    « Plus tard » ; son propre lien → « C'est votre lien »). Ouvert sans être connecté :
+    `Auth` le garde (`rememberInvite`, `localStorage` `picti.invitation`) et `Screens` y revient
+    après la connexion ou la confirmation de l'e-mail (`takePendingInvite`). Mes amis : « Inviter »
+    (`navigator.share`, repli copie), QR code du lien (`qrcode`, chargé à la demande, SVG en
+    `<img>`), recherche par nom (RPC `search_profiles` : connectés seulement, ≥ 3 lettres,
+    `ilike` avec `%`/`_` échappés, 20 résultats, ni moi ni mes amis ; état « Demande envoyée »
+    / « Accepter »). Pastille du nombre de demandes reçues sur le bouton du menu et l'entrée
+    « Mon profil » (→ `#/profil/amis`) ; amis relus au retour dans l'app (`visibilitychange`).
+  - **Carte Monde / Amis** : `photos_in_bounds(…, p_scope text default 'monde')` (`monde` |
+    `amis`, autre valeur refusée) ; en `amis` : `owner = auth.uid() or private.are_friends(…)`,
+    RLS toujours appliquée (security invoker). Changer de filtre vide les photos chargées et
+    recharge la zone visible sans recentrer ; choix mémorisé (`localStorage`
+    `picti.carte.filtre`) ; « Amis » sans ami → « Ajoutez des amis pour voir leurs photos ».
 - Photos d'un même endroit (rayon 10 m, `src/geo/spots.ts`) : **empilées**, la plus récente
   devant ; on fait glisser celle du dessus comme sur Tinder (`useCardSwipe`, `SwipeDeck`,
   en boucle via `cycle`) et des **points façon Instagram** (`Dots`) indiquent leur nombre.
@@ -261,13 +291,17 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   qui ne remplit plus jamais l'écran en se promenant ; à moins de 2 m de la photo elle-même, elle
   se floute et s'efface (plus de disparition sèche en la traversant, recto comme vitre) ; capture
   par agrandissement : on ne bouge plus, la photo grandit en 2 s jusqu'à couvrir l'écran en prenant
-  ses couleurs, capturée à 100 % — marcher ou tourner le téléphone annule.
+  ses couleurs, capturée à 100 % — marcher ou tourner le téléphone annule. Amis et vie privée (même
+  version) : nouvelles photos réservées aux amis par défaut (réglable dans le profil), pastille de
+  visibilité au-dessus du déclencheur et dans l'import, toast « visible par vos amis » + « Modifier »,
+  invitations (lien `#/ami/<code>`, partage, QR code, recherche par nom), pastille des demandes
+  reçues, carte filtrable Monde / Amis.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
 - Prochaines étapes : test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
-  l'approche, tolérances d'immobilité) ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
+  l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ; test terrain en marchant (reculer de 5 à 10 m) et de la carte orientable ;
   choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
   plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
   d'e-mails français dans `supabase/templates/`, à coller dans Supabase › Authentication › Emails ;
@@ -297,3 +331,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-09-30 — Couleurs inversées : la couleur, récompense de la chasse (0.013.0)](claude/picti/2026-09-30-couleurs-inversees.md)
 - [2026-09-30 — Capture à moins de 5 m, photo qui ne bouge plus (0.013.1)](claude/picti/2026-09-30-capture-5m-ancrage.md)
 - [2026-10-06 — Photo « carte », effacement à 2 m, capture par agrandissement (0.014.0)](claude/picti/2026-10-06-carte-et-capture.md)
+- [2026-10-06 — Amis : « amis » par défaut, choix à la prise, invitations, carte Monde / Amis (0.014.0)](claude/picti/2026-10-06-amis.md)

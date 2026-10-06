@@ -27,17 +27,19 @@ Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
 | À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
 
 | **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place, comme des **cartes** (cadre blanc, taille plafonnée), et **y restent quand on se déplace** ; pour un même endroit, **la plus récente est devant** et la frise permet de remonter vers les plus anciennes. |
-| **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut. |
+| **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus récente, compteur), **position exacte** en zoomant ; fiche du groupe de la plus récente à la plus ancienne ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut ; filtre **Monde / Amis** (toutes les photos visibles, ou seulement les miennes et celles de mes amis). |
+| **Visibilité** | Accueil, Import, Moi, Détail | Nouvelles photos **réservées aux amis** par défaut (réglable dans Moi) ; pastille au-dessus du déclencheur (Amis / Public / Privé) pour la prochaine photo, même choix pour un lot importé ; modifiable après coup dans le détail. |
+| **Amis** | Moi › Mes amis | **Lien d'invitation** (`#/ami/<code>`, à partager ou en **QR code**), ajout par code ou **par nom** ; demandes à accepter (pastille sur le menu), retrait. |
 | Enregistrer une photo | Détail | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
 
 Sur ordinateur (sans boussole), la chasse passe en **mode démo** : on se place au point de
 vue et on regarde autour de soi en faisant glisser l'image.
 
 **Réseau social (v0.2, Supabase)** : un compte est obligatoire. Chaque photo géocadrée est
-publiée — **publique** par défaut, ou réservée aux **amis**, ou **privée** — et quiconque passe
-au même endroit la voit apparaître dans « À proximité » et peut la chasser. Amis ajoutés par
-code, *chasseurs* (ceux qui ont capturé mes photos) et *proies* (ceux dont j'ai capturé les
-photos). Le géocadrage en direct est gratuit ; sont réservés à **PICTI Premium** :
+publiée — réservée aux **amis** par défaut (depuis 0.014.0), **publique** ou **privée** — et
+ceux qui ont le droit de la voir la découvrent sur place (« À proximité ») et peuvent la chasser.
+Amis ajoutés par lien d'invitation, QR code, code ou nom, *chasseurs* (ceux qui ont capturé mes
+photos) et *proies* (ceux dont j'ai capturé les photos). Le géocadrage en direct est gratuit ; sont réservés à **PICTI Premium** :
 l'enregistrement des photos des autres (`SAVE_OTHERS_PREMIUM_REQUIRED`) et le géocadrage en
 différé (`DIFFERE_PREMIUM_REQUIRED`, également refusé par la base aux comptes gratuits) — voir
 `src/config.ts` ; le plan d'un compte est la colonne `profiles.plan` (`free` / `premium`).

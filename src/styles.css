@@ -545,6 +545,7 @@ img {
 }
 
 .menu-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 48px;
@@ -1732,7 +1733,8 @@ img {
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: calc(var(--safe-bottom) + 128px);
+  /* Au-dessus de la pastille de visibilité du déclencheur. */
+  bottom: calc(var(--safe-bottom) + 156px);
 }
 
 /* ---------- Carte du monde ---------- */
@@ -2262,4 +2264,229 @@ img {
   background: #d9dde0;
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
   transform: rotate(8deg);
+}
+
+/* ---------- Visibilité et amis (0.14.0) ---------- */
+
+/* Pastille « Amis » / « Public » / « Privé » : un appui fait défiler les trois valeurs. */
+.visibility-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 14px 6px 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.visibility-pill:active {
+  transform: scale(0.95);
+}
+
+/* Viseur : au-dessus du déclencheur, sur fond de verre. */
+.shutter-group {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.shutter-visibility {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  translate: -50% 0;
+  background: var(--glass);
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+
+.shutter-visibility.public {
+  background: rgb(235 12 12 / 0.85);
+}
+
+/* Les notifications du viseur passent au-dessus de la pastille. */
+#root:has(.viewfinder) .toast {
+  bottom: calc(var(--safe-bottom) + 156px);
+}
+
+.import-visibility {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 20px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.import-visibility strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.default-visibility {
+  margin-top: 28px;
+}
+
+.default-visibility + .section-title {
+  margin-top: 32px;
+}
+
+.friend-code-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.friend-code-actions .btn svg {
+  margin-left: -4px;
+}
+
+.qr-toggle.active {
+  background: rgb(255 255 255 / 0.7);
+}
+
+.invite-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--r-tile);
+  background: #fff;
+  text-align: center;
+}
+
+.invite-qr img {
+  width: 200px;
+  height: 200px;
+  image-rendering: pixelated;
+}
+
+.invite-qr-placeholder {
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 200px;
+  color: var(--ink-2);
+}
+
+.invite-qr small {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.friend-search {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.friend-search input {
+  width: 100%;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.7);
+  font-size: 17px;
+}
+
+.friend-search-note {
+  padding: 0 18px;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.friend-state {
+  flex-shrink: 0;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Lien d'invitation : « X veut être votre ami sur PICTI ». */
+.invite-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  padding: calc(var(--safe-top) + 40px) var(--pad) calc(var(--r) + 28px);
+  background: var(--salmon);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+}
+
+.invite-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.invite-card p {
+  max-width: 34ch;
+  color: var(--ink-2);
+}
+
+.invite-card .avatar {
+  background: var(--salmon);
+  color: #fff;
+}
+
+.invite-actions {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Carte du monde : « Monde » / « Amis ». */
+.segmented {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: var(--shadow);
+}
+
+.segmented button {
+  min-width: 72px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  font-size: 15px;
+}
+
+.segmented button.selected {
+  background: var(--red);
+  color: #fff;
+}
+
+.map-scope {
+  position: absolute;
+  top: calc(var(--safe-top) + 76px);
+  left: 16px;
+}
+
+.map-no-friends {
+  position: absolute;
+  left: 16px;
+  right: 80px;
+  bottom: calc(var(--safe-bottom) + 32px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 14px 16px;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 0.95);
+  box-shadow: var(--shadow);
+  font-size: 15px;
 }

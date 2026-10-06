@@ -26,6 +26,25 @@ const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 /** Au-delà de ce zoom, les photos d'un même endroit restent groupées. */
 const CLUSTER_MAX_ZOOM = 19
 
+/**
+ * Filtre de la carte : « monde » = toutes les photos que j'ai le droit de voir ; « amis » =
+ * les miennes et celles de mes amis acceptés (filtré par la base, RPC `photos_in_bounds`).
+ */
+type MapScope = 'monde' | 'amis'
+const SCOPE_KEY = 'picti.carte.filtre'
+const SCOPES: { value: MapScope; label: string }[] = [
+  { value: 'monde', label: 'Monde' },
+  { value: 'amis', label: 'Amis' },
+]
+
+function savedScope(): MapScope {
+  try {
+    return localStorage.getItem(SCOPE_KEY) === 'amis' ? 'amis' : 'monde'
+  } catch {
+    return 'monde'
+  }
+}
+
 interface MapPhoto {
   id: string
   owner: string
@@ -82,7 +101,9 @@ interface InBoundsRow {
  * exacte quand on zoome.
  */
 export default function WorldMap() {
-  const { userId } = useStore()
+  const { userId, friends } = useStore()
+  const hasFriends = friends.some((f) => f.status === 'accepted')
+  const [scope, setScope] = useState<MapScope>(savedScope)
   const mine = (owner: string) => owner === userId
   const { fix } = useGeolocation()
   const container = useRef<HTMLDivElement | null>(null)
@@ -174,6 +195,7 @@ export default function WorldMap() {
         p_north: Math.min(90, n),
         p_east: wide ? 180 : wrap(e),
         p_limit: 2000,
+        p_scope: scope,
       })
       if (!alive) return
       setLoading(false)
@@ -201,7 +223,7 @@ export default function WorldMap() {
       alive = false
       clearTimeout(t)
     }
-  }, [view])
+  }, [view, scope])
 
   // Photos d'un même endroit, empilées : elles ne se séparent jamais, même au zoom maximal.
   const spots = useMemo(() => {
@@ -258,6 +280,19 @@ export default function WorldMap() {
     if (!map) return
     const zoom = sel.clusterId != null ? Math.min(index.getClusterExpansionZoom(sel.clusterId), 20) : 19
     map.easeTo({ center: sel.lngLat, zoom })
+    setSelection(null)
+  }
+
+  /** Changer de filtre : on recharge la zone visible, sans recentrer la carte. */
+  function chooseScope(next: MapScope) {
+    if (next === scope) return
+    try {
+      localStorage.setItem(SCOPE_KEY, next)
+    } catch {
+      // Stockage indisponible : le choix vaut pour cette visite.
+    }
+    setScope(next)
+    setPhotos(new Map())
     setSelection(null)
   }
 
@@ -336,6 +371,30 @@ export default function WorldMap() {
           </span>
         </div>
       </header>
+
+      <div className="map-scope segmented" role="radiogroup" aria-label="Photos affichées">
+        {SCOPES.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            role="radio"
+            aria-checked={scope === s.value}
+            className={scope === s.value ? 'selected' : ''}
+            onClick={() => chooseScope(s.value)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {scope === 'amis' && !hasFriends && !selection && (
+        <div className="map-no-friends" role="status">
+          <span>Ajoutez des amis pour voir leurs photos</span>
+          <button type="button" className="btn small" onClick={() => navigate('/profil/amis')}>
+            Mes amis
+          </button>
+        </div>
+      )}
 
       <nav className="map-actions" aria-label="Carte">
         {Math.abs(bearing) > 0.5 && (

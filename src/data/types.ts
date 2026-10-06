@@ -22,10 +22,52 @@ export interface Geoframe extends CameraAngles {
 /** Qui peut voir la photo (et donc la chasser). */
 export type Visibility = 'public' | 'amis' | 'prive'
 
+/** Ordre d'affichage (et de défilement de la pastille du viseur). */
+export const VISIBILITIES: Visibility[] = ['public', 'amis', 'prive']
+
 export const VISIBILITY_LABEL: Record<Visibility, string> = {
   public: 'Publique',
   amis: 'Amis uniquement',
   prive: 'Privée',
+}
+
+/** Libellé court de la pastille du viseur. */
+export const VISIBILITY_SHORT: Record<Visibility, string> = {
+  public: 'Public',
+  amis: 'Amis',
+  prive: 'Privé',
+}
+
+/** Réglage du profil : « Mes nouvelles photos sont visibles par… ». */
+export const VISIBILITY_AUDIENCE: Record<Visibility, string> = {
+  public: 'Tout le monde',
+  amis: 'Mes amis',
+  prive: 'Moi seul',
+}
+
+/** « Photo géocadrée · visible par vos amis ». */
+export const VISIBLE_BY: Record<Visibility, string> = {
+  public: 'tout le monde',
+  amis: 'vos amis',
+  prive: 'vous seul',
+}
+
+/** Qui peut découvrir la photo (ou, au pluriel, les nouvelles photos) sur place. */
+export function visibilityHelp(v: Visibility, { plural = false } = {}): string {
+  const them = plural ? 'les' : 'la'
+  switch (v) {
+    case 'public':
+      return `Tous les utilisateurs de PICTI qui passent sur place peuvent ${them} découvrir.`
+    case 'amis':
+      return `Seuls vos amis peuvent ${them} découvrir sur place.`
+    case 'prive':
+      return `Vous seul pouvez ${them} voir.`
+  }
+}
+
+/** Valeur suivante de la pastille du viseur (un appui fait défiler les trois). */
+export function nextVisibility(v: Visibility): Visibility {
+  return VISIBILITIES[(VISIBILITIES.indexOf(v) + 1) % VISIBILITIES.length]
 }
 
 export interface GeoPhoto {
@@ -79,6 +121,18 @@ export interface Profile {
   /** Code à partager pour être ajouté en ami. */
   friendCode: string
   plan: 'free' | 'premium'
+  /** Visibilité de mes nouvelles photos quand je n'en choisis pas d'autre (« amis » par défaut). */
+  defaultVisibility: Visibility
+}
+
+/** Modifications du profil que l'utilisateur peut faire lui-même (jamais le plan). */
+export type ProfileChanges = Partial<Pick<Profile, 'name' | 'city' | 'defaultVisibility'>>
+
+/** Un compte trouvé par la recherche d'amis par nom. */
+export interface PersonResult {
+  id: string
+  name: string
+  city: string
 }
 
 /** Lien d'amitié vu depuis l'utilisateur connecté. */

@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type { GeoPoint } from '../geo/geodesy'
 import { NEARBY_RADIUS } from '../config'
 import { forgetImage, primeImage, registerImagePaths } from './imageUrls'
+import { normalizeFriendCode } from './invite'
 import type { PhotoDraft } from './pipeline'
 import {
   PHOTO_SELECT,
+  PROFILE_SELECT,
   photoToRow,
+  profileChangesToRow,
   rowToCapture,
   rowToPhoto,
   rowToProfile,
@@ -16,7 +19,7 @@ import {
 } from './rows'
 import { StoreContext, type Store } from './storeContext'
 import { PHOTO_BUCKET, supabase } from './supabase'
-import type { Capture, Friendship, GeoPhoto, Profile, Visibility } from './types'
+import type { Capture, Friendship, GeoPhoto, PersonResult, Profile, ProfileChanges, Visibility } from './types'
 
 type FriendRow = {
   requester: string
@@ -76,7 +79,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     let alive = true
     ;(async () => {
       const [prof, mine, caps, hunts, fr] = await Promise.all([
-        supabase.from('profiles').select('id, name, city, friend_code, plan').eq('id', userId).single(),
+        supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
         supabase.from('photos').select(PHOTO_SELECT).eq('owner', userId).order('created_at', { ascending: false }),
         supabase
           .from('captures')
@@ -101,7 +104,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
         ...(mine.data as unknown as PhotoRow[]).map(rowToPhoto),
         ...captured.map((c) => rowToPhoto(c.photo!)),
       ])
-      setProfile(rowToProfile(prof.data as ProfileRow))
+      setProfile(rowToProfile(prof.data as unknown as ProfileRow))
       setCaptures(captured.map(rowToCapture))
       setHunters((hunts.data as unknown as CaptureRow[]).map(rowToCapture))
       setFriends(fr)
@@ -150,7 +153,9 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
   )
 
   const addPhoto = useCallback(
-    async (draft: PhotoDraft, images: { full: Blob; thumb: Blob }, visibility: Visibility = 'public') => {
+    async (draft: PhotoDraft, images: { full: Blob; thumb: Blob }, chosen?: Visibility) => {
+      // Sans choix explicite (pastille du viseur, import) : le réglage du profil, « amis » par défaut.
+      const visibility = chosen ?? profile?.defaultVisibility ?? 'amis'
       const { imagePath, thumbPath } = storagePaths(userId, draft.id, images.full.type || 'image/jpeg')
       const bucket = supabase.storage.from(PHOTO_BUCKET)
       const [up1, up2] = await Promise.all([
@@ -221,8 +226,8 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
   )
 
   const saveProfile = useCallback(
-    async (changes: { name: string; city: string }) => {
-      const { error: e } = await supabase.from('profiles').update(changes).eq('id', userId)
+    async (changes: ProfileChanges) => {
+      const { error: e } = await supabase.from('profiles').update(profileChangesToRow(changes)).eq('id', userId)
       fail(e, 'Profil')
       setProfile((p) => (p ? { ...p, ...changes } : p))
     },
@@ -231,17 +236,36 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
 
   const reloadFriends = useCallback(async () => setFriends(await fetchFriends(userId)), [userId])
 
-  const addFriend = useCallback(
-    async (rawCode: string) => {
-      const code = rawCode.trim().toUpperCase()
-      if (!code) return 'Saisissez le code de votre ami.'
-      if (code === profile?.friendCode) return 'C’est votre propre code !'
-      const { data: other } = await supabase.from('profiles').select('id, name').eq('friend_code', code).maybeSingle()
-      if (!other) return 'Aucun utilisateur avec ce code.'
+  // Demandes reçues pendant que l'app était en arrière-plan : relues au retour.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reloadFriends().catch(() => undefined)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [reloadFriends])
+
+  const findByFriendCode = useCallback(async (rawCode: string) => {
+    const code = normalizeFriendCode(rawCode)
+    if (!code) return null
+    const { data, error: e } = await supabase.from('profiles').select('id, name, city').eq('friend_code', code).maybeSingle()
+    fail(e, 'Invitation')
+    return (data as PersonResult | null) ?? null
+  }, [])
+
+  /** Demande d'ami, ou acceptation si l'autre m'a déjà demandé. */
+  const befriend = useCallback(
+    async (other: { id: string; name: string }) => {
+      if (other.id === userId) return 'C’est votre propre compte !'
       const existing = friends.find((f) => f.userId === other.id)
       if (existing?.status === 'accepted') return `${other.name} est déjà votre ami.`
       if (existing && !existing.outgoing) {
-        await supabase.from('friendships').update({ status: 'accepted' }).eq('requester', other.id).eq('addressee', userId)
+        const { error: e } = await supabase
+          .from('friendships')
+          .update({ status: 'accepted' })
+          .eq('requester', other.id)
+          .eq('addressee', userId)
+        fail(e, 'Ami')
         await reloadFriends()
         return `Vous êtes maintenant ami avec ${other.name}.`
       }
@@ -251,8 +275,27 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       await reloadFriends()
       return `Demande envoyée à ${other.name}.`
     },
-    [profile, friends, userId, reloadFriends],
+    [friends, userId, reloadFriends],
   )
+
+  const addFriend = useCallback(
+    async (rawCode: string) => {
+      const code = normalizeFriendCode(rawCode)
+      if (!code) return 'Saisissez le code de votre ami.'
+      if (code === profile?.friendCode) return 'C’est votre propre code !'
+      const other = await findByFriendCode(code)
+      if (!other) return 'Aucun utilisateur avec ce code.'
+      return befriend(other)
+    },
+    [profile, findByFriendCode, befriend],
+  )
+
+  const searchPeople = useCallback(async (query: string) => {
+    if (query.trim().length < 3) return []
+    const { data, error: e } = await supabase.rpc('search_profiles', { p_query: query.trim() })
+    fail(e, 'Recherche')
+    return (data ?? []) as PersonResult[]
+  }, [])
 
   const acceptFriend = useCallback(
     async (otherId: string) => {
@@ -312,6 +355,9 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       addCapture,
       saveProfile,
       addFriend,
+      requestFriend: befriend,
+      findByFriendCode,
+      searchPeople,
       acceptFriend,
       removeFriend,
       redeemPremiumCode,
@@ -336,6 +382,9 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       addCapture,
       saveProfile,
       addFriend,
+      befriend,
+      findByFriendCode,
+      searchPeople,
       acceptFriend,
       removeFriend,
       redeemPremiumCode,

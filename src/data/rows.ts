@@ -1,6 +1,14 @@
 // Conversion entre les lignes de la base Supabase et le modèle de l'application.
 
-import { DEFAULT_DEPTH, SELFIE_DEPTH, type Capture, type GeoPhoto, type Profile, type Visibility } from './types'
+import {
+  DEFAULT_DEPTH,
+  SELFIE_DEPTH,
+  type Capture,
+  type GeoPhoto,
+  type Profile,
+  type ProfileChanges,
+  type Visibility,
+} from './types'
 
 export interface PhotoRow {
   id: string
@@ -108,7 +116,11 @@ export interface ProfileRow {
   city: string
   friend_code: string
   plan: 'free' | 'premium'
+  default_visibility: Visibility
 }
+
+/** Colonnes à sélectionner pour construire le profil. */
+export const PROFILE_SELECT = 'id, name, city, friend_code, plan, default_visibility'
 
 export const rowToProfile = (r: ProfileRow): Profile => ({
   id: r.id,
@@ -116,7 +128,17 @@ export const rowToProfile = (r: ProfileRow): Profile => ({
   city: r.city,
   friendCode: r.friend_code,
   plan: r.plan,
+  defaultVisibility: r.default_visibility,
 })
+
+/** Colonnes à écrire pour des modifications du profil (seulement celles fournies). */
+export function profileChangesToRow(c: ProfileChanges): Partial<Pick<ProfileRow, 'name' | 'city' | 'default_visibility'>> {
+  return {
+    ...(c.name !== undefined && { name: c.name }),
+    ...(c.city !== undefined && { city: c.city }),
+    ...(c.defaultVisibility !== undefined && { default_visibility: c.defaultVisibility }),
+  }
+}
 
 export interface CaptureRow {
   id: string

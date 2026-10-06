@@ -5,7 +5,8 @@ import { useSyncExternalStore } from 'react'
 
 export type Route =
   | { name: 'accueil' }
-  | { name: 'profil' }
+  /** `#/profil/amis` : directement sur « Mes amis ». */
+  | { name: 'profil'; section?: 'amis' }
   | { name: 'chasses' }
   | { name: 'proximite' }
   | { name: 'carte' }
@@ -13,6 +14,8 @@ export type Route =
   | { name: 'photo'; id: string }
   | { name: 'chasse'; id: string }
   | { name: 'recaler'; id: string }
+  /** Lien d'invitation : `#/ami/<code ami>`. */
+  | { name: 'ami'; code: string }
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -20,7 +23,7 @@ export function parseHash(hash: string): Route {
   const [head, id] = parts
   switch (head) {
     case 'profil':
-      return { name: 'profil' }
+      return id === 'amis' ? { name: 'profil', section: 'amis' } : { name: 'profil' }
     case 'chasses':
       return { name: 'chasses' }
     case 'proximite':
@@ -33,6 +36,8 @@ export function parseHash(hash: string): Route {
     case 'chasse':
     case 'recaler':
       return id ? { name: head, id } : { name: 'accueil' }
+    case 'ami':
+      return id ? { name: 'ami', code: id } : { name: 'accueil' }
     default:
       return { name: 'accueil' }
   }
