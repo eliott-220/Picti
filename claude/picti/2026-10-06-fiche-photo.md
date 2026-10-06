@@ -180,8 +180,16 @@ l'accord d'Eliott**, comme le correctif.
 
 ## Mise en ligne
 
-Pull request vers `main`, **non fusionnée** : fusionner = mise en production automatique sur
-picti.vercel.app, seulement avec l'accord d'Eliott. La 0.16.0 marche sans la migration (elle lit
-alors `profiles`) ; appliquer `public_profile` et le correctif A + B1 avec son accord, B2 une fois la
-0.16.x en ligne. Conflits attendus avec la branche 0.15.2 (`claude/reproduire-et-gps`, pas encore
-fusionnée) : voir la pull request.
+- Accord d'Eliott (06/10) : appliquer `public_profile` et le correctif A + B1, et mettre la
+  0.016.0 en ligne. Entre-temps la **0.15.2** a été publiée : elle est **fusionnée** dans cette
+  branche (conflits : `Home.tsx` — la miniature et les toasts sans bouton passent dans `save()` de
+  la 0.15.2 —, version, docs). 267 tests (248 + 19), lint, build OK ; les parcours 0.16.0 (ci-dessus)
+  et 0.15.2 (bandeaux, carte « lieu quitté », image figée, GPS imprécis, moyenne à l'arrêt) rejoués
+  sur le code fusionné : identiques.
+- `main` avancée sur cette branche (mise en production automatique, sans PR, à la demande d'Eliott).
+  Retour arrière : 0.15.2 = `dpl_CzAQHyjkdtHaYc5XbwPDpfhKXFzg`.
+- **Base : rien d'appliqué.** L'outil de sécurité de Claude Code (mode automatique) a refusé
+  d'appliquer les migrations à la base de production, malgré l'accord d'Eliott. À coller dans
+  Supabase › SQL Editor : `supabase/migrations/20261006200000_profil_public.sql`, puis
+  `supabase/propositions/2026-10-06-droits-amities-et-profils.sql` (B2 y est en commentaire : seuls
+  A et B1 s'appliquent). La 0.16.0 marche sans (elle lit alors `profiles`).

@@ -208,7 +208,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   RLS ; une vignette par lieu, ↻, likes ; relue quand l'amitié change) ; pas amis : « Ses photos
   réservées aux amis apparaîtront quand vous serez amis. » Mon id → `#/profil` ; inexistant :
   message + Retour. Données : RPC `public_profile(p_id)` (migration
-  `20261006200000_profil_public.sql`, **à appliquer avec l'accord d'Eliott** : id, name, city,
+  `20261006200000_profil_public.sql`, **pas encore appliquée** (accord d'Eliott donné le 06/10 ; l'outil
+  de sécurité de Claude Code a refusé de l'appliquer : à faire dans Supabase › SQL Editor) : id, name, city,
   created_at, amitié `none | outgoing | incoming | friends`, security definer, connectés seulement) ;
   tant qu'elle n'existe pas, `fetchPublicProfile` lit ces colonnes dans `profiles` et l'amitié dans
   `friendships`. Si l'amitié de la base diffère du store, `reloadFriends` (exposé par le store).
@@ -225,7 +226,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   policy « Accepter une demande reçue » laisse le destinataire réécrire `requester` → devenir ami
   de n'importe qui sans son accord (**vérifié sur la base, transaction annulée**). `friend_code`
   seul ne suffit pas (il ne fait qu'envoyer une demande) mais il est lisible, avec `plan`, par tout
-  compte connecté. Correctif proposé, **non appliqué** :
+  compte connecté. Correctif proposé, accepté par Eliott le 06/10 mais **pas encore appliqué** (refusé
+  à Claude Code par son outil de sécurité ; à coller dans Supabase › SQL Editor) :
   `supabase/propositions/2026-10-06-droits-amities-et-profils.sql` (A : droit de mise à jour limité
   à `status` ; B1 : `my_profile()`, `find_profile_by_friend_code()` — la 0.16.0 s'en sert si elles
   existent, sinon lit la table ; B2, après la 0.16.x en ligne : `profiles` lisible seulement en
@@ -361,7 +363,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   aperçu ; la **production** se fait en redéployant cet aperçu avec `target: production`
   (API Vercel, `create_deployment` + `deploymentId`). **Attention : depuis le 30/09, chaque fusion dans
   `main` est mise en production automatiquement** (vu avec eliott-220/Picti#3 et #4) : fusionner une
-  pull request = mettre en ligne. **Production actuelle : 0.15.1** (`dpl_8MGLiue2e55LXVHuLAT93BhHxHSX`, commit `5a19ea7`, 06/10/2026 ; `main` avancée sans PR à la demande d'Eliott). Retour arrière possible : 0.15.0 (`dpl_5H8MFymL5FSrDjK4hHJxNJNCs7R6`, https://picti-hhcuypawj-dash-board4.vercel.app, étiquette git `v0.15.0`), 0.14.0 (`dpl_9TDSTZYJRyjE5TxMLy1h63DJWS7r`, https://picti-qid7yv1w0-dash-board4.vercel.app, étiquette git `v0.14.0`), 0.13.1 (`dpl_CWEBYDsasj4uGqN4HCQu4UEUSVuZ`, https://picti-1w0uak6yx-dash-board4.vercel.app, étiquette git `v0.13.1`), 0.013.1 d'origine (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`), 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
+  pull request = mettre en ligne. **Production actuelle : 0.16.0** (fiche d'une photo, fusionnée avec la 0.15.2 ; `main` avancée sans PR à la demande d'Eliott le 06/10/2026). Retour arrière possible : 0.15.2 (`dpl_CzAQHyjkdtHaYc5XbwPDpfhKXFzg`, https://picti-av1c6j733-dash-board4.vercel.app, commit `923f46f`), 0.15.1 (`dpl_8MGLiue2e55LXVHuLAT93BhHxHSX`, commit `5a19ea7`), 0.15.0 (`dpl_5H8MFymL5FSrDjK4hHJxNJNCs7R6`, https://picti-hhcuypawj-dash-board4.vercel.app, étiquette git `v0.15.0`), 0.14.0 (`dpl_9TDSTZYJRyjE5TxMLy1h63DJWS7r`, https://picti-qid7yv1w0-dash-board4.vercel.app, étiquette git `v0.14.0`), 0.13.1 (`dpl_CWEBYDsasj4uGqN4HCQu4UEUSVuZ`, https://picti-1w0uak6yx-dash-board4.vercel.app, étiquette git `v0.13.1`), 0.013.1 d'origine (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`), 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
   toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
@@ -485,8 +487,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
-- Prochaines étapes : accord d'Eliott sur la migration `public_profile` et sur le correctif de
-  sécurité des amitiés (A et B1 tout de suite, B2 après la 0.16.x en ligne) ; test sur iPhone de la
+- Prochaines étapes : appliquer la migration `public_profile` et le correctif de sécurité des
+  amitiés (A et B1, accord d'Eliott donné ; B2 quand plus personne n'a la 0.15.x) ; test sur iPhone de la
   fiche (défilement, feuille glissée vers le bas, bouton retour) ; test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
   l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ;
   0.015.0 sur iPhone (reproduction avec le calque, notifications en temps réel) ; 0.015.2 sur iPhone
