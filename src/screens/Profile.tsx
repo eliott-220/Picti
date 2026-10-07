@@ -6,7 +6,7 @@ import { AvatarRow, EmptyState, PersonLink, PhotoTile, RoundButton } from '../co
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { inviteLink } from '../data/invite'
-import { setShotVisibility } from '../data/shotVisibility'
+import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
 import {
   isGeoframed,
@@ -29,7 +29,8 @@ export function Profile({ section }: { section?: 'amis' }) {
   const [name, setName] = useState(profile?.name ?? '')
   const [city, setCity] = useState(profile?.city ?? '')
   const friendsRef = useRef<HTMLDivElement>(null)
-  const defaultVisibility = profile?.defaultVisibility ?? 'amis'
+  // Même mode que le déclencheur du viseur : le changer ici le change là-bas, et inversement.
+  const defaultVisibility = useShotVisibility()
 
   // Arrivée par « Mes amis » (menu, carte) : directement sur la liste d'amis.
   useEffect(() => {
@@ -65,15 +66,8 @@ export function Profile({ section }: { section?: 'amis' }) {
     }
   }
 
-  async function chooseDefault(v: Visibility) {
-    if (v === defaultVisibility) return
-    try {
-      await saveProfile({ defaultVisibility: v })
-      // La pastille du viseur repart du nouveau réglage.
-      setShotVisibility(null)
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Enregistrement impossible')
-    }
+  function chooseDefault(v: Visibility) {
+    if (v !== defaultVisibility) setShotVisibility(v)
   }
 
   return (
@@ -128,15 +122,15 @@ export function Profile({ section }: { section?: 'amis' }) {
                 role="radio"
                 aria-checked={defaultVisibility === v}
                 className={`chip ${defaultVisibility === v ? 'selected' : ''}`}
-                onClick={() => void chooseDefault(v)}
+                onClick={() => chooseDefault(v)}
               >
                 {VISIBILITY_AUDIENCE[v]}
               </button>
             ))}
           </div>
           <small>
-            {visibilityHelp(defaultVisibility, { plural: true })} Vous pouvez changer avant chaque photo (pastille au-dessus
-            du déclencheur) ou après coup, dans le détail de la photo.
+            {visibilityHelp(defaultVisibility, { plural: true })} Vous pouvez changer avant chaque photo (restez appuyé
+            sur le déclencheur et glissez) ou après coup, dans le détail de la photo.
           </small>
         </div>
         <h2 className="section-title">
@@ -148,7 +142,7 @@ export function Profile({ section }: { section?: 'amis' }) {
               <PhotoTile
                 key={p.id}
                 id={p.id}
-                // Seules les photos qui ne suivent pas mon réglage par défaut sont signalées.
+                // Seules les photos qui ne suivent pas le mode actuel sont signalées.
                 badge={p.visibility !== defaultVisibility ? VISIBILITY_LABEL[p.visibility] : undefined}
                 stack={1 + others.length}
                 likes={p.likesCount}

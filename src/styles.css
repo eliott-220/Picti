@@ -2702,28 +2702,85 @@ button.avatar-item {
   transform: scale(0.95);
 }
 
-/* Viseur : au-dessus du déclencheur, sur fond de verre. */
+/* Déclencheur du viseur (0.18.0) : son symbole dit le mode des prochaines photos ; un appui long
+   ouvre la réglette Public · Amis · Privé, qu'on parcourt en glissant le doigt. */
 .shutter-group {
   position: relative;
   display: grid;
   place-items: center;
 }
 
-.shutter-visibility {
+.shutter {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.shutter.picking {
+  transform: scale(1.08);
+}
+
+/* Réglette : position (left) calculée par `Shutter`, le mode de départ au-dessus du bouton. */
+.shutter-picker {
   position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  translate: -50% 0;
+  bottom: calc(100% + 14px);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  pointer-events: none;
+  animation: shutter-picker-in 0.14s ease-out;
+}
+
+@keyframes shutter-picker-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+.shutter-picker-caption {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
   background: var(--glass);
   color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
   backdrop-filter: blur(8px);
 }
 
-.shutter-visibility.public {
-  background: rgb(235 12 12 / 0.85);
+.shutter-modes {
+  display: flex;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(8px);
 }
 
-/* Les notifications du viseur passent au-dessus de la pastille. */
+.shutter-mode {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 0 7px;
+  border-radius: 999px;
+  color: rgb(255 255 255 / 0.75);
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+
+.shutter-mode.selected {
+  background: #fff;
+  color: var(--ink);
+}
+
+.shutter-mode.public.selected {
+  background: var(--red);
+  color: #fff;
+}
+
+/* Les notifications du viseur passent au-dessus de la réglette des modes. */
 #root:has(.viewfinder) .toast {
   bottom: calc(var(--safe-bottom) + 156px);
 }
@@ -3814,6 +3871,5 @@ button.tile-author {
     right: 136px;
     bottom: calc(var(--safe-bottom) + 4px);
   }
-  .reproduce-viewfinder .shutter-visibility { font-size: 11px; }
   .cross-message { bottom: 24px; font-size: 13px; }
 }

@@ -5,18 +5,18 @@ import { ArSpotsLayer } from '../components/ArSpotsLayer'
 import { Icon } from '../components/Icon'
 import { PreciseLocationNotice } from '../components/PreciseLocationNotice'
 import { SensorStatus } from '../components/SensorStatus'
+import { Shutter } from '../components/Shutter'
 import { useElementSize } from '../components/useElementSize'
 import { useReproduceStatus } from '../components/useReproduceStatus'
 import { DirectionArrow, RoundButton, Sheet, Thumb } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { CELEBRATION_MS } from '../components/useCapture'
-import { VisibilityPill } from '../components/VisibilityPill'
 import { useImageUrl } from '../data/imageUrls'
 import { unreadCount } from '../data/notifications'
 import { createDirectPhoto, type NewPhoto } from '../data/pipeline'
 import { viewOf } from '../data/photoSpots'
 import { outOfViewMessage, reproduceAlert, vaguePositionMessage, viewpointAt } from '../data/shotWarnings'
-import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
+import { setShotVisibility, takeVisibilityHint, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, ofName, VISIBLE_BY, type GeoPhoto } from '../data/types'
 import { computeAlignment } from '../geo/alignment'
@@ -77,11 +77,11 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   // Focale de la caméra principale, mesurée en tournant le téléphone.
   const { focal35 } = useCameraFocal()
   useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)
-  const { addPhoto, addCapture, nearby, captures, isMine, photos, profile, friends, notifications } = useStore()
+  const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications } = useStore()
   const unread = unreadCount(notifications)
   const toast = useToast()
-  // Visibilité de la prochaine photo : réglage du profil, ou choix fait avec la pastille.
-  const visibility = useShotVisibility(profile?.defaultVisibility ?? 'amis')
+  // Mode des prochaines photos (Public · Amis · Privé) : appui long sur le déclencheur, puis glisser.
+  const visibility = useShotVisibility()
   // Photo capturée depuis le viseur : sa fiche monte en feuille après la célébration ; « Fiche » la rouvre.
   const [captureSheet, setCaptureSheet] = useState<{ id: string; open: boolean } | null>(null)
   const sheetPhoto = captureSheet ? photos.find((p) => p.id === captureSheet.id) : undefined
@@ -242,7 +242,9 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       const parent = saved.versionOf ? photos.find((p) => p.id === saved.versionOf) : undefined
       const sameView = parent ? ` · ↻ même vue que ${isMine(parent) ? 'votre photo' : `la photo ${ofName(parent.ownerName || 'quelqu’un')}`}` : ''
       const published = `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'} · visible par ${VISIBLE_BY[saved.visibility]}${sameView}`
-      toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published)
+      // Les premières fois : comment changer de mode, puisque rien ne l'affiche à l'écran.
+      const hint = !vague && takeVisibilityHint() ? ' — restez appuyé sur le déclencheur pour changer' : ''
+      toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published + hint)
     } else {
       const missing = !geo.fix ? 'position GPS' : 'boussole'
       const text = `${kind} ${selfie ? 'gardé' : 'gardée'} sans ${missing} : à géocadrer sur place`
@@ -422,23 +424,17 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         ) : (
           <RoundButton icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
         )}
-        <div className="shutter-group">
-          {!sheet && <VisibilityPill value={visibility} onChange={setShotVisibility} className="shutter-visibility" />}
-          <button
-            type="button"
-            className={`shutter ${away ? 'warn' : ''}`}
-            onClick={() => void shoot()}
-            disabled={busy || !!held}
-            aria-label={`${selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}${away ? ' — hors de la vue de la photo d’origine' : ''}`}
-          >
-            <Icon name="scan" size={40} />
-            {away && (
-              <span className="shutter-warn" aria-hidden="true">
-                <Icon name="warning" size={16} />
-              </span>
-            )}
-          </button>
-        </div>
+        <Shutter
+          visibility={visibility}
+          onVisibility={(v) => {
+            setShotVisibility(v)
+            toast(`Prochaines photos visibles par ${VISIBLE_BY[v]}`)
+          }}
+          onShoot={() => void shoot()}
+          disabled={busy || !!held}
+          warn={away}
+          label={`${selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}${away ? ' — hors de la vue de la photo d’origine' : ''}`}
+        />
         {reproduce ? (
           <RoundButton
             icon="flipCamera"

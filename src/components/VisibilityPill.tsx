@@ -1,15 +1,10 @@
 import { nextVisibility, VISIBILITY_SHORT, VISIBLE_BY, type Visibility } from '../data/types'
-import { Icon, type IconName } from './Icon'
-
-const VISIBILITY_ICON: Record<Visibility, IconName> = {
-  public: 'globe',
-  amis: 'friends',
-  prive: 'lock',
-}
+import { Icon } from './Icon'
+import { VISIBILITY_ICON } from './visibilityIcon'
 
 /**
- * Pastille « Amis » / « Public » / « Privé » : visibilité des prochaines photos ;
- * un appui fait défiler les trois valeurs.
+ * Pastille « Public » / « Amis » / « Privé » : visibilité des photos importées ;
+ * un appui fait défiler les trois valeurs. (Au viseur, c'est le déclencheur qui choisit : `Shutter`.)
  */
 export function VisibilityPill({
   value,

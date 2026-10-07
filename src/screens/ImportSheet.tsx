@@ -29,8 +29,8 @@ function plural(n: number, word: string) {
 export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix | null }) {
   const { myPhotos, addPhoto, profile } = useStore()
   const allowed = canUseDiffere(profile)
-  // Même choix que la pastille du viseur, appliqué à tout le lot importé.
-  const visibility = useShotVisibility(profile?.defaultVisibility ?? 'amis')
+  // Même mode que le déclencheur du viseur, appliqué à tout le lot importé (et gardé s'il change ici).
+  const visibility = useShotVisibility()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState<Summary | null>(null)

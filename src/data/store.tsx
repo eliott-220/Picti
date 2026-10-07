@@ -8,6 +8,7 @@ import { forgetImage, primeImage, registerImagePaths } from './imageUrls'
 import { friendState } from './friends'
 import { normalizeFriendCode } from './invite'
 import { viewOf } from './photoSpots'
+import { getShotVisibility } from './shotVisibility'
 import type { PhotoDraft } from './pipeline'
 import {
   PHOTO_SELECT,
@@ -280,8 +281,8 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       images: { full: Blob; thumb: Blob },
       options: { visibility?: Visibility; versionOf?: string | null } = {},
     ) => {
-      // Sans choix explicite (pastille du viseur, import) : le réglage du profil, « amis » par défaut.
-      const chosen = options.visibility ?? profile?.defaultVisibility ?? 'amis'
+      // Sans choix explicite : le mode du déclencheur (Public à la première ouverture).
+      const chosen = options.visibility ?? getShotVisibility()
       const { versionOf, visibility } = versionParent(draft, chosen, options.versionOf)
       const { imagePath, thumbPath } = storagePaths(userId, draft.id, images.full.type || 'image/jpeg')
       const bucket = supabase.storage.from(PHOTO_BUCKET)
