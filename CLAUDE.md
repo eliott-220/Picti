@@ -64,11 +64,11 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     son propriétaire — droit de colonne accordé, `plan` toujours exclu) ; défaut de
     `photos.visibility` passé à `amis` (les photos déjà publiées gardent la leur). Réglage dans
     Moi (« Mes nouvelles photos sont visibles par : Tout le monde / Mes amis / Moi seul »).
-    **Depuis 0.18.0, l'app ne lit plus cette colonne** (voir « Choix à la prise »).
+    **Depuis 0.17.0, l'app ne lit plus cette colonne** (voir « Choix à la prise »).
     `addPhoto` sans visibilité → `getShotVisibility()`. Libellés partagés dans
     `src/data/types.ts` (`VISIBILITIES`, `VISIBILITY_SHORT`, `VISIBILITY_AUDIENCE`, `VISIBLE_BY`,
     `visibilityHelp`). Vignettes de « Mes photos » : badge seulement si la visibilité diffère du mode actuel.
-  - **Choix à la prise** (0.18.0, à la demande d'Eliott) : plus de pastille au-dessus du
+  - **Choix à la prise** (0.17.0, à la demande d'Eliott) : plus de pastille au-dessus du
     déclencheur. Le déclencheur (`src/components/Shutter.tsx`) montre le symbole du mode (globe /
     amis / cadenas, `VISIBILITY_ICON`) ; appui court = photo ; **appui long (300 ms) ou glissement
     horizontal (> 12 px)** = réglette Public · Amis · Privé au-dessus du bouton (mode de départ
@@ -501,7 +501,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.016.1 : Reproduire — deux croix (axe blanc, orientation cible jaune), centrées dans la vidéo hors commandes ; roulis, paysage, miroir selfie, flèche hors champ et consigne derrière ; repli à l’œil sans capteurs valides/récents. Distance et GPS séparés ; règles de rattachement, capture et base inchangées.
 - 0.016.2 : pastille de précision du viseur sans le mot « GPS » : épingle + « ±3 m » (« … » en attendant le signal).
 - 0.016.3 : fiche d'une photo non capturée : le bouton « Chasser in situ » devient « Capturer » (« Revoir in situ » inchangé).
-- 0.018.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). (0.017.0 = boutons verre liquide, abandonnée, jamais en ligne.)
+- 0.017.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). Numéro repris des boutons verre liquide (abandonnés, jamais en ligne) ; 0.018.0 est réservée à la coque Capacitor.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -550,4 +550,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Reproduire : deux croix à aligner (0.016.1)](claude/picti/2026-10-06-reproduire-deux-croix.md)
 - [2026-10-07 — Faille des amitiés corrigée en base (correctif A)](claude/picti/2026-10-07-faille-amities.md)
 - [2026-10-07 — Pastille de précision sans « GPS » (0.016.2)](claude/picti/2026-10-07-pastille-precision.md)
-- [2026-10-07 — Mode Public · Amis · Privé au déclencheur (0.18.0)](claude/picti/2026-10-07-mode-au-declencheur.md)
+- [2026-10-07 — Mode Public · Amis · Privé au déclencheur (0.17.0)](claude/picti/2026-10-07-mode-au-declencheur.md)

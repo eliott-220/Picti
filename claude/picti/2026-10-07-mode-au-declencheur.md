@@ -1,4 +1,4 @@
-# 2026-10-07 — Mode Public · Amis · Privé au déclencheur (0.18.0)
+# 2026-10-07 — Mode Public · Amis · Privé au déclencheur (0.17.0)
 
 Parent : [CLAUDE.md](../../CLAUDE.md)
 
@@ -45,8 +45,9 @@ change de mode à n'importe quel moment, enregistrer la réponse ».
   Public.
 - Ordre de la réglette de gauche à droite : Public · Amis · Privé (celui de `VISIBILITIES`).
   Public sélectionné en rouge, Amis / Privé en blanc.
-- Version 0.18.0 et non 0.17.0 : la 0.17.0 (boutons verre liquide) a été abandonnée et ses
-  documents portent ce numéro.
+- Version 0.17.0 : numéro repris des boutons « verre liquide », abandonnés le 07/10 sans être
+  mis en ligne (branche `claude/boutons-verre-liquide` jamais fusionnée) ; la 0.18.0 est réservée
+  à la coque Capacitor (prompt préparé le même jour).
 
 ## Vérifications
 

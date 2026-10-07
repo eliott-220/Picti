@@ -2702,7 +2702,7 @@ button.avatar-item {
   transform: scale(0.95);
 }
 
-/* Déclencheur du viseur (0.18.0) : son symbole dit le mode des prochaines photos ; un appui long
+/* Déclencheur du viseur (0.17.0) : son symbole dit le mode des prochaines photos ; un appui long
    ouvre la réglette Public · Amis · Privé, qu'on parcourt en glissant le doigt. */
 .shutter-group {
   position: relative;
