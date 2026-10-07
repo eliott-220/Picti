@@ -3817,3 +3817,527 @@ button.tile-author {
   .reproduce-viewfinder .shutter-visibility { font-size: 11px; }
   .cross-message { bottom: 24px; font-size: 13px; }
 }
+
+/* =====================================================================
+   Boutons selon la plateforme (0.17.0) — <html data-ui="ios|android">,
+   posé par src/platform.ts avant le premier rendu.
+   - iOS (et ordinateur) : « Liquid Glass » d'iOS 26, façon BeReal : verre
+     translucide, flou et saturation du décor, reflets sur les bords,
+     le bouton gonfle et s'éclaire à l'appui.
+   - Android : Material 3 (expressif) : couleurs tonales, élévation, la
+     forme se resserre à l'appui, onde partie du doigt, puces à coins de 8 px.
+   Les positions (.back-btn, .permission…) ne changent pas : les effets
+   d'appui passent par `scale` (et non `transform`).
+   ===================================================================== */
+
+/* Repère et pile propre pour les calques (reflet, onde) des boutons. Sans poids. */
+:where(.btn, .shutter, .visibility-pill, .segmented button, button.chip) {
+  position: relative;
+}
+
+:where(html[data-ui]) :is(.round-btn, .btn, .shutter, .visibility-pill, .sensor-status .chip, .segmented button, .chips .chip) {
+  isolation: isolate;
+}
+
+/* ---------- iOS : verre liquide ---------- */
+
+html[data-ui='ios'] {
+  /* Verre « normal » (sur fond clair : pages, carte) */
+  --lg-fill: linear-gradient(180deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.5));
+  --lg-blur: blur(16px) saturate(190%) brightness(1.04);
+  --lg-rim:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.95),
+    inset 0 -1px 1px rgb(255 255 255 / 0.5),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.6),
+    inset 0 -8px 14px -10px rgb(255 255 255 / 0.9);
+  --lg-drop: 0 8px 24px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.08);
+  /* Verre « clair » (sur la caméra) */
+  --lg-clear-fill: linear-gradient(180deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.06));
+  --lg-clear-blur: blur(12px) saturate(170%) brightness(1.1);
+  --lg-clear-rim:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.7),
+    inset 0 -1px 1px rgb(255 255 255 / 0.28),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.35),
+    inset 0 -10px 16px -12px rgb(255 255 255 / 0.55);
+  --lg-clear-drop: 0 6px 20px rgb(0 0 0 / 0.22);
+  /* Verre teinté rouge (actions principales) */
+  --lg-red-fill: linear-gradient(180deg, rgb(255 66 66 / 0.9), rgb(222 8 8 / 0.86));
+  --lg-red-rim:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.65),
+    inset 0 -1px 1px rgb(255 190 190 / 0.45),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.3),
+    inset 0 -10px 16px -10px rgb(255 160 160 / 0.7);
+  --lg-red-drop: 0 8px 22px rgb(235 12 12 / 0.32), 0 1px 3px rgb(120 0 0 / 0.2);
+  --lg-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html[data-ui='ios'] :is(.round-btn, .btn, .shutter, .visibility-pill, .sensor-status .chip, .segmented) {
+  border: none;
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  transition:
+    scale 0.35s var(--lg-spring),
+    background 0.25s,
+    box-shadow 0.25s,
+    filter 0.25s,
+    opacity 0.2s;
+}
+
+/* Reflet spéculaire : une lueur en haut à gauche, sous l'icône. */
+html[data-ui='ios'] :is(.round-btn, .btn, .shutter)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 70% at 30% 0%, rgb(255 255 255 / 0.55), transparent 55%),
+    radial-gradient(90% 60% at 70% 110%, rgb(255 255 255 / 0.22), transparent 60%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+/* Appui : le verre gonfle et s'éclaire (ressort). */
+html[data-ui='ios'] :is(.round-btn, .btn, .shutter, .visibility-pill, button.chip):active:not(:disabled) {
+  scale: 1.08;
+  filter: brightness(1.12) saturate(1.1);
+  transform: none;
+}
+
+html[data-ui='ios'] .permission:active:not(:disabled) {
+  transform: translateX(-50%);
+}
+
+html[data-ui='ios'] .btn:active:not(:disabled) {
+  scale: 1.04;
+}
+
+html[data-ui='ios'] .shutter:active:not(:disabled) {
+  scale: 0.94;
+}
+
+/* Boutons ronds : verre normal (pages, carte)… */
+html[data-ui='ios'] .round-btn {
+  background: var(--lg-fill);
+  color: var(--ink);
+  box-shadow: var(--lg-rim), var(--lg-drop);
+}
+
+/* … verre clair sur la caméra (viseur, chasse, recalage) : icônes blanches. */
+html[data-ui='ios'] :is(.viewfinder, .hunt, .recaler) .round-btn,
+html[data-ui='ios'] .sensor-status .chip,
+html[data-ui='ios'] .shutter-visibility {
+  background: var(--lg-clear-fill);
+  -webkit-backdrop-filter: var(--lg-clear-blur);
+  backdrop-filter: var(--lg-clear-blur);
+  color: #fff;
+  box-shadow: var(--lg-clear-rim), var(--lg-clear-drop);
+}
+
+html[data-ui='ios'] :is(.viewfinder, .hunt, .recaler) .round-btn svg {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35));
+}
+
+/* Les boutons du rail s'estompent derrière une feuille ouverte. */
+html[data-ui='ios'] .round-btn.dim {
+  opacity: 0.5;
+}
+
+/* Bouton enclenché (selfie, …) : verre teinté rouge. */
+html[data-ui='ios'] .round-btn.active,
+html[data-ui='ios'] :is(.viewfinder, .hunt, .recaler) .round-btn.active {
+  background: var(--lg-red-fill);
+  color: #fff;
+  box-shadow: var(--lg-red-rim), var(--lg-red-drop);
+}
+
+/* Déclencheur : goutte de verre rouge dans un anneau de verre (façon BeReal). */
+html[data-ui='ios'] .shutter {
+  background: var(--lg-red-fill);
+  box-shadow:
+    var(--lg-red-rim),
+    0 0 0 5px rgb(255 255 255 / 0.22),
+    0 0 0 5.5px rgb(255 255 255 / 0.5),
+    0 10px 28px rgb(235 12 12 / 0.4);
+}
+
+html[data-ui='ios'] .shutter svg {
+  filter: drop-shadow(0 1px 2px rgb(120 0 0 / 0.4));
+}
+
+/* Boutons texte : verre teinté rouge… */
+html[data-ui='ios'] .btn {
+  background: var(--lg-red-fill);
+  color: #fff;
+  box-shadow: var(--lg-red-rim), var(--lg-red-drop);
+}
+
+/* … verre gris (secondaire) */
+html[data-ui='ios'] .btn.ghost {
+  background: linear-gradient(180deg, rgb(120 120 128 / 0.1), rgb(120 120 128 / 0.18));
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.9),
+    inset 0 -1px 1px rgb(255 255 255 / 0.6),
+    inset 0 0 0 0.5px rgb(0 0 0 / 0.06),
+    0 4px 14px rgb(0 0 0 / 0.06);
+}
+
+/* … verre blanc (sur les cartes rouges) */
+html[data-ui='ios'] .btn.light,
+html[data-ui='ios'] .friend-btn.on-red > .btn {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0.78));
+  color: var(--red);
+  box-shadow: var(--lg-rim), 0 8px 22px rgb(120 0 0 / 0.22);
+}
+
+html[data-ui='ios'] .friend-btn.on-red > .btn.ghost {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0.12));
+  color: #fff;
+  box-shadow: var(--lg-clear-rim), 0 6px 18px rgb(120 0 0 / 0.18);
+}
+
+/* … verre fumé (danger) */
+html[data-ui='ios'] .btn.danger {
+  background: linear-gradient(180deg, rgb(48 48 48 / 0.9), rgb(16 16 16 / 0.88));
+  box-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.35),
+    inset 0 -1px 1px rgb(255 255 255 / 0.12),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.15),
+    0 8px 22px rgb(0 0 0 / 0.25);
+}
+
+html[data-ui='ios'] .btn:disabled {
+  opacity: 0.45;
+  filter: saturate(0.6);
+}
+
+/* Pastilles : verre (visibilité sur une page claire, puces de capteurs sur la caméra). */
+html[data-ui='ios'] .visibility-pill {
+  background: linear-gradient(180deg, rgb(120 120 128 / 0.08), rgb(120 120 128 / 0.16));
+  box-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.9),
+    inset 0 0 0 0.5px rgb(0 0 0 / 0.06);
+}
+
+html[data-ui='ios'] .shutter-visibility.public,
+html[data-ui='ios'] .sensor-status .chip.action {
+  background: var(--lg-red-fill);
+  box-shadow: var(--lg-red-rim), var(--lg-red-drop);
+}
+
+html[data-ui='ios'] .sensor-status .chip.warn {
+  background: linear-gradient(180deg, rgb(255 150 30 / 0.92), rgb(232 118 0 / 0.88));
+  box-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.6),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.3),
+    0 6px 18px rgb(232 118 0 / 0.3);
+}
+
+/* Sélecteur Monde / Amis (carte) : capsule de verre, segment choisi en verre rouge. */
+html[data-ui='ios'] .segmented {
+  background: var(--lg-fill);
+  box-shadow: var(--lg-rim), var(--lg-drop);
+}
+
+html[data-ui='ios'] .segmented button {
+  transition: background 0.3s var(--lg-spring), color 0.2s, scale 0.35s var(--lg-spring);
+}
+
+html[data-ui='ios'] .segmented button.selected {
+  background: var(--lg-red-fill);
+  box-shadow: var(--lg-red-rim), 0 4px 12px rgb(235 12 12 / 0.28);
+}
+
+/* Moins de transparence demandée (Réglages › Accessibilité) ou flou indisponible : verre opaque. */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-ui='ios'] :is(.round-btn, .btn, .shutter, .visibility-pill, .sensor-status .chip, .segmented) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  html[data-ui='ios'] :is(.viewfinder, .hunt, .recaler) .round-btn,
+  html[data-ui='ios'] .sensor-status .chip,
+  html[data-ui='ios'] .shutter-visibility {
+    background: rgb(40 40 40 / 0.88);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-ui='ios'] :is(.viewfinder, .hunt, .recaler) .round-btn,
+  html[data-ui='ios'] .sensor-status .chip,
+  html[data-ui='ios'] .shutter-visibility {
+    background: rgb(40 40 40 / 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ui] :is(.round-btn, .btn, .shutter, .visibility-pill, button.chip, .segmented button) {
+    transition: none;
+  }
+}
+
+/* ---------- Android : Material 3 ---------- */
+
+html[data-ui='android'] {
+  /* Palette tonale tirée du rouge PICTI (#eb0c0c) */
+  --md-primary: var(--red);
+  --md-on-primary: #fff;
+  --md-primary-container: #ffdad4;
+  --md-on-primary-container: #410000;
+  --md-secondary-container: #ffdad4;
+  --md-on-secondary-container: #2c1512;
+  --md-surface-container-low: #fff0ee;
+  --md-surface-container-high: #f9e4e0;
+  --md-on-surface: #231918;
+  --md-on-surface-variant: #534341;
+  --md-outline: #857371;
+  --md-scrim-dark: rgb(32 26 25 / 0.62);
+  --md-elev-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --md-elev-3: 0 1px 3px rgb(0 0 0 / 0.3), 0 4px 8px 3px rgb(0 0 0 / 0.15);
+  --md-fast-spatial: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+  --md-default-spatial: cubic-bezier(0.38, 1.21, 0.22, 1);
+}
+
+html[data-ui='android'] :is(.round-btn, .btn, .shutter, .visibility-pill, .segmented button, button.chip) {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition:
+    border-radius 0.35s var(--md-fast-spatial),
+    scale 0.25s var(--md-default-spatial),
+    background-color 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s;
+}
+
+/* Calque d'état (survol, appui) + onde partie du doigt (variables posées par platform.ts). */
+@property --ripple-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+html[data-ui='android'] :is(.round-btn, .btn, .shutter, .visibility-pill, .segmented button, button.chip)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+html[data-ui='android'] :is(.round-btn, .btn, .shutter, .visibility-pill, .segmented button, button.chip):hover::after {
+  opacity: 0.08;
+}
+
+html[data-ui='android'] :is(.round-btn, .btn, .shutter, .visibility-pill, .segmented button, button.chip):active::after {
+  opacity: 0.1;
+}
+
+html[data-ui='android'] :is(.round-btn, .btn, .shutter, .visibility-pill, .segmented button, button.chip).rippling::after {
+  background-color: transparent;
+  background-image: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    currentColor 0,
+    currentColor var(--ripple-r),
+    transparent calc(var(--ripple-r) + 1px)
+  );
+  animation: md-ripple 0.45s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes md-ripple {
+  from {
+    --ripple-r: 0px;
+    opacity: 0.16;
+  }
+  60% {
+    opacity: 0.12;
+  }
+  to {
+    --ripple-r: calc(var(--ripple-size, 200px) / 2);
+    opacity: 0;
+  }
+}
+
+/* Appui : la forme se resserre (cercle → carré arrondi), sans bouger. */
+html[data-ui='android'] :is(.round-btn, .btn, .shutter, .visibility-pill, button.chip):active:not(:disabled) {
+  transform: none;
+}
+
+html[data-ui='android'] .permission:active:not(:disabled) {
+  transform: translateX(-50%);
+}
+
+/* Boutons ronds : bouton d'icône tonal (pages, carte)… */
+html[data-ui='android'] .round-btn {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  box-shadow: var(--md-elev-3);
+}
+
+html[data-ui='android'] .round-btn:active {
+  border-radius: 16px;
+  scale: 0.96;
+}
+
+/* … voile sombre sur la caméra (comme l'appareil photo des Pixel). */
+html[data-ui='android'] :is(.viewfinder, .hunt, .recaler) .round-btn {
+  background: var(--md-scrim-dark);
+  color: #fff;
+  box-shadow: none;
+}
+
+html[data-ui='android'] .round-btn.dim {
+  opacity: 0.5;
+}
+
+html[data-ui='android'] .round-btn.active,
+html[data-ui='android'] :is(.viewfinder, .hunt, .recaler) .round-btn.active {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+/* Déclencheur : grand bouton rond plein, anneau blanc ; se resserre en carré arrondi à l'appui. */
+html[data-ui='android'] .shutter {
+  width: 80px;
+  height: 80px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow:
+    0 0 0 4px rgb(255 255 255 / 0.95),
+    var(--md-elev-3);
+}
+
+html[data-ui='android'] .shutter:active:not(:disabled) {
+  border-radius: 28px;
+  scale: 0.94;
+}
+
+/* Boutons texte : bouton plein Material (pilule → coins de 12 px à l'appui). */
+html[data-ui='android'] .btn {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+html[data-ui='android'] .btn:hover:not(:disabled) {
+  box-shadow: var(--md-elev-1);
+}
+
+html[data-ui='android'] .btn:active:not(:disabled) {
+  border-radius: 12px;
+}
+
+html[data-ui='android'] .btn.small:active:not(:disabled) {
+  border-radius: 10px;
+}
+
+/* tonal */
+html[data-ui='android'] .btn.ghost {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+/* surélevé (sur les cartes rouges) */
+html[data-ui='android'] .btn.light,
+html[data-ui='android'] .friend-btn.on-red > .btn {
+  background: var(--md-surface-container-low);
+  color: var(--md-primary);
+  box-shadow: var(--md-elev-1);
+}
+
+html[data-ui='android'] .friend-btn.on-red > .btn.ghost {
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
+  box-shadow: none;
+}
+
+html[data-ui='android'] .btn.danger {
+  background: var(--md-on-surface);
+}
+
+/* Désactivé : gris Material. */
+html[data-ui='android'] .btn:disabled {
+  background: rgb(35 25 24 / 0.12);
+  color: rgb(35 25 24 / 0.38);
+  box-shadow: none;
+  opacity: 1;
+}
+
+html[data-ui='android'] :is(.hunt, .recaler, .viewfinder) .btn:disabled {
+  background: rgb(255 255 255 / 0.16);
+  color: rgb(255 255 255 / 0.5);
+}
+
+/* Puces : coins de 8 px (Material), voile sombre sur la caméra. */
+html[data-ui='android'] :is(.sensor-status .chip, .visibility-pill, .chips .chip) {
+  border-radius: 8px;
+}
+
+html[data-ui='android'] .sensor-status .chip {
+  min-height: 32px;
+  background: var(--md-scrim-dark);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-ui='android'] .sensor-status .chip.action {
+  background: var(--md-primary);
+}
+
+html[data-ui='android'] .visibility-pill {
+  min-height: 32px;
+  border: 1px solid var(--md-outline);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+}
+
+html[data-ui='android'] .shutter-visibility {
+  border-color: transparent;
+  background: var(--md-scrim-dark);
+  color: #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-ui='android'] .shutter-visibility.public {
+  background: var(--md-primary);
+}
+
+html[data-ui='android'] .chips .chip {
+  border: 1px solid var(--md-outline);
+  color: var(--md-on-surface-variant);
+}
+
+html[data-ui='android'] .chips .chip.selected {
+  border-color: transparent;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+/* Boutons segmentés (Monde / Amis). */
+html[data-ui='android'] .segmented {
+  padding: 0;
+  border: 1px solid var(--md-outline);
+  background: var(--md-surface-container-low);
+  box-shadow: var(--md-elev-1);
+  overflow: hidden;
+}
+
+html[data-ui='android'] .segmented button {
+  min-height: 40px;
+  border-radius: 0;
+  color: var(--md-on-surface);
+}
+
+html[data-ui='android'] .segmented button + button {
+  border-left: 1px solid var(--md-outline);
+}
+
+html[data-ui='android'] .segmented button.selected {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
