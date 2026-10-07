@@ -288,7 +288,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   voit pas (test « un GPS immobile ne défait pas quelques mètres de marche »). `useLivePosition` se
   re-rend aussi quand la **précision** change (avant, immobile, la position affichée gardait une
   précision périmée, enregistrée avec la photo). **Précision à la prise** : `GPS_GOOD_ACCURACY`
-  (12 m, `src/geo/tracking.ts`) ; pastille « GPS ±6 m » normale, orange (`.chip.warn`) au-delà ;
+  (12 m, `src/geo/tracking.ts`) ; pastille « 📍 ±6 m » normale (sans le mot « GPS » depuis 0.16.2), orange (`.chip.warn`) au-delà ;
   déclencher au-delà fige l'image et ouvre « Position imprécise (±18 m) : la photo risque d'être mal
   placée. » → « Attendre » (bandeau `.gps-wait`, la photo se prend seule — nouvelle image — dès
   que la précision repasse sous 12 m ; « Annuler ») / « Prendre quand même » (l'image figée). Toutes
@@ -484,6 +484,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   feuille juste après une capture ; miniature après une prise de vue ; noms cliquables. Rapport de
   sécurité sur `friendships` / `profiles` (correctif proposé, en attente d'accord).
 - 0.016.1 : Reproduire — deux croix (axe blanc, orientation cible jaune), centrées dans la vidéo hors commandes ; roulis, paysage, miroir selfie, flèche hors champ et consigne derrière ; repli à l’œil sans capteurs valides/récents. Distance et GPS séparés ; règles de rattachement, capture et base inchangées.
+- 0.016.2 : pastille de précision du viseur sans le mot « GPS » : épingle + « ±3 m » (« … » en attendant le signal).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -530,3 +531,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Fiche d'une photo, profil public, bouton d'amitié, sécurité des amitiés (0.16.0)](claude/picti/2026-10-06-fiche-photo.md)
 
 - [2026-10-06 — Reproduire : deux croix à aligner (0.016.1)](claude/picti/2026-10-06-reproduire-deux-croix.md)
+- [2026-10-07 — Pastille de précision sans « GPS » (0.016.2)](claude/picti/2026-10-07-pastille-precision.md)

@@ -13,9 +13,10 @@ export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orie
         ok: geo.fix.accuracy <= GPS_GOOD_ACCURACY,
         warn: geo.fix.accuracy > GPS_GOOD_ACCURACY,
         // « marche » : l'accéléromètre voit les pas (la position suit alors le GPS de près).
-        text: `GPS ±${Math.round(geo.fix.accuracy)} m${currentMotion() === 'moving' ? ' · marche' : ''}`,
+        // Le mot « GPS » est retiré (0.16.2) : l'épingle suffit, « ±3 m » se lit tout seul.
+        text: `±${Math.round(geo.fix.accuracy)} m${currentMotion() === 'moving' ? ' · marche' : ''}`,
       }
-    : { ok: false, warn: false, text: geo.error ?? 'GPS…' }
+    : { ok: false, warn: false, text: geo.error ?? '…' }
 
   let compass: { ok: boolean; text: string }
   switch (orientation.status) {
@@ -38,7 +39,7 @@ export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orie
 
   return (
     <div className="sensor-status">
-      <span className={`chip ${gps.ok ? 'ok' : ''} ${gps.warn ? 'warn' : ''}`}>
+      <span className={`chip ${gps.ok ? 'ok' : ''} ${gps.warn ? 'warn' : ''}`} title="Précision du GPS" aria-label={`Précision du GPS : ${gps.text}`}>
         <Icon name="pin" size={14} /> {gps.text}
       </span>
       {orientation.status === 'needs-permission' ? (
