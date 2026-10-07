@@ -3,31 +3,16 @@
 -- le 06/10/2026 dans une transaction annulée (comptes d'essai créés puis effacés avec elle).
 --
 -- Trois étapes, chacune compatible avec ce qui est en ligne au moment où on l'applique :
---   A  — maintenant : le destinataire d'une demande d'ami ne peut plus que l'accepter.
+--   A  — APPLIQUÉE le 07/10/2026 : supabase/migrations/20261007080415_droits_amities.sql
+--        (le destinataire d'une demande d'ami ne peut plus que l'accepter).
 --   B1 — maintenant : fonctions dédiées (mon profil, recherche par code ami) ; la 0.16.0 s'en sert
 --        si elles existent, sinon elle lit la table comme avant.
 --   B2 — APRÈS la mise en ligne de la 0.16.x (la 0.15.x lit encore friend_code et plan dans la
 --        table) : les autres comptes ne lisent plus que id, name, city, created_at.
 
 -- ---------------------------------------------------------------------------
--- A. Amitiés : faille corrigée
+-- A. Amitiés : faille corrigée — déplacée dans supabase/migrations/20261007080415_droits_amities.sql
 -- ---------------------------------------------------------------------------
--- Aujourd'hui, la policy « Accepter une demande reçue » ne vérifie que addressee et status, et le
--- droit UPDATE porte sur toutes les colonnes : le destinataire d'une demande peut réécrire
--- `requester` et devenir « ami » de n'importe qui sans son accord (il lui suffit d'un second
--- compte qui lui envoie une demande, et de l'identifiant de la cible, visible sur ses photos).
--- Vérifié : l'attaque passe aujourd'hui, elle est refusée après ce correctif ; l'acceptation
--- normale (seule mise à jour faite par l'app, `status` → 'accepted') marche toujours.
-
-revoke insert, update, delete on public.friendships from anon;
-revoke update on public.friendships from authenticated;
-grant update (status) on public.friendships to authenticated;
-
-drop policy "Accepter une demande reçue" on public.friendships;
-create policy "Accepter une demande reçue"
-  on public.friendships for update to authenticated
-  using ((select auth.uid()) = addressee and status = 'pending')
-  with check ((select auth.uid()) = addressee and status = 'accepted');
 
 -- ---------------------------------------------------------------------------
 -- B1. Fonctions dédiées (n'enlèvent rien)
