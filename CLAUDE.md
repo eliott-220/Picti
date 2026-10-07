@@ -226,12 +226,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   policy « Accepter une demande reçue » laisse le destinataire réécrire `requester` → devenir ami
   de n'importe qui sans son accord (**vérifié sur la base, transaction annulée**). `friend_code`
   seul ne suffit pas (il ne fait qu'envoyer une demande) mais il est lisible, avec `plan`, par tout
-  compte connecté. Correctif proposé, accepté par Eliott le 06/10 mais **pas encore appliqué** (refusé
-  à Claude Code par son outil de sécurité ; à coller dans Supabase › SQL Editor) :
-  `supabase/propositions/2026-10-06-droits-amities-et-profils.sql` (A : droit de mise à jour limité
-  à `status` ; B1 : `my_profile()`, `find_profile_by_friend_code()` — la 0.16.0 s'en sert si elles
-  existent, sinon lit la table ; B2, après la 0.16.x en ligne : `profiles` lisible seulement en
-  `id, name, city, created_at`).
+  compte connecté. Correctif : `supabase/propositions/2026-10-06-droits-amities-et-profils.sql`.
+  **A appliqué le 07/10/2026** (migration `20261007080415_droits_amities.sql`) : droit de mise à
+  jour limité à `status`, policy « Accepter une demande reçue » réservée aux demandes en attente
+  (`using … status = 'pending'`), `anon` sans écriture ; l'attaque est refusée (« permission denied
+  for table friendships »), l'acceptation et le retrait marchent (vérifié sur la base, transaction
+  annulée). **Pas encore appliqués** : B1 (`my_profile()`, `find_profile_by_friend_code()` — la
+  0.16.0 s'en sert si elles existent, sinon lit la table) ; B2, quand plus personne n'a la 0.15.x
+  (`profiles` lisible seulement en `id, name, city, created_at`).
 - Photos d'un même **lieu** (`src/geo/spots.ts`, depuis 0.15.0 : `sameSpot` = rayon de 5 m
   `SPOT_RADIUS_MIN`, élargi jusqu'à la moins bonne précision GPS des deux photos, plafonné à 10 m
   `SPOT_RADIUS_MAX`, précision inconnue → 10 m, ET caps à ±45° `SPOT_HEADING_TOLERANCE` près : deux
@@ -488,8 +490,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
   pratiquement plus quand on pivote le téléphone à 3-4 m d'elle. Reste à tester la marche (5-10 m).
-- Prochaines étapes : appliquer la migration `public_profile` et le correctif de sécurité des
-  amitiés (A et B1, accord d'Eliott donné ; B2 quand plus personne n'a la 0.15.x) ; test sur iPhone de la
+- Prochaines étapes : appliquer la migration `public_profile` et la partie B1 du correctif de
+  sécurité des amitiés (accord d'Eliott donné ; A appliquée le 07/10 ; B2 quand plus personne n'a la 0.15.x) ; test sur iPhone de la
   fiche (défilement, feuille glissée vers le bas, bouton retour) ; test terrain de la 0.014.0 sur iPhone (fluidité de l'agrandissement, flou à
   l'approche, tolérances d'immobilité ; amis : invitation par lien et QR code entre deux iPhone) ;
   0.015.0 sur iPhone (reproduction avec le calque, notifications en temps réel) ; 0.015.2 sur iPhone
@@ -530,3 +532,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Fiche d'une photo, profil public, bouton d'amitié, sécurité des amitiés (0.16.0)](claude/picti/2026-10-06-fiche-photo.md)
 
 - [2026-10-06 — Reproduire : deux croix à aligner (0.016.1)](claude/picti/2026-10-06-reproduire-deux-croix.md)
+- [2026-10-07 — Faille des amitiés corrigée en base (correctif A)](claude/picti/2026-10-07-faille-amities.md)
