@@ -32,7 +32,7 @@ export function Nearby() {
     })
     .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
 
-  // Sa fiche : « Chasser in situ » (ou « Géocadrer sur place ») en est le premier bouton.
+  // Sa fiche : « Capturer » (ou « Géocadrer sur place ») en est le premier bouton.
   const open = (id: string) => navigate(`/photo/${id}`)
 
   return (

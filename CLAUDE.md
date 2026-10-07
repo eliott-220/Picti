@@ -159,7 +159,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `#/photo/<id>/fil` = directement sur « Au fil du temps ») : la photo **en grand** occupe tout
   l'écran à l'ouverture (`.detail-photo.full`, pile du lieu glissable, couleurs / N&B inchangés,
   dégradé), poignée `.detail-handle` (bouton) qui fait défiler jusqu'à la fiche. De haut en bas :
-  actions (Chasser / Revoir in situ ou Géocadrer sur place, Reproduire si capturée, Enregistrer) ;
+  actions (Capturer / Revoir in situ ou Géocadrer sur place, Reproduire si capturée, Enregistrer) ;
   **auteur** (`AuthorBlock` : ligne entière → `#/personne/<owner>`, ville lue par
   `usePublicProfile`, `FriendButton` ; ma photo : « Vous ») ; **prise de vue** (`shotDateText` :
   « Prise le mardi 6 octobre 2026 à 14 h 32 », heure locale, espaces insécables ; importée et prise
@@ -487,6 +487,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   sécurité sur `friendships` / `profiles` (correctif proposé, en attente d'accord).
 - 0.016.1 : Reproduire — deux croix (axe blanc, orientation cible jaune), centrées dans la vidéo hors commandes ; roulis, paysage, miroir selfie, flèche hors champ et consigne derrière ; repli à l’œil sans capteurs valides/récents. Distance et GPS séparés ; règles de rattachement, capture et base inchangées.
 - 0.016.2 : pastille de précision du viseur sans le mot « GPS » : épingle + « ±3 m » (« … » en attendant le signal).
+- 0.016.3 : fiche d'une photo non capturée : le bouton « Chasser in situ » devient « Capturer » (« Revoir in situ » inchangé).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge

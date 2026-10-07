@@ -240,7 +240,7 @@ function PhotoDetailView({
             <>
               {isGeoframed(photo) ? (
                 <button type="button" className="btn" onClick={() => navigate(`/chasse/${photo.id}`)}>
-                  <Icon name="flag" /> {captured ? 'Revoir in situ' : 'Chasser in situ'}
+                  <Icon name="flag" /> {captured ? 'Revoir in situ' : 'Capturer'}
                 </button>
               ) : (
                 mine && (

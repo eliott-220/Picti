@@ -1,7 +1,7 @@
 {
   "name": "picti",
   "private": true,
-  "version": "0.16.2",
+  "version": "0.16.3",
   "description": "PICTI — le géocadrage : redécouvrir chaque photo à l'endroit précis et sous l'angle exact où elle a été prise.",
   "type": "module",
   "scripts": {
