@@ -426,10 +426,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         )}
         <Shutter
           visibility={visibility}
-          onVisibility={(v) => {
-            setShotVisibility(v)
-            toast(`Prochaines photos visibles par ${VISIBLE_BY[v]}`)
-          }}
+          onVisibility={setShotVisibility}
           onShoot={() => void shoot()}
           disabled={busy || !!held}
           warn={away}

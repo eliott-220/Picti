@@ -49,7 +49,33 @@ change de mode à n'importe quel moment, enregistrer la réponse ».
   mis en ligne (branche `claude/boutons-verre-liquide` jamais fusionnée) ; la 0.18.0 est réservée
   à la coque Capacitor (prompt préparé le même jour).
 
-## Vérifications
+## Mise à jour 0.17.1 : le bouton devient un carrousel
+
+Retour d'Eliott après la mise en ligne de la 0.17.0 : « que ce soit le bouton rouge directement qui
+s'anime » — on reste appuyé, il grossit un peu, on voit les autres symboles à gauche et à droite,
+un peu flous ; en allant à droite ou à gauche, les symboles suivent et viennent se mettre dans le
+cercle rouge, avec le petit nom au-dessus du cercle quand le symbole est dedans, qui disparaît
+quand le doigt est lâché.
+
+- Plus de réglette séparée ni de « Visible par … » : `Shutter` affiche un carrousel centré sur le
+  bouton (`.shutter-strip`), le bouton grossit (`.shutter.picking`, ×1,12).
+- Les symboles **suivent le doigt** (même décalage, 72 px par mode) : glisser vers la gauche fait
+  entrer Amis puis Privé ; au-delà des bouts, le carrousel résiste (un quart du geste, 20 px au plus).
+- Aspect selon la distance au centre (`modeLook`) : net, taille normale dans le cercle ; voisin
+  plus petit (×0,7), flou (2 px) et un peu pâle ; au-delà du voisin, il s'efface. Ombre portée pour
+  rester lisible sur un ciel clair.
+- Nom (Public / Amis / Privé) dans une petite bulle au-dessus du cercle, plein quand le symbole est
+  centré, effacé à mi-chemin (`labelOpacity`) ; il disparaît dès qu'on lâche. Le symbole le plus
+  proche se range alors dans le cercle (180 ms) et les autres s'effacent.
+- Le toast « Prochaines photos visibles par … » au relâchement est retiré (le nom au-dessus du
+  cercle le remplace) ; l'astuce des 3 premières photos est gardée.
+- Clavier : flèche droite = mode suivant (Public → Amis → Privé), sans boucler.
+- 291 tests ; banc : appui long (bouton grossi, 3 symboles, voisin flou, « Public » au-dessus),
+  mi-chemin (nom effacé, Amis décalé de 36 px), un cran (Amis), deux crans (Privé, bloqué au bout),
+  relâché (nom disparu, carrousel refermé, mode Amis, aucune photo), rechargement, appui court,
+  doigt glissé à droite (Public), flèches.
+
+## Vérifications (0.17.0)
 
 - 289 tests (10 nouveaux : `shutterModes.test.ts`, `shotVisibility.test.ts`), lint, build.
 - Banc local (fausse base, capteurs simulés, Chrome sans interface) : pastille absente, Public à

@@ -2702,8 +2702,9 @@ button.avatar-item {
   transform: scale(0.95);
 }
 
-/* Déclencheur du viseur (0.17.0) : son symbole dit le mode des prochaines photos ; un appui long
-   ouvre la réglette Public · Amis · Privé, qu'on parcourt en glissant le doigt. */
+/* Déclencheur du viseur : son symbole dit le mode des prochaines photos. Appui long (0.17.1) : le
+   bouton grossit et devient un carrousel Public · Amis · Privé ; les symboles suivent le doigt
+   (position, flou, taille et opacité calculés par `Shutter`), le nom du mode centré au-dessus. */
 .shutter-group {
   position: relative;
   display: grid;
@@ -2715,33 +2716,49 @@ button.avatar-item {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  transition: transform 0.16s ease-out;
 }
 
 .shutter.picking {
-  transform: scale(1.08);
+  transform: scale(1.12);
 }
 
-/* Réglette : position (left) calculée par `Shutter`, le mode de départ au-dessus du bouton. */
-.shutter-picker {
+.shutter-strip {
   position: absolute;
-  bottom: calc(100% + 14px);
-  display: grid;
-  justify-items: center;
-  gap: 8px;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
   pointer-events: none;
-  animation: shutter-picker-in 0.14s ease-out;
+  animation: shutter-strip-in 0.16s ease-out;
 }
 
-@keyframes shutter-picker-in {
+@keyframes shutter-strip-in {
   from {
     opacity: 0;
-    translate: 0 6px;
   }
 }
 
-.shutter-picker-caption {
-  margin: 0;
-  padding: 4px 10px;
+.shutter-strip-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  color: #fff;
+  will-change: transform, filter, opacity;
+}
+
+/* Au relâchement : le symbole choisi se range au centre, les autres s'effacent. */
+.shutter-strip.closing .shutter-strip-item {
+  transition: transform 0.18s ease-out, filter 0.18s ease-out, opacity 0.18s ease-out;
+}
+
+.shutter-label {
+  position: absolute;
+  bottom: 54px;
+  left: 0;
+  translate: -50% 0;
+  padding: 3px 10px;
   border-radius: 999px;
   background: var(--glass);
   color: #fff;
@@ -2751,36 +2768,7 @@ button.avatar-item {
   backdrop-filter: blur(8px);
 }
 
-.shutter-modes {
-  display: flex;
-  border-radius: 999px;
-  background: var(--glass);
-  backdrop-filter: blur(8px);
-}
-
-.shutter-mode {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 8px 0 7px;
-  border-radius: 999px;
-  color: rgb(255 255 255 / 0.75);
-  font-size: 12px;
-  font-weight: 500;
-  transition: background 0.12s, color 0.12s;
-}
-
-.shutter-mode.selected {
-  background: #fff;
-  color: var(--ink);
-}
-
-.shutter-mode.public.selected {
-  background: var(--red);
-  color: #fff;
-}
-
-/* Les notifications du viseur passent au-dessus de la réglette des modes. */
+/* Les notifications du viseur passent au-dessus du nom du mode. */
 #root:has(.viewfinder) .toast {
   bottom: calc(var(--safe-bottom) + 156px);
 }

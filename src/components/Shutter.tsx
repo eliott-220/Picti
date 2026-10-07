@@ -1,29 +1,44 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { VISIBILITIES, VISIBILITY_SHORT, VISIBLE_BY, type Visibility } from '../data/types'
 import { Icon } from './Icon'
-import { LONG_PRESS_MS, MODE_STEP, modesLeft, SLIDE_START_PX, visibilityAtOffset } from './shutterModes'
+import {
+  labelOpacity,
+  LONG_PRESS_MS,
+  MODE_STEP,
+  modeLook,
+  modePosition,
+  neighborVisibility,
+  offsetFor,
+  SLIDE_START_PX,
+  stripOffset,
+  visibilityAtOffset,
+} from './shutterModes'
 import { VISIBILITY_ICON } from './visibilityIcon'
+
+/** Retour du carrousel en place au relâchement (ms), aligné sur la transition CSS. */
+const SNAP_MS = 180
 
 interface Press {
   pointer: number
   x: number
   from: Visibility
-  /** Choix du mode ouvert (appui long ou glissement) : relâcher ne prend pas de photo. */
+  /** Carrousel ouvert (appui long ou glissement) : relâcher ne prend pas de photo. */
   open: boolean
   timer: ReturnType<typeof setTimeout> | undefined
 }
 
-/** Choix en cours : mode de départ, mode visé, bord gauche de la réglette (dans `.shutter-group`). */
+/** Carrousel affiché : mode de départ, décalage suivi (px), retour en place après le relâchement. */
 interface Pick {
   from: Visibility
-  value: Visibility
-  left: number
+  offset: number
+  closing: boolean
 }
 
 /**
- * Déclencheur rouge du viseur. Un appui prend la photo. Un appui long (ou un glissement) ouvre la
- * réglette des modes Public · Amis · Privé : on fait glisser le doigt vers la gauche ou la droite,
- * le symbole du bouton suit, et relâcher garde le mode sans prendre de photo. Au clavier : flèches.
+ * Déclencheur rouge du viseur. Un appui prend la photo. Un appui long (ou un glissement) fait du
+ * bouton un carrousel : il grossit, les symboles des autres modes apparaissent, flous, à gauche et à
+ * droite ; ils suivent le doigt et celui qui entre dans le cercle devient net, son nom (Public,
+ * Amis, Privé) au-dessus. Relâcher garde ce mode sans prendre de photo. Au clavier : flèches.
  */
 export function Shutter({
   visibility,
@@ -42,14 +57,25 @@ export function Shutter({
   warn: boolean
   label: string
 }) {
-  const group = useRef<HTMLDivElement>(null)
   const press = useRef<Press | null>(null)
   const [pick, setPick] = useState<Pick | null>(null)
   const pickRef = useRef<Pick | null>(null)
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // Après un choix de mode, le « click » qui suit le relâchement ne déclenche pas.
   const swallowClick = useRef(false)
 
-  useEffect(() => () => clearTimeout(press.current?.timer), [])
+  function update(next: Pick | null) {
+    pickRef.current = next
+    setPick(next)
+  }
+
+  useEffect(
+    () => () => {
+      clearTimeout(press.current?.timer)
+      clearTimeout(snapTimer.current)
+    },
+    [],
+  )
   // Bouton désactivé en plein appui (prise de vue en cours) : il ne reçoit plus le relâchement.
   useEffect(() => {
     if (!disabled || !press.current) return
@@ -59,26 +85,21 @@ export function Shutter({
     setPick(null)
   }, [disabled])
 
-  function update(next: Pick | null) {
-    pickRef.current = next
-    setPick(next)
-  }
-
-  function open(p: Press) {
+  function open(p: Press, offset = 0) {
     if (p.open || press.current !== p) return
     p.open = true
     clearTimeout(p.timer)
     swallowClick.current = true
-    const g = group.current?.getBoundingClientRect()
-    const centerX = g ? g.left + g.width / 2 : window.innerWidth / 2
-    const left = modesLeft(p.from, centerX, window.innerWidth) - (g?.left ?? 0)
-    update({ from: p.from, value: p.from, left })
+    update({ from: p.from, offset: stripOffset(p.from, offset), closing: false })
     navigator.vibrate?.(10)
   }
 
   function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
     swallowClick.current = false
     if (disabled || e.button !== 0 || press.current) return
+    // Un carrousel qui finissait de se refermer laisse la place au nouvel appui.
+    clearTimeout(snapTimer.current)
+    if (pickRef.current) update(null)
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -94,15 +115,14 @@ export function Shutter({
     if (!p || e.pointerId !== p.pointer) return
     const dx = e.clientX - p.x
     if (!p.open) {
-      if (Math.abs(dx) < SLIDE_START_PX) return
-      open(p)
+      if (Math.abs(dx) >= SLIDE_START_PX) open(p, dx)
+      return
     }
     const current = pickRef.current
     if (!current) return
-    const value = visibilityAtOffset(p.from, dx)
-    if (value === current.value) return
-    update({ ...current, value })
-    navigator.vibrate?.(10)
+    const offset = stripOffset(p.from, dx)
+    if (visibilityAtOffset(p.from, offset) !== visibilityAtOffset(p.from, current.offset)) navigator.vibrate?.(10)
+    update({ ...current, offset })
   }
 
   function end(e: PointerEvent<HTMLButtonElement>) {
@@ -110,38 +130,29 @@ export function Shutter({
     if (!p || e.pointerId !== p.pointer) return
     clearTimeout(p.timer)
     press.current = null
-    const chosen = pickRef.current
-    update(null)
-    if (p.open && chosen && chosen.value !== visibility) onVisibility(chosen.value)
+    const current = pickRef.current
+    if (!p.open || !current) return
+    // Le symbole le plus proche du centre s'y range, les autres s'effacent, le nom disparaît.
+    const chosen = visibilityAtOffset(p.from, current.offset)
+    update({ ...current, offset: offsetFor(chosen, p.from), closing: true })
+    snapTimer.current = setTimeout(() => update(null), SNAP_MS)
+    if (chosen !== visibility) onVisibility(chosen)
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
     swallowClick.current = false
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
     e.preventDefault()
-    const v = visibilityAtOffset(visibility, e.key === 'ArrowRight' ? MODE_STEP : -MODE_STEP)
+    const v = neighborVisibility(visibility, e.key === 'ArrowRight' ? 1 : -1)
     if (v !== visibility) onVisibility(v)
   }
 
-  const shown = pick?.value ?? visibility
+  const centered = pick ? visibilityAtOffset(pick.from, pick.offset) : visibility
   return (
-    <div className="shutter-group" ref={group}>
-      {pick && (
-        <div className="shutter-picker" style={{ left: pick.left }} aria-hidden="true">
-          <p className="shutter-picker-caption">Visible par {VISIBLE_BY[pick.value]}</p>
-          <div className="shutter-modes">
-            {VISIBILITIES.map((v) => (
-              <span key={v} className={`shutter-mode ${v} ${v === pick.value ? 'selected' : ''}`} style={{ width: MODE_STEP }}>
-                <Icon name={VISIBILITY_ICON[v]} size={22} />
-                {VISIBILITY_SHORT[v]}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="shutter-group">
       <button
         type="button"
-        className={`shutter ${warn ? 'warn' : ''} ${pick ? 'picking' : ''}`}
+        className={`shutter ${warn ? 'warn' : ''} ${pick && !pick.closing ? 'picking' : ''}`}
         onClick={() => {
           if (swallowClick.current) {
             swallowClick.current = false
@@ -156,16 +167,46 @@ export function Shutter({
         onKeyDown={onKeyDown}
         onContextMenu={(e) => e.preventDefault()}
         disabled={disabled}
-        aria-label={`${label} · visible par ${VISIBLE_BY[shown]}`}
+        aria-label={`${label} · visible par ${VISIBLE_BY[centered]}`}
         aria-description="Restez appuyé puis glissez à gauche ou à droite (ou flèches du clavier) pour choisir Public, Amis ou Privé"
       >
-        <Icon name={VISIBILITY_ICON[shown]} size={36} />
+        {/* Pendant le choix, le symbole du cercle est celui du carrousel. */}
+        {!pick && <Icon name={VISIBILITY_ICON[visibility]} size={36} />}
         {warn && (
           <span className="shutter-warn" aria-hidden="true">
             <Icon name="warning" size={16} />
           </span>
         )}
       </button>
+      {pick && (
+        <div className={`shutter-strip ${pick.closing ? 'closing' : ''}`} aria-hidden="true">
+          {VISIBILITIES.map((v) => {
+            const distance = modePosition(v, pick.from, pick.offset) / MODE_STEP
+            const look = modeLook(distance)
+            return (
+              <span
+                key={v}
+                className={`shutter-strip-item ${v === centered ? 'centered' : ''}`}
+                style={{
+                  transform: `translate(-50%, -50%) translateX(${distance * MODE_STEP}px) scale(${look.scale})`,
+                  opacity: pick.closing && v !== centered ? 0 : look.opacity,
+                  filter: `blur(${look.blur}px) drop-shadow(0 1px 4px rgb(0 0 0 / 0.7))`,
+                }}
+              >
+                <Icon name={VISIBILITY_ICON[v]} size={36} />
+              </span>
+            )
+          })}
+          {!pick.closing && (
+            <span
+              className="shutter-label"
+              style={{ opacity: labelOpacity(modePosition(centered, pick.from, pick.offset) / MODE_STEP) }}
+            >
+              {VISIBILITY_SHORT[centered]}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

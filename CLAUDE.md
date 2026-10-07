@@ -71,11 +71,14 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - **Choix à la prise** (0.17.0, à la demande d'Eliott) : plus de pastille au-dessus du
     déclencheur. Le déclencheur (`src/components/Shutter.tsx`) montre le symbole du mode (globe /
     amis / cadenas, `VISIBILITY_ICON`) ; appui court = photo ; **appui long (300 ms) ou glissement
-    horizontal (> 12 px)** = réglette Public · Amis · Privé au-dessus du bouton (mode de départ
-    juste au-dessus, décalée pour rester dans l'écran : `modesLeft`), un mode tous les 64 px
-    (`visibilityAtOffset`, `src/components/shutterModes.ts`, sans boucler), « Visible par … » ;
-    relâcher garde le mode **sans prendre de photo** (le `click` qui suit est avalé), toast
-    « Prochaines photos visibles par vos amis ». Clavier : flèches gauche / droite.
+    horizontal (> 12 px)** = le bouton lui-même devient un **carrousel** (0.17.1) : il grossit
+    (×1,12), les symboles des autres modes apparaissent à gauche et à droite, flous et pâles ; ils
+    **suivent le doigt** (glisser à gauche fait entrer celui de droite ; ordre Public · Amis · Privé,
+    un symbole tous les 72 px, résistance au-delà des bouts : `stripOffset`), celui qui entre dans le
+    cercle devient net et son nom s'affiche au-dessus du cercle (effacé à mi-chemin : `labelOpacity`) ;
+    aspect selon la distance au centre : `modeLook` (`src/components/shutterModes.ts`). Relâcher :
+    le nom disparaît, le symbole le plus proche se range dans le cercle (180 ms), mode gardé **sans
+    prendre de photo** (le `click` qui suit est avalé), pas de toast. Clavier : flèches gauche / droite.
     `touch-action: none` et pas de menu contextuel sur le bouton (appui long iOS / Android).
     Mode : **Public à la première ouverture**, puis le dernier choix est gardé d'une ouverture à
     l'autre sur l'appareil (`localStorage` `picti.visibilite`, `useShotVisibility` /
@@ -502,6 +505,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.016.2 : pastille de précision du viseur sans le mot « GPS » : épingle + « ±3 m » (« … » en attendant le signal).
 - 0.016.3 : fiche d'une photo non capturée : le bouton « Chasser in situ » devient « Capturer » (« Revoir in situ » inchangé).
 - 0.017.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). Numéro repris des boutons verre liquide (abandonnés, jamais en ligne) ; 0.018.0 est réservée à la coque Capacitor.
+- 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -550,4 +554,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-06 — Reproduire : deux croix à aligner (0.016.1)](claude/picti/2026-10-06-reproduire-deux-croix.md)
 - [2026-10-07 — Faille des amitiés corrigée en base (correctif A)](claude/picti/2026-10-07-faille-amities.md)
 - [2026-10-07 — Pastille de précision sans « GPS » (0.016.2)](claude/picti/2026-10-07-pastille-precision.md)
-- [2026-10-07 — Mode Public · Amis · Privé au déclencheur (0.17.0)](claude/picti/2026-10-07-mode-au-declencheur.md)
+- [2026-10-07 — Mode Public · Amis · Privé au déclencheur, puis carrousel (0.17.0, 0.17.1)](claude/picti/2026-10-07-mode-au-declencheur.md)
