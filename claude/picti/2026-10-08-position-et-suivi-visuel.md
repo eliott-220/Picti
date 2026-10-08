@@ -61,7 +61,9 @@ sur la Terre — exactement le « calage » de PICTI bis (`bis/src/align.js`), p
 
 ## Pistes suivantes
 
-- Localisation visuelle d'Apple (`ARGeoTrackingConfiguration`, au mètre, sans clé) là où elle existe :
-  `geoTrackingAvailability` est prêt pour tester la couverture (La Rochelle, Paris…).
+- Localisation visuelle d'Apple (`ARGeoTrackingConfiguration`, au mètre, sans clé) : **testée sur
+  l'iPhone le 08/10 à 21 h 47** (version de test, `checkAvailability`) — **indisponible à La Rochelle**
+  (Vieux-Port, EIGSI), Bordeaux, Nantes ; disponible à Paris, Lyon, Londres, New York. Même lancement :
+  relevés d'iOS bien reçus (vitesse et cap compris), session ARKit « interrupted » (iPhone verrouillé).
 - ARCore Geospatial (Google, Street View) : clé Google Cloud à créer par Eliott.
 - Affiner la position des photos avec les captures (base de données : proposition à valider).
