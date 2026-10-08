@@ -39,7 +39,7 @@ import {
   type NativeArTracking,
   type PluginListenerHandle,
 } from '../native'
-import { trace } from './arTrace'
+import { trace, TRACE_ENABLED } from './arTrace'
 import { onFix } from './useGeolocation'
 
 /**
@@ -100,6 +100,7 @@ let target: AlignTransform | null = null
 let shown: AlignTransform | null = null
 let lastSolve = 0
 let lastTracedPose = 0
+let loggedAt = 0
 /** Dernier état du suivi reçu (avec sa session). */
 let lastTracking: NativeArTracking | null = null
 let solveTimer: ReturnType<typeof setTimeout> | undefined
@@ -114,6 +115,9 @@ let hideTimer: ReturnType<typeof setTimeout> | undefined
 export const arState = (): ArState => state
 
 function publish(next: Partial<ArState>) {
+  // Version de test : état du suivi dans la console (lue par `devicectl … --console`).
+  if (TRACE_ENABLED && (next.status || next.camera || next.tracking !== undefined))
+    console.info('[suivi] état', JSON.stringify({ status: next.status, camera: next.camera, tracking: next.tracking, reason: next.trackingReason }))
   state = { ...state, ...next }
   listeners.forEach((l) => l())
 }
@@ -148,6 +152,11 @@ function solve() {
   const align = aligner.solve()
   target = transformOf(align)
   trace('align', { ok: align.ok, theta: align.theta, e0: align.e0, n0: align.n0, ref: align.ref, sigmaPos: align.sigmaPos, sigmaTheta: align.sigmaTheta, count: align.count, rejected: align.rejected })
+  if (TRACE_ENABLED && Date.now() - loggedAt > 3000) {
+    loggedAt = Date.now()
+    const v = currentView()
+    console.info('[suivi] calage', JSON.stringify({ ok: align.ok, count: align.count, rejected: align.rejected, compass: align.compass, theta: align.theta?.toFixed(1), sigmaPos: align.sigmaPos.toFixed(2), sigmaTheta: align.sigmaTheta.toFixed(1), heading: v.angles?.heading.toFixed(1), pitch: v.angles?.pitch.toFixed(1), pose: lastPose?.position.map((x) => x.toFixed(2)) }))
+  }
   refineShots(align)
   publish({ align })
 }
@@ -279,6 +288,7 @@ async function startSession() {
       .then((r) => r.available)
       .catch(() => false)
     if (!(await available)) return publish({ status: 'unavailable' })
+    if (TRACE_ENABLED) probeGeoTracking()
     if (users === 0) return publish({ status: 'off' })
     publish({ status: 'starting' })
     listenNative()
@@ -292,6 +302,31 @@ async function startSession() {
     // prend le relais : jamais d'écran noir.
     publish({ status: 'failed' })
   }
+}
+
+/**
+ * Version de test : la localisation visuelle d'Apple (au mètre, sans clé) existe-t-elle à La Rochelle
+ * et ailleurs ? Réponse dans la console.
+ */
+function probeGeoTracking() {
+  const places = [
+    ['La Rochelle, Vieux-Port', 46.1558, -1.1522],
+    ['La Rochelle, EIGSI', 46.1442, -1.1546],
+    ['Paris, Notre-Dame', 48.853, 2.3499],
+    ['Paris, Opéra', 48.8719, 2.3316],
+    ['Lyon, Bellecour', 45.7578, 4.832],
+    ['Bordeaux, Quinconces', 44.845, -0.5747],
+    ['Nantes, Commerce', 47.2129, -1.5592],
+    ['Londres, Trafalgar', 51.508, -0.1281],
+    ['New York, Times Square', 40.758, -73.9855],
+  ] as const
+  ArTracking.geoTrackingAvailability({ points: places.map(([, lat, lon]) => ({ lat, lon })) })
+    .then((r) => {
+      const result = places.map(([name], i) => `${name} : ${r.available[i] ? 'OUI' : 'non'}${r.errors?.[i] ? ` (${r.errors[i]})` : ''}`)
+      console.info('[suivi] VPS Apple', JSON.stringify({ supported: r.supported, result }))
+      trace('vps', { supported: r.supported, result })
+    })
+    .catch((e: unknown) => console.info('[suivi] VPS Apple : erreur', String(e)))
 }
 
 function stopSession() {
