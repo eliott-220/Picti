@@ -2670,6 +2670,18 @@ button.avatar-item {
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.15);
 }
 
+/* Pile glissable (Mes photos, profil public) : la vignette suit le doigt de gauche à droite, la
+   page défile toujours de haut en bas ; la photo suivante attend dessous. */
+.tile-swipe {
+  touch-action: pan-y;
+}
+
+.tile-under {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
 .tile-stack-strip {
   flex: 0 0 140px;
 }

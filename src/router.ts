@@ -79,17 +79,31 @@ export function useRoute(): Route {
 }
 
 // Profondeur de navigation interne : permet un « retour » qui ne sort
-// jamais de l'application (lien direct, rechargement…).
+// jamais de l'application (lien direct, rechargement…). Chaque entrée de l'historique
+// garde la sienne (`pictiDepth`) : un retour fait sans `goBack` (bouton du navigateur,
+// glissement depuis le bord gauche dans l'app iOS) la remet d'accord.
 let depth = 0
+
+const depthOf = (state: unknown) => (state as { pictiDepth?: number } | null)?.pictiDepth ?? 0
+/** Vrai pendant `location.hash = …` : un `popstate` émis à ce moment ne dit rien de la profondeur. */
+let navigating = false
+
+/** Note la profondeur dans l'entrée courante de l'historique. */
+function markDepth() {
+  history.replaceState({ ...(history.state as object | null), pictiDepth: depth }, '')
+}
 
 export function navigate(path: string, { replace = false } = {}) {
   const hash = `#${path}`
   if (replace) {
-    history.replaceState(null, '', hash)
+    history.replaceState({ pictiDepth: depth }, '', hash)
     window.dispatchEvent(new HashChangeEvent('hashchange'))
   } else {
     depth++
+    navigating = true
     location.hash = hash
+    navigating = false
+    markDepth()
   }
 }
 
@@ -126,9 +140,10 @@ if (typeof window !== 'undefined') {
     const level = overlayOf(history.state)
     for (let i = overlays.length - 1; i >= 0 && overlays[i].n > level; i--) {
       overlays[i].popped = true
-      depth = Math.max(0, depth - 1)
       overlays[i].close()
     }
+    // Profondeur de l'entrée retrouvée, quel que soit le chemin du retour.
+    if (!navigating) depth = depthOf(history.state)
   })
 }
 
@@ -147,7 +162,7 @@ export function useBackCloses(onClose: () => void) {
     } else {
       n = ++overlayCount
       depth++
-      history.pushState({ ...(history.state as object | null), pictiOverlay: n }, '')
+      history.pushState({ ...(history.state as object | null), pictiOverlay: n, pictiDepth: depth }, '')
     }
     const overlay: Overlay = { n, close: () => closeRef.current(), popped: false }
     overlays.push(overlay)

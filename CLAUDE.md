@@ -67,7 +67,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     **Depuis 0.17.0, l'app ne lit plus cette colonne** (voir « Choix à la prise »).
     `addPhoto` sans visibilité → `getShotVisibility()`. Libellés partagés dans
     `src/data/types.ts` (`VISIBILITIES`, `VISIBILITY_SHORT`, `VISIBILITY_AUDIENCE`, `VISIBLE_BY`,
-    `visibilityHelp`). Vignettes de « Mes photos » : symbole du mode en haut à gauche, comme au déclencheur (`PhotoTile visibility`, `.tile-visibility` : globe / amis / cadenas blancs avec ombre, sans pastille, sur toutes les vignettes ; avant le 08/10, texte rouge « Publique / Amis / Moi seul » seulement quand la visibilité différait du mode actuel).
+    `visibilityHelp`). Vignettes de « Mes photos » (et du profil public) : une pile par lieu, **glissable** depuis
+    0.19.0 (`PhotoTilePile`, `src/components/ui.tsx` : `useCardSwipe` comme les piles du viseur,
+    la photo suivante dessous — `.tile-under`, `inert` —, points qui suivent, `touch-action: pan-y`
+    pour garder le défilement vertical ; appui = fiche de la photo affichée). Symbole du mode en haut à gauche, comme au déclencheur (`PhotoTile visibility`, `.tile-visibility` : globe / amis / cadenas blancs avec ombre, sans pastille, sur toutes les vignettes ; avant le 08/10, texte rouge « Publique / Amis / Moi seul » seulement quand la visibilité différait du mode actuel).
   - **Choix à la prise** (0.17.0, à la demande d'Eliott) : plus de pastille au-dessus du
     déclencheur. Le déclencheur (`src/components/Shutter.tsx`) montre le symbole du mode (globe /
     amis / cadenas, `VISIBILITY_ICON`) ; appui court = photo ; **appui long (300 ms) ou glissement
@@ -525,6 +528,17 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     « Chasser »…) restent web. Tests : `src/glassButtons.test.ts`. Pour voir l'app au simulateur sans
     compte : web du banc (`.bench/`, `vite build --config .bench/vite.config.ts`) copié dans
     `ios/App/App/public` après `cap sync`, puis `npm run native:sync` pour revenir au vrai web.
+- **Retour par le bord gauche** (0.19.0, app iOS) : `PictiViewController.viewDidLoad` →
+  `webView.allowsBackForwardNavigationGestures = true` : le vrai geste d'iOS (glisser depuis le bord
+  gauche ; depuis le bord droit pour revenir en avant), l'écran précédent apparaît dessous (image
+  prise par WebKit au moment où on l'a quitté : s'il y avait une feuille ouverte, comme le menu,
+  elle apparaît dans l'aperçu puis l'écran retrouvé est sans elle). Le calque fixe des boutons en
+  verre est posé dans `webView.scrollView` (et non sur la WebView) pour glisser avec la page et
+  passer sous cet aperçu. Le routeur garde la profondeur de chaque entrée de l'historique
+  (`pictiDepth` dans `history.state`, notée après `location.hash = …` — un `popstate` émis pendant
+  l'affectation est ignoré, `navigating` — et par `replaceState` / les feuilles) et la relit à chaque
+  `popstate` : un retour fait sans `goBack` (ce geste, bouton du navigateur) ne la dérègle plus
+  (avant, « Retour » pouvait ensuite ne plus rien faire).
 - **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
   `APP_URL`, ancre `#/…` seulement) → `location.hash`. Modèles
   `public/.well-known/apple-app-site-association` (`TEAM_ID_APPLE.app.picti`, composant

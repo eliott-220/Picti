@@ -135,6 +135,9 @@ et le sélecteur « Monde / Amis » de la carte sont de vrais boutons iOS en ver
 `src/glassButtons.ts`) ; ils se cachent sous les feuilles et fiches. Le déclencheur reste celui de la
 charte, et le site garde ses boutons habituels.
 
+**Retour en arrière** (0.19.0, app iOS) : glisser le doigt depuis le bord gauche de l'écran, comme
+dans les autres apps de l'iPhone (l'écran précédent apparaît dessous).
+
 Limite connue : sur Android, « Enregistrer » une photo ne fait rien (la WebView Android n'a ni
 feuille de partage ni téléchargement) ; il faudra un plugin (`@capacitor/filesystem` +
 `@capacitor/share`).

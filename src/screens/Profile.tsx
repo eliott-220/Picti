@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { photoTime } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { PremiumCard } from '../components/PremiumCard'
-import { AvatarRow, Chip, EmptyState, IconButton, PersonLink, PhotoTile, RoundButton } from '../components/ui'
+import { AvatarRow, Chip, EmptyState, IconButton, PersonLink, PhotoTile, PhotoTilePile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { inviteLink } from '../data/invite'
@@ -133,16 +133,12 @@ export function Profile({ section }: { section?: 'amis' }) {
         </h2>
         {geoframed.length ? (
           <div className="grid">
-            {spots.map(({ items: [p, ...others] }) => (
-              <PhotoTile
-                key={p.id}
-                id={p.id}
-                visibility={p.visibility}
-                stack={1 + others.length}
-                likes={p.likesCount}
-                version={p.versionOf != null}
-                label={others.length ? `${1 + others.length} photos au même endroit` : undefined}
-                onClick={() => navigate(`/photo/${p.id}`)}
+            {spots.map(({ items }) => (
+              <PhotoTilePile
+                key={items[0].id}
+                photos={items}
+                showVisibility
+                onOpen={(p) => navigate(`/photo/${p.id}`)}
               />
             ))}
           </div>

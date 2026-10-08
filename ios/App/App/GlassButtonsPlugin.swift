@@ -79,15 +79,22 @@ public class GlassButtonsPlugin: CAPPlugin, CAPBridgedPlugin {
         return control
     }
 
-    /// Calque fixe au-dessus de la page, pour les boutons hors des zones qui défilent.
+    /// Calque fixe au-dessus de la page, pour les boutons hors des zones qui défilent. Posé dans
+    /// la vue de défilement principale de la WebView (la page entière, qui ne défile pas) et non
+    /// sur la WebView : il glisse avec la page lors du retour par le bord gauche, et l'image de
+    /// l'écran précédent qu'iOS affiche alors passe par-dessus.
     private func container() -> UIView? {
-        if let overlay { return overlay }
-        guard let webView = bridge?.webView else { return nil }
-        let view = UIView(frame: webView.bounds)
+        guard let scrollView = bridge?.webView?.scrollView else { return nil }
+        if let overlay, overlay.superview === scrollView {
+            if scrollView.subviews.last !== overlay { scrollView.bringSubviewToFront(overlay) }
+            return overlay
+        }
+        let view = overlay ?? UIView()
+        view.frame = CGRect(origin: .zero, size: scrollView.bounds.size)
         view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
-        webView.addSubview(view)
+        scrollView.addSubview(view)
         overlay = view
         return view
     }

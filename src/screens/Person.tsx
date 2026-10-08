@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { photoTime } from '../components/arProjection'
 import { FriendButton } from '../components/FriendButton'
-import { Avatar, EmptyState, PhotoTile, RoundButton } from '../components/ui'
+import { Avatar, EmptyState, PhotoTilePile, RoundButton } from '../components/ui'
 import { friendState } from '../data/friends'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { useStore } from '../data/storeContext'
@@ -112,17 +112,8 @@ export function Person({ id }: { id: string }) {
           <p className="versions-note">Chargement…</p>
         ) : spots.length ? (
           <div className="grid">
-            {spots.map(({ items: [p, ...others] }) => (
-              <PhotoTile
-                key={p.id}
-                id={p.id}
-                owner={p.owner}
-                stack={1 + others.length}
-                likes={p.likesCount}
-                version={p.versionOf != null}
-                label={others.length ? `${1 + others.length} photos au même endroit` : p.title || undefined}
-                onClick={() => navigate(`/photo/${p.id}`)}
-              />
+            {spots.map(({ items }) => (
+              <PhotoTilePile key={items[0].id} photos={items} onOpen={(p) => navigate(`/photo/${p.id}`)} />
             ))}
           </div>
         ) : (

@@ -45,5 +45,15 @@ les boutons liquid ? » puis « les 2 en même temps » (prompt `PROMPT-0.019.0.
   amis, cadenas) en haut à gauche de **toutes** les vignettes de « Mes photos ». Vu au simulateur :
   rangée de filtres qui défile et appui sur « À géocadrer », profil capturé en plein élan (crayon,
   QR et pastilles collés au texte), « Tout le monde » et Menu qui répondent.
+- **Retour par le bord gauche et piles glissables** (demande d'Eliott) : geste natif d'iOS sur la
+  WebView (`allowsBackForwardNavigationGestures`), l'écran précédent apparaît dessous ; le calque
+  des boutons fixes est passé dans la vue de défilement principale pour glisser avec la page ; le
+  routeur note la profondeur dans chaque entrée de l'historique et la relit au `popstate` (un retour
+  sans `goBack` ne dérègle plus « Retour »). « Mes photos » (et le profil public) : les photos d'un
+  même lieu forment une pile qu'on fait glisser comme celles du viseur (`PhotoTilePile`). Vu au
+  simulateur : glissement depuis le bord (Notifications → viseur, profil → viseur), pile qui passe
+  à la 2ᵉ photo (cadenas d'une photo privée). Chrome : retour du navigateur puis « Retour » OK.
+  Petit défaut connu : en revenant vers un écran quitté depuis le menu, l'aperçu montre le menu
+  ouvert, puis l'écran retrouvé est sans lui.
 - Pas vu : vraie caméra sur iPhone, mode Reproduire, VoiceOver.
 - Version 0.19.0. typecheck, lint, 311 tests, build, `cap sync`, `xcodebuild` OK.
