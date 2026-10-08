@@ -34,4 +34,11 @@ web embarqué, sans rien changer à https://picti.vercel.app. Branche `claude/co
   simulé : écran de connexion sous l'encoche, barre d'état lisible, JS chargé
   (`capacitor://localhost`). Aperçu Vercel : site identique, `.well-known` en `application/json`,
   `ios/` et `android/` non publiés. Pas testé : caméra, GPS, boussole (vrai iPhone nécessaire).
+- **Sur le vrai iPhone (08/10)** : iPhone 15 Pro Max en **iOS 27.0**, compilé et installé avec
+  Xcode 26.3 (équipe personnelle gratuite, profil « iOS Team Provisioning Profile: app.picti » :
+  l'identifiant `app.picti` était libre). Première installation : faire confiance au développeur
+  (Réglages › Général › VPN et gestion de l'appareil). Connexion OK, menu « Version 0.018.0 ·
+  app iOS » : Eliott confirme que la 0.018.0 marche. « Créer un compte » avec une adresse déjà
+  inscrite affiche « Compte créé ! » sans envoyer d'e-mail (Supabase `user_repeated_signup`) :
+  message à compléter (proposé, en attente).
 - Version 0.18.0. typecheck, lint, 301 tests, build et `cap sync` OK.
