@@ -1,6 +1,7 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
+import { useGlassButton } from '../glassButtons'
 import { navigate } from '../router'
 import { Dots } from './Dots'
 import { Icon, type IconName } from './Icon'
@@ -12,6 +13,7 @@ export function RoundButton({
   dim = false,
   className = '',
   badge,
+  glass = false,
 }: {
   icon: IconName
   label: string
@@ -20,9 +22,25 @@ export function RoundButton({
   className?: string
   /** Pastille de compteur (ex. photos à chasser à proximité). */
   badge?: number
+  /** Dans l'app iOS 26+ : remplacé par un vrai bouton Liquid Glass natif (`src/glassButtons.ts`). */
+  glass?: boolean
 }) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const native = useGlassButton(
+    ref,
+    glass ? { icon, label, badge, dim, active: className.split(' ').includes('active') } : null,
+  )
   return (
-    <button type="button" className={`round-btn ${dim ? 'dim' : ''} ${className}`} onClick={onClick} aria-label={label} title={label}>
+    <button
+      ref={ref}
+      type="button"
+      className={`round-btn ${dim ? 'dim' : ''} ${className}${native ? ' glass-native' : ''}`}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-hidden={native || undefined}
+      tabIndex={native ? -1 : undefined}
+    >
       <Icon name={icon} />
       {!!badge && <span className="round-badge">{badge > 99 ? '99+' : badge}</span>}
     </button>

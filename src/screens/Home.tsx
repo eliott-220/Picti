@@ -367,23 +367,23 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
 
       {!reproduce && (
       <nav className="rail" aria-label="Explorer">
-        <RoundButton
+        <RoundButton glass
           icon="bell"
           label={unread ? `Notifications (${unread} non lue${unread > 1 ? 's' : ''})` : 'Notifications'}
           onClick={() => navigate('/notifications')}
           dim={!!sheet}
           badge={unread}
         />
-        <RoundButton
+        <RoundButton glass
           icon="pin"
           label="Carte des photos"
           onClick={() => navigate('/carte')}
           dim={!!sheet}
           badge={toHunt}
         />
-        <RoundButton icon="filter" label="Filtrer" onClick={() => navigate('/recherche?filtres')} dim={!!sheet} />
-        <RoundButton icon="search" label="Rechercher" onClick={() => navigate('/recherche')} dim={!!sheet} />
-        <RoundButton
+        <RoundButton glass icon="filter" label="Filtrer" onClick={() => navigate('/recherche?filtres')} dim={!!sheet} />
+        <RoundButton glass icon="search" label="Rechercher" onClick={() => navigate('/recherche')} dim={!!sheet} />
+        <RoundButton glass
           icon="flipCamera"
           label={selfie ? 'Revenir à la caméra principale' : 'Prendre un selfie (caméra avant)'}
           onClick={() => setFacing(selfie ? 'environment' : 'user')}
@@ -411,7 +411,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
 
       <div className="bottom-bar">
         {reproduce ? (
-          <RoundButton icon="close" label="Arrêter de reproduire" onClick={goBack} />
+          <RoundButton glass icon="close" label="Arrêter de reproduire" onClick={goBack} />
         ) : lastShot ? (
           <button
             type="button"
@@ -422,7 +422,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
             <Thumb id={lastShot} />
           </button>
         ) : (
-          <RoundButton icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
+          <RoundButton glass icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
         )}
         <Shutter
           visibility={visibility}
@@ -433,14 +433,14 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           label={`${selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}${away ? ' — hors de la vue de la photo d’origine' : ''}`}
         />
         {reproduce ? (
-          <RoundButton
+          <RoundButton glass
             icon="flipCamera"
             label={selfie ? 'Revenir à la caméra principale' : 'Caméra avant'}
             onClick={() => setFacing(selfie ? 'environment' : 'user')}
             className={selfie ? 'active' : ''}
           />
         ) : (
-          <RoundButton icon="grid" label="Menu" onClick={() => setSheet('menu')} badge={friendRequests} />
+          <RoundButton glass icon="grid" label="Menu" onClick={() => setSheet('menu')} badge={friendRequests} />
         )}
       </div>
 

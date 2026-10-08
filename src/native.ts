@@ -1,7 +1,14 @@
 // Coque native Capacitor (iOS, Android) : seul module qui importe `@capacitor/core`.
 // Dans le navigateur, tout se comporte comme avant (`isNative()` faux).
 
-import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core'
+import {
+  Capacitor,
+  registerPlugin,
+  SystemBars,
+  SystemBarsStyle,
+  SystemBarType,
+  type PluginListenerHandle,
+} from '@capacitor/core'
 import { useEffect } from 'react'
 import { APP_URL } from './config'
 
@@ -23,6 +30,38 @@ export function platformLabel(p: Platform = platform()): string | null {
   if (p === 'android') return 'app Android'
   return null
 }
+
+/** Bouton Liquid Glass tel qu'envoyé au plugin natif (cadre en points, ceux de la page). */
+export interface GlassButtonSpec {
+  id: string
+  /** Nom du symbole SF (ex. « bell »). */
+  symbol: string
+  /** Libellé lu par VoiceOver. */
+  label: string
+  x: number
+  y: number
+  width: number
+  height: number
+  /** Pastille rouge (« 3 », « 99+ »), null sans pastille. */
+  badge: string | null
+  dim: boolean
+  /** Bouton enfoncé (selfie) : verre teinté en rouge. */
+  active: boolean
+  /** Faux quand le bouton web est recouvert (feuille, fiche…) ou hors de l'écran. */
+  visible: boolean
+}
+
+interface GlassButtonsPlugin {
+  /** Vrai sur iOS 26 et plus (Liquid Glass). */
+  isAvailable(): Promise<{ available: boolean }>
+  /** Liste complète des boutons à afficher : le natif crée, déplace et retire les siens. */
+  set(options: { buttons: GlassButtonSpec[] }): Promise<void>
+  clear(): Promise<void>
+  addListener(event: 'tap', listener: (event: { id: string }) => void): Promise<PluginListenerHandle>
+}
+
+/** Plugin de l'app iOS (`ios/App/App/GlassButtonsPlugin.swift`), à n'appeler que sur iOS. */
+export const GlassButtons = registerPlugin<GlassButtonsPlugin>('GlassButtons')
 
 /**
  * Texte de la barre d'état dans la coque : blanc par défaut (caméra, en-têtes rouges, comme le

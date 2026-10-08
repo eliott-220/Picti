@@ -7,6 +7,7 @@ vi.mock('@capacitor/core', () => ({
     getPlatform: () => capacitor.platform,
     isNativePlatform: () => capacitor.platform !== 'web',
   },
+  registerPlugin: () => ({}),
   SystemBars: { setStyle: capacitor.setStyle },
   SystemBarsStyle: { Dark: 'DARK', Light: 'LIGHT', Default: 'DEFAULT' },
   SystemBarType: { StatusBar: 'StatusBar', NavigationBar: 'NavigationBar' },

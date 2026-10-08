@@ -229,6 +229,12 @@ img {
   color: #fff;
 }
 
+/* App iOS 26+ : un vrai bouton Liquid Glass natif est posé par-dessus (src/glassButtons.ts). */
+.round-btn.glass-native {
+  opacity: 0;
+  box-shadow: none;
+}
+
 .icon-btn {
   display: inline-grid;
   place-items: center;
