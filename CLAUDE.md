@@ -552,6 +552,81 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   `useGeolocation` : `denied` (pastille « Position refusée · Réglages » dans l'app, qui ouvre les
   réglages) et `precise` (`full` | `reduced` | `asking` | null, `nextPrecise`) : sans position exacte,
   iOS la propose une fois par lancement (`asking`), puis `reduced` → `PreciseLocationNotice`.
+- **Suivi visuel ARKit** (0.21.0, app iOS ; prompt `PROMPT-0.020.0.md` et note `PICTI-GPS.md` du
+  dossier d'Eliott) : dans l'app iPhone, la caméra arrière n'est plus la vidéo web mais celle d'**ARKit**,
+  affichée par iOS **derrière la page** ; la pose de la caméra (position au centimètre d'une image à
+  l'autre, orientation) remplace le GPS suivi pas à pas et le gyroscope + boussole. Ailleurs (site,
+  Android, iPhone sans ARKit, réglage coupé, selfie), rien ne change.
+  - **Plugin local `ArTracking`** (`ios/App/App/ArTrackingPlugin.swift`, enregistré par
+    `PictiViewController`, déclaré dans `project.pbxproj`) : `ARWorldTrackingConfiguration`,
+    `worldAlignment = .gravity` (cap arbitraire : c'est le calage qui le trouve), format vidéo de
+    `recommendedVideoFormatForHighResolutionFrameCapturing` (iOS 16+). `ARSCNView` inséré **sous la
+    WebView** (`webView.superview`, comme les plugins d'aperçu caméra) dans le cadre de l'élément
+    `stage` ; WebView rendue transparente le temps de l'affichage (couleurs remises au masquage).
+    Méthodes `isAvailable`, `start` (nouvelle session = nouveau repère, `{ session }`), `stop`,
+    `show({ x, y, width, height })`, `hide`, `capture` (image **haute résolution** iOS 16+, sinon
+    l'image courante, JPEG 0,92 dans un fichier temporaire — un seul à la fois —, avec focale et pose ;
+    lu par `fetch(Capacitor.convertFileSrc(path))`), `geoTrackingAvailability({ points })` (VPS d'Apple :
+    disponible ou non en ces points — pas encore utilisé), `appendTrace` (version de test). Événements
+    `pose` à chaque image (`s` session, `t` instant en ms comme `Date.now()`, `p` position, `r` `u` `b`
+    axes droite / haut / arrière de `inverse(viewMatrix(for: .portrait))`), `camera` (image en portrait :
+    largeur, hauteur, focale px), `tracking` (`normal` | `limited` + raison | `interrupted` | `failed`),
+    `session` (reprise après une interruption : nouveau repère).
+  - **Calage** (`src/geo/arAlign.ts`, porté de PICTI bis `bis/src/align.js`, testé) : `GeoAligner`
+    cherche θ (cap) et (e0, n0) qui envoient la trajectoire locale (e', n') = (x, −z) d'ARKit sur les
+    relevés GPS (moindres carrés, Procuste 2D en forme close), la boussole en a priori sur θ ; relevés
+    écartés au-delà de 3 × leur précision (8 m au moins) ; au plus 300 relevés (5 min), mémoire de la
+    boussole bornée. **Précision annoncée** `gpsPrecision` : variance moyenne des relevés ÷ relevés
+    « indépendants » (1 + durée / 60 s + distance / 100 m, prudent : vérifié honnête dans 90 % des cas
+    sur 200 marches simulées), jamais sous 1,5 m. `src/geo/arPose.ts` : poses → repère local et ENU,
+    `poseAt` (pose interpolée à l'instant d'un relevé GPS), `compassTheta` (mesure de θ seulement
+    objectif à moins de 55° de l'horizon, rotation < 8°/s, `webkitCompassAccuracy` ≤ 25°),
+    `approachTransform` (calage affiché qui rejoint le calcul en 1,5 s ; saut direct au-delà de 20° /
+    15 m), `focal35Of`.
+  - **Module `src/sensors/arTracking.ts`** : session partagée par les écrans caméra (`useArTracking`,
+    compteur d'utilisateurs ; écran quitté → arrêt après 1,5 s, le temps qu'un autre écran caméra la
+    reprenne ; caméra arrière abandonnée sur place — selfie — → arrêt immédiat). Statut `off` |
+    `checking` | `starting` | `running` | `unavailable` | `disabled` | `failed` ; **tout échec**
+    (plugin absent ou plus ancien que la page, caméra refusée, exception) → `failed` → caméra web,
+    jamais d'écran noir (défaut trouvé par le banc le 08/10 : un appel qui lève restait bloqué en
+    `checking`). Relevés GPS **bruts** (`onFix` de `useGeolocation`, avant le filtre) associés à la
+    pose du même instant (historique de 10 s), seulement en suivi `normal` ; boussole par
+    `deviceorientation` (10 mesures/s au plus) ; calage recalculé au plus toutes les 250 ms.
+    `currentView()` : position calée (précision = celle du calage), orientation (null tant que le cap
+    n'est pas calé). `useArCamera(stage, visible)` : cadre de la caméra native = rectangle de
+    l'élément (ResizeObserver), classe **`picti-ar`** sur `<html>` (fonds transparents, vidéo web
+    cachée, `styles.css`), masquage différé de 150 ms (relais d'un écran à l'autre). Réglage
+    **« Suivi visuel : activé / coupé »** dans le menu (`setArSetting`, `localStorage`
+    `picti.suivi-visuel`), seulement quand l'appareil a ARKit.
+  - **`src/sensors/useViewfinder.ts`** : point d'entrée unique des capteurs des écrans caméra (accueil,
+    chasse, recalage) — caméra (`capture` ARKit, avec focale et pose), géolocalisation, orientation
+    (celle du suivi dès que son cap est calé, sinon les capteurs), position (suivi calé, sinon
+    `useLivePosition`), focale (celle d'ARKit, sinon `useCameraFocal` ; la mesure de focale en tournant
+    ne tourne qu'en caméra web). La caméra web attend tant que le suivi démarre (`checking` /
+    `starting`). Pastilles : précision de la position réellement utilisée, « Suivi visuel » au lieu de
+    « Boussole » (`SensorStatus position visual`).
+  - **Regéocadrage** : une photo prise avec le suivi (`trackArShot`, pose de son image) est récrite
+    (`ArShotRefiner`, monté avec le store → `updatePhoto`) quand le calage s'affine : au plus toutes les
+    20 s, seulement si la précision gagne 0,3 m et que la photo bouge de 0,75 m ou tourne de 1,5°
+    (`refinement`, testé). Sur 400 marches simulées : photo prise en début de session 5,5 m → 4,2 m
+    en moyenne (meilleure 7 fois sur 10).
+  - **Chiffres** (tests `arCompare.test.ts`, 200 marches simulées : GPS à erreur corrélée σ 4 m sur
+    30 s, boussole faussée de 7°) : erreur moyenne GPS seul 5,1 m, suivi actuel 4,9 m (4,95 avec des
+    pas comptés parfaits), suivi visuel **4,1 m** ; déplacement d'une photo d'une seconde à l'autre
+    2,2 / 1,1 / 0,26 → **0,14 m**. Le cap reste celui de la boussole (corrigé par le trajet sur de longues
+    marches). Ce que la simulation ne montre pas : le tremblement d'une image à l'autre (supprimé par
+    ARKit) et l'erreur des pas comptés (sens, longueur).
+  - **Version de test** (`VITE_PICTI_TRACE=1` au build) : `src/sensors/arTrace.ts` enregistre GPS
+    bruts, poses (5/s), boussole, calages, prises et regéocadrages dans `Documents/traces/*.jsonl` de
+    l'app (récupérables par `xcrun devicectl device copy from --domain-type appDataContainer
+    --domain-identifier app.picti --source Documents/traces …`). Rien n'est envoyé ; inactif sinon.
+  - **Banc « iPhone simulé »** (hors dépôt, voir la note de session) : `@capacitor/core` remplacé par des
+    plugins simulés (vérité terrain, GPS bruité, repère ARKit au cap arbitraire, boussole faussée, décor
+    de synthèse derrière la page) ; scénarios Playwright : marche, regéocadrage, selfie, accueil → chasse
+    → carte, menu, appareil sans ARKit.
+  - **Pas encore vérifié sur l'iPhone** (verrouillé pendant la session du 08/10) : rendu de la caméra
+    derrière la page, conventions des poses, photo haute résolution, boussole pendant ARKit. Au
+    simulateur iOS (sans ARKit) : repli sur la caméra web vérifié.
 - **Retour par le bord gauche** (0.19.0, app iOS) : `PictiViewController.viewDidLoad` →
   `webView.allowsBackForwardNavigationGestures = true` : le vrai geste d'iOS (glisser depuis le bord
   gauche ; depuis le bord droit pour revenir en avant), l'écran précédent apparaît dessous (image

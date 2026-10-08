@@ -1,7 +1,9 @@
 import { Icon, Logo, type IconName } from '../components/Icon'
 import { IconButton, Sheet } from '../components/ui'
 import { useStore } from '../data/storeContext'
+import { setArSetting, useArState } from '../sensors/arTracking'
 import { useCameraFocal } from '../sensors/cameraFocal'
+import { hasArTracking } from '../native'
 import { formatVersion, reloadApp } from '../data/appUpdate'
 import { supabase } from '../data/supabase'
 import { isGeoframed } from '../data/types'
@@ -13,6 +15,10 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
   const geoframed = myPhotos.filter(isGeoframed).length
   const hunted = new Set(captures.map((c) => c.photoId)).size
   const requests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
+  // App iPhone : le suivi visuel (ARKit) se coupe ici, pour comparer avec le GPS et la boussole seuls.
+  const ar = useArState()
+  const arToggle = hasArTracking() && ar.status !== 'unavailable'
+  const arOn = ar.status !== 'disabled'
 
   const items: { icon: IconName; label: string; detail: string; to: string; badge?: number }[] = [
     requests
@@ -60,6 +66,25 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
+      {arToggle && (
+        <ul className="menu">
+          <li>
+            <button type="button" aria-pressed={arOn} onClick={() => setArSetting(!arOn)}>
+              <span className="menu-icon">
+                <Icon name="eye" />
+              </span>
+              <span className="menu-text">
+                <strong>Suivi visuel : {arOn ? 'activé' : 'coupé'}</strong>
+                <span>
+                  {arOn
+                    ? 'Les photos restent à leur place quand vous bougez (caméra et capteurs de l’iPhone)'
+                    : 'Position par le GPS et la boussole seuls, comme sur le site'}
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      )}
       <button type="button" className="btn ghost signout" onClick={() => void supabase.auth.signOut()}>
         Se déconnecter
       </button>

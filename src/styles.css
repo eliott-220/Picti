@@ -300,6 +300,20 @@ img {
   touch-action: none;
 }
 
+/* Suivi visuel (app iPhone, 0.21.0) : la caméra est affichée par iOS derrière la page, qui devient
+   transparente à cet endroit ; la vidéo web ne sert pas. */
+html.picti-ar,
+html.picti-ar body,
+html.picti-ar #root,
+html.picti-ar .viewfinder,
+html.picti-ar .hunt,
+html.picti-ar .recaler {
+  background: transparent;
+}
+html.picti-ar .camera-video {
+  visibility: hidden;
+}
+
 .camera-video {
   position: absolute;
   inset: 0;

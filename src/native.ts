@@ -129,6 +129,74 @@ export const NativePosition = registerPlugin<PositionPlugin>('Position')
 /** La position vient d'iOS (CoreLocation) plutôt que de la page : app iOS seulement. */
 export const hasNativePosition = (p: Platform = platform()): boolean => p === 'ios'
 
+/** Pose de la caméra envoyée par le suivi visuel (repère ARKit, écran en portrait). */
+export interface NativeArPose {
+  /** Session (un nouveau repère à chaque démarrage). */
+  s: number
+  /** Instant de l'image (ms, horloge de `Date.now()`). */
+  t: number
+  /** Position (m) et axes droite, haut, arrière de la caméra. */
+  p: [number, number, number]
+  r: [number, number, number]
+  u: [number, number, number]
+  b: [number, number, number]
+}
+
+/** Image de l'objectif du suivi, en portrait : dimensions (px) et focale (px). */
+export interface NativeArCamera {
+  s: number
+  width: number
+  height: number
+  focal: number
+}
+
+export interface NativeArTracking {
+  s: number
+  state: 'normal' | 'limited' | 'notAvailable' | 'interrupted' | 'failed'
+  reason: string | null
+}
+
+/** Photo prise par le suivi : fichier JPEG temporaire, dimensions, focale (px) et pose de l'image. */
+export interface NativeArShot {
+  path: string
+  width: number
+  height: number
+  focal: number
+  pose: NativeArPose
+}
+
+interface ArTrackingPlugin {
+  isAvailable(): Promise<{ available: boolean }>
+  /** Démarre une session (nouveau repère) ; la caméra n'est affichée qu'avec `show`. */
+  start(): Promise<{ session: number }>
+  stop(): Promise<void>
+  /** Affiche la caméra derrière la page, dans ce cadre (points de la page). */
+  show(frame: { x: number; y: number; width: number; height: number }): Promise<void>
+  hide(): Promise<void>
+  capture(): Promise<NativeArShot>
+  /** Localisation visuelle d'Apple disponible en ces points (Look Around). */
+  geoTrackingAvailability(options: { points: { lat: number; lon: number }[] }): Promise<{
+    supported: boolean
+    available: boolean[]
+    errors?: string[]
+  }>
+  /** Version de test : ajoute `text` au journal `name` (Documents/traces de l'app). */
+  appendTrace(options: { name: string; text: string }): Promise<void>
+  addListener(event: 'pose', listener: (pose: NativeArPose) => void): Promise<PluginListenerHandle>
+  addListener(event: 'camera', listener: (camera: NativeArCamera) => void): Promise<PluginListenerHandle>
+  addListener(event: 'tracking', listener: (tracking: NativeArTracking) => void): Promise<PluginListenerHandle>
+  addListener(event: 'session', listener: (session: { s: number }) => void): Promise<PluginListenerHandle>
+}
+
+/** Plugin de l'app iOS (`ios/App/App/ArTrackingPlugin.swift`), à n'appeler que sur iOS. */
+export const ArTracking = registerPlugin<ArTrackingPlugin>('ArTracking')
+
+/** Le suivi visuel ARKit peut servir : app iOS seulement (l'appareil le dit ensuite, `isAvailable`). */
+export const hasArTracking = (p: Platform = platform()): boolean => p === 'ios'
+
+/** Adresse lisible par la page d'un fichier de l'app (photo prise par le suivi). */
+export const nativeFileUrl = (path: string): string => Capacitor.convertFileSrc(path)
+
 /**
  * Texte de la barre d'état dans la coque : blanc par défaut (caméra, en-têtes rouges, comme le
  * `black-translucent` du web), foncé sur les écrans clairs en haut. Sans effet dans le navigateur.

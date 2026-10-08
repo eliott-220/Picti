@@ -1,3 +1,4 @@
+import type { GeoFix } from '../geo/geodesy'
 import { GPS_GOOD_ACCURACY } from '../geo/tracking'
 import { hasNativePosition } from '../native'
 import { openAppSettings } from '../sensors/positionSource'
@@ -8,22 +9,39 @@ import type { OrientationState } from '../sensors/useOrientation'
 import { Icon } from './Icon'
 
 /** Pastilles d'état du GPS et de la boussole, indispensables au géocadrage. */
-export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orientation: OrientationState }) {
+export function SensorStatus({
+  geo,
+  orientation,
+  position = null,
+  visual = false,
+}: {
+  geo: GeolocationState
+  orientation: OrientationState
+  /** Position réellement utilisée (suivi visuel calé : sa précision s'affine en marchant). */
+  position?: GeoFix | null
+  /** Le cap vient du suivi visuel (app iPhone). */
+  visual?: boolean
+}) {
+  const fix = position ?? geo.fix
   // Au-delà de ±12 m, la pastille passe à l'orange : une photo prise risque d'être mal placée.
-  const gps = geo.fix
+  const gps = fix
     ? {
-        ok: geo.fix.accuracy <= GPS_GOOD_ACCURACY,
-        warn: geo.fix.accuracy > GPS_GOOD_ACCURACY,
+        ok: fix.accuracy <= GPS_GOOD_ACCURACY,
+        warn: fix.accuracy > GPS_GOOD_ACCURACY,
         // « marche » : l'accéléromètre voit les pas (la position suit alors le GPS de près).
         // Le mot « GPS » est retiré (0.16.2) : l'épingle suffit, « ±3 m » se lit tout seul.
-        text: `±${Math.round(geo.fix.accuracy)} m${currentMotion() === 'moving' ? ' · marche' : ''}`,
+        text: `±${Math.round(fix.accuracy)} m${!visual && currentMotion() === 'moving' ? ' · marche' : ''}`,
       }
     : { ok: false, warn: false, text: geo.error ?? '…' }
 
   let compass: { ok: boolean; text: string }
   switch (orientation.status) {
     case 'active':
-      compass = orientation.absolute ? { ok: true, text: 'Boussole' } : { ok: false, text: 'Boussole relative' }
+      compass = visual
+        ? { ok: true, text: 'Suivi visuel' }
+        : orientation.absolute
+          ? { ok: true, text: 'Boussole' }
+          : { ok: false, text: 'Boussole relative' }
       break
     case 'needs-permission':
       // Déjà autorisée lors d'une ouverture précédente : un appui n'importe où la réactive.

@@ -28,12 +28,10 @@ import { reproduceStatus, type ReproduceState } from '../geo/reproduce'
 import { GPS_GOOD_ACCURACY } from '../geo/tracking'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { goBack, navigate } from '../router'
-import { useCameraFocal } from '../sensors/cameraFocal'
-import { useCamera, type CameraFacing } from '../sensors/useCamera'
-import { useFocalCalibration } from '../sensors/useFocalCalibration'
-import { useGeolocation } from '../sensors/useGeolocation'
-import { useLivePosition } from '../sensors/useLivePosition'
-import { useOrientation } from '../sensors/useOrientation'
+import type { CameraFacing } from '../sensors/useCamera'
+import { trackArShot } from '../sensors/arTracking'
+import { useViewfinder } from '../sensors/useViewfinder'
+import type { NativeArPose } from '../native'
 import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
 import { PhotoSheet } from './PhotoDetail'
@@ -50,6 +48,8 @@ interface HeldShot {
   accuracy: number
   /** Hors de la vue : l'état au déclenchement (distance, cause). */
   check: ReproduceState | null
+  /** Suivi visuel : pose de l'image (la photo sera replacée quand le calage s'affine). */
+  pose?: NativeArPose
 }
 
 /** Miniature de la photo qu'on vient de prendre, dans le coin bas-gauche (ms). */
@@ -68,15 +68,12 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   // Un selfie se reproduit avec la caméra avant.
   const [facing, setFacing] = useState<CameraFacing>(reproduce?.selfie ? 'user' : 'environment')
   const selfie = facing === 'user'
-  const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = useCamera(true, facing)
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
-  const geo = useGeolocation()
-  const orientation = useOrientation()
-  // Position suivie image par image (et pas à pas) : les photos restent à leur place quand on marche.
-  const position = useLivePosition(geo.track, orientation.absolute ? orientation.basis : null)
-  // Focale de la caméra principale, mesurée en tournant le téléphone.
-  const { focal35 } = useCameraFocal()
-  useFocalCalibration(videoRef, orientation.angles, !selfie && cameraStatus === 'ready' && orientation.absolute)
+  // Caméra, position et orientation : suivi visuel d'ARKit dans l'app iPhone (les photos restent à
+  // leur place au centimètre près) ; sinon caméra web, position suivie image par image (et pas à pas)
+  // et boussole, avec la focale de la caméra principale mesurée en tournant le téléphone.
+  const { camera, geo, orientation, position, focal35, ar } = useViewfinder({ stage: stageRef, facing, calibrateFocal: true })
+  const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = camera
   const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications } = useStore()
   const unread = unreadCount(notifications)
   const toast = useToast()
@@ -198,14 +195,15 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       const shot = await createDirectPhoto(
         frame,
         { fix, angles, absolute: orientation.absolute },
-        { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : focal35 },
+        // Focale de l'image prise (suivi visuel : celle de l'image haute résolution).
+        { selfie, focal35: selfie ? FRONT_PHONE_FOCAL35 : (frame.focal35 ?? focal35) },
       )
       if (kind && fix) {
-        setHeld({ kind, shot, accuracy: fix.accuracy, check })
+        setHeld({ kind, shot, accuracy: fix.accuracy, check, pose: frame.pose })
         kept = true
         return
       }
-      await save(shot)
+      await save(shot, { pose: frame.pose })
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Capture impossible')
     } finally {
@@ -214,9 +212,13 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
     }
   }
 
-  /** Enregistre la photo prise ; `classic` : jamais rattachée à l'originale (« Garder en photo classique »). */
-  async function save({ photo, images }: NewPhoto, { classic = false } = {}) {
+  /**
+   * Enregistre la photo prise ; `classic` : jamais rattachée à l'originale (« Garder en photo
+   * classique ») ; `pose` : prise avec le suivi visuel, elle sera replacée quand le calage s'affine.
+   */
+  async function save({ photo, images }: NewPhoto, { classic = false, pose }: { classic?: boolean; pose?: NativeArPose } = {}) {
     const saved = await addPhoto(photo, images, { visibility, versionOf: classic ? null : reproduce?.id })
+    if (pose && saved.geoframe) trackArShot(saved.id, pose, saved.geoframe)
     navigator.vibrate?.(30)
     const kind = selfie ? 'Selfie' : 'Photo'
     if (reproduce && saved.versionOf === reproduce.id) {
@@ -260,11 +262,11 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   /** Choix fait sur la feuille : enregistrer l'image figée (`classic` : sans la rattacher). */
   async function keepHeld(classic: boolean) {
     if (!held) return
-    const { shot } = held
+    const { shot, pose } = held
     setHeld(null)
     setBusy(true)
     try {
-      await save(shot, { classic })
+      await save(shot, { classic, pose })
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Enregistrement impossible')
     } finally {
@@ -362,7 +364,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
             ? () => void orientation.requestPermission() : undefined}
         />
       ) : (
-        <SensorStatus geo={geo} orientation={orientation} />
+        <SensorStatus geo={geo} orientation={orientation} position={position} visual={ar.active && ar.state.align.ok} />
       )}
 
       {!reproduce && (

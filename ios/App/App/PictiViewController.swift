@@ -6,6 +6,7 @@ class PictiViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(GlassButtonsPlugin())
         bridge?.registerPluginInstance(PositionPlugin())
+        bridge?.registerPluginInstance(ArTrackingPlugin())
     }
 
     override open func viewDidLoad() {

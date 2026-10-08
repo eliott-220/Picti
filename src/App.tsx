@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Logo } from './components/Icon'
 import { usePasswordRecovery, useSession } from './data/auth'
 import { takePendingInvite } from './data/invite'
+import { ArShotRefiner } from './components/ArShotRefiner'
 import { StoreProvider } from './data/store'
 import { useStore } from './data/storeContext'
 import { supabase } from './data/supabase'
@@ -36,6 +37,7 @@ export default function App() {
   return (
     <StoreProvider key={session.user.id} userId={session.user.id}>
       <Screens />
+      <ArShotRefiner />
     </StoreProvider>
   )
 }

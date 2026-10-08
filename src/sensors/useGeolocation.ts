@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { GeoFix } from '../geo/geodesy'
-import { trackFix, updateTrack, walkTrack, type Track } from '../geo/tracking'
+import { trackFix, updateTrack, walkTrack, type GpsFix, type Track } from '../geo/tracking'
 import type { NativePositionStatus } from '../native'
 import { currentMotion, watchMotion } from './motion'
 import { nextPrecise, requestFullAccuracy, watchPositionSource, type PreciseLocation } from './positionSource'
@@ -29,6 +29,8 @@ let track: Track | null = null
 /** Jusqu'à cet instant (ms), un écran fait avancer la position pas à pas (`walkPosition`). */
 let steppingUntil = 0
 const listeners = new Set<() => void>()
+/** Écouteurs des relevés bruts (avant le filtre) : calage du suivi visuel. */
+const fixListeners = new Set<(fix: GpsFix) => void>()
 let watch: { stop: () => void; stopMotion: () => void } | null = null
 /** « Position exacte » déjà proposée par iOS pendant ce lancement de l'app. */
 let fullAccuracyAsked = false
@@ -54,6 +56,7 @@ function startWatching() {
   track = null
   const stop = watchPositionSource({
     fix(fix) {
+      fixListeners.forEach((l) => l(fix))
       track = updateTrack(track, fix, currentMotion(), Date.now() < steppingUntil)
       publish({ ...state, fix: trackFix(track), track, error: null, denied: false })
     },
@@ -91,6 +94,14 @@ function stopWatching() {
   watch = null
   track = null
   publish(IDLE)
+}
+
+/** Reçoit chaque relevé brut (tant que la position est suivie) ; renvoie de quoi se désabonner. */
+export function onFix(listener: (fix: GpsFix) => void): () => void {
+  fixListeners.add(listener)
+  return () => {
+    fixListeners.delete(listener)
+  }
 }
 
 /** Un écran fait avancer la position pas à pas : le GPS ne la tire plus pendant la marche. */

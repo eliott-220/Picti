@@ -14,6 +14,7 @@
 		A1C0FFEE0000000000000004 /* PictiViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE0000000000000003 /* PictiViewController.swift */; };
 		A1C0FFEE0000000000000002 /* GlassButtonsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE0000000000000001 /* GlassButtonsPlugin.swift */; };
 		A1C0FFEE0000000000000006 /* PositionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE0000000000000005 /* PositionPlugin.swift */; };
+		A1C0FFEE0000000000000008 /* ArTrackingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE0000000000000007 /* ArTrackingPlugin.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
@@ -29,6 +30,7 @@
 		A1C0FFEE0000000000000003 /* PictiViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PictiViewController.swift; sourceTree = "<group>"; };
 		A1C0FFEE0000000000000001 /* GlassButtonsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassButtonsPlugin.swift; sourceTree = "<group>"; };
 		A1C0FFEE0000000000000005 /* PositionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionPlugin.swift; sourceTree = "<group>"; };
+		A1C0FFEE0000000000000007 /* ArTrackingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArTrackingPlugin.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 				A1C0FFEE0000000000000003 /* PictiViewController.swift */,
 				A1C0FFEE0000000000000001 /* GlassButtonsPlugin.swift */,
 				A1C0FFEE0000000000000005 /* PositionPlugin.swift */,
+				A1C0FFEE0000000000000007 /* ArTrackingPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -171,6 +174,7 @@
 				A1C0FFEE0000000000000004 /* PictiViewController.swift in Sources */,
 				A1C0FFEE0000000000000002 /* GlassButtonsPlugin.swift in Sources */,
 				A1C0FFEE0000000000000006 /* PositionPlugin.swift in Sources */,
+				A1C0FFEE0000000000000008 /* ArTrackingPlugin.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -319,7 +323,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.20.0;
+				MARKETING_VERSION = 0.21.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = app.picti;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -341,7 +345,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.20.0;
+				MARKETING_VERSION = 0.21.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.picti;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

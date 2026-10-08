@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../components/Icon'
 import { DirectionArrow, RoundButton } from '../components/ui'
 import { useElementSize } from '../components/useElementSize'
+import { useViewfinder } from '../sensors/useViewfinder'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { PremiumCard } from '../components/PremiumCard'
@@ -13,11 +14,6 @@ import { bearingDeg, compassPoint, distanceMeters, formatDistance } from '../geo
 import { angleDiffDeg } from '../geo/math'
 import { coverViewport, focalPx } from '../geo/optics'
 import { goBack, navigate } from '../router'
-import { useCameraFocal } from '../sensors/cameraFocal'
-import { useCamera } from '../sensors/useCamera'
-import { useGeolocation } from '../sensors/useGeolocation'
-import { useLivePosition } from '../sensors/useLivePosition'
-import { useOrientation } from '../sensors/useOrientation'
 
 const FOCAL_MIN = 13
 const FOCAL_MAX = 200
@@ -61,15 +57,12 @@ export function Recaler({ id }: { id: string }) {
 function RecalerView({ photo }: { photo: GeoPhoto }) {
   const { updatePhoto } = useStore()
   const url = useImageUrl(photo.id, 'full')
-  const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
-  const geo = useGeolocation()
-  const orientation = useOrientation()
-  // Même position que l'accueil et la chasse (suivie image par image, pas à pas) : la photo
-  // recalée est enregistrée là où les autres écrans la montreront.
-  const position = useLivePosition(geo.track, orientation.absolute ? orientation.basis : null)
-  const { focal35: cameraFocal35 } = useCameraFocal()
   const toast = useToast()
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
+  // Mêmes capteurs que l'accueil et la chasse (suivi visuel dans l'app iPhone, sinon position suivie
+  // image par image) : la photo recalée est enregistrée là où les autres écrans la montreront.
+  const { camera, geo, orientation, position, focal35: cameraFocal35 } = useViewfinder({ stage: stageRef })
+  const { videoRef, status: cameraStatus, size: cameraSize } = camera
   const [opacity, setOpacity] = useState(0.55)
   const [focal, setFocal] = useState(photo.focal35)
 

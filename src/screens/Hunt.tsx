@@ -25,13 +25,8 @@ import { basisFromAngles, type CameraAngles } from '../geo/orientation'
 import { sameSpot } from '../geo/spots'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { goBack, navigate } from '../router'
+import { useViewfinder } from '../sensors/useViewfinder'
 import { PhotoSheet } from './PhotoDetail'
-import { useCameraFocal } from '../sensors/cameraFocal'
-import { useCamera } from '../sensors/useCamera'
-import { useFocalCalibration } from '../sensors/useFocalCalibration'
-import { useGeolocation } from '../sensors/useGeolocation'
-import { useLivePosition } from '../sensors/useLivePosition'
-import { useOrientation } from '../sensors/useOrientation'
 
 /**
  * Alignement tenu (ms) au bout duquel la capture se lance d'elle-même (même déroulé qu'un appui
@@ -77,13 +72,10 @@ function HuntView({
   onSelect: (photo: GeoframedPhoto) => void
 }) {
   const { captures, addCapture, isMine } = useStore()
-  const { videoRef, status: cameraStatus, size: cameraSize } = useCamera()
-  const geo = useGeolocation()
-  const orientation = useOrientation()
-  const position = useLivePosition(geo.track, orientation.absolute ? orientation.basis : null)
-  const { focal35 } = useCameraFocal()
-  useFocalCalibration(videoRef, orientation.angles, cameraStatus === 'ready' && orientation.absolute)
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
+  // Suivi visuel dans l'app iPhone, sinon caméra web, GPS suivi et boussole (voir `useViewfinder`).
+  const { camera, geo, orientation, position, focal35 } = useViewfinder({ stage: stageRef, calibrateFocal: true })
+  const { videoRef, status: cameraStatus, size: cameraSize } = camera
   const [opacity, setOpacity] = useState(0.8)
   // chasse → capturée (célébration) → fiche en feuille → contemplation, pour la photo affichée.
   type Phase = 'hunting' | 'captured' | 'sheet' | 'contemplating'

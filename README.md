@@ -142,6 +142,14 @@ arrière-plan. Si « Position exacte » est désactivée pour PICTI, iOS propose
 l'usage, puis l'app explique où la régler (« Ouvrir les réglages »). Position refusée : la pastille
 « Position refusée · Réglages » ouvre les réglages de l'app. Le site et Android ne changent pas.
 
+**Suivi visuel** (0.21.0, iPhone avec ARKit) : dans l'app, la caméra est celle d'ARKit (affichée par
+iOS derrière la page) et les photos sont placées d'après le **mouvement réel du téléphone**, suivi au
+centimètre par la caméra et les capteurs : elles ne flottent plus et ne suivent plus les écarts du GPS.
+La position absolue vient de tous les relevés GPS de la session, ramenés au même point (elle s'affine
+en marchant) ; le cap, de la boussole (et du trajet). Une photo prise pendant la session est replacée
+quand ce calage s'affine. Menu › « Suivi visuel : activé / coupé » pour comparer avec le GPS et la
+boussole seuls. Selfie, site et Android : comme avant.
+
 **Retour en arrière** (0.19.0, app iOS) : glisser le doigt depuis le bord gauche de l'écran, comme
 dans les autres apps de l'iPhone (l'écran précédent apparaît dessous).
 
