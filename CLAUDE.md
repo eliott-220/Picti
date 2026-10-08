@@ -622,7 +622,13 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   - **Version de test** (`VITE_PICTI_TRACE=1` au build) : `src/sensors/arTrace.ts` enregistre GPS
     bruts, poses (5/s), boussole, calages, prises et regéocadrages dans `Documents/traces/*.jsonl` de
     l'app (récupérables par `xcrun devicectl device copy from --domain-type appDataContainer
-    --domain-identifier app.picti --source Documents/traces …`). Rien n'est envoyé ; inactif sinon.
+    --domain-identifier app.picti --source Documents/traces …`). Rien n'est envoyé ; inactif sinon
+    (aucune trace dans le build normal, vérifié). Elle écrit aussi l'état du suivi dans la console
+    (`[suivi]`, lue par `devicectl device process launch --console`) et teste la couverture du VPS
+    d'Apple. **Rejeu** : `PICTI_TRACES=<dossier> npx vitest run src/geo/arReplay.test.ts`
+    (`src/geo/arReplay.ts` : calage refait hors de l'app, écart GPS / trajet d'ARKit et sa durée de
+    corrélation, dispersion et dérive de la boussole, écart au retour d'une boucle) — chaîne vérifiée au
+    banc (journal de l'app → rejeu).
   - **Banc « iPhone simulé »** (hors dépôt, voir la note de session) : `@capacitor/core` remplacé par des
     plugins simulés (vérité terrain, GPS bruité, repère ARKit au cap arbitraire, boussole faussée, décor
     de synthèse derrière la page) ; scénarios Playwright : marche, regéocadrage, selfie, accueil → chasse
