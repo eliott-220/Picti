@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
-import { EmptyState, PhotoTile, Sheet } from '../components/ui'
+import { EmptyState, IconButton, PhotoTile, Sheet } from '../components/ui'
 import { importPhotoFile } from '../data/pipeline'
 import { PremiumCard } from '../components/PremiumCard'
 import { VisibilityPill } from '../components/VisibilityPill'
@@ -69,9 +69,7 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
           <Icon name={busy ? 'image' : 'plus'} />
           {busy ? 'Analyse des photos…' : 'Importer des photos'}
         </button>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Fermer">
-          <Icon name="close" />
-        </button>
+        <IconButton icon="close" label="Fermer" onClick={onClose} />
         <input
           ref={input}
           type="file"

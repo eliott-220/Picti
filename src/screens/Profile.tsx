@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { photoTime } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { PremiumCard } from '../components/PremiumCard'
-import { AvatarRow, EmptyState, PersonLink, PhotoTile, RoundButton } from '../components/ui'
+import { AvatarRow, EmptyState, IconButton, PersonLink, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { inviteLink } from '../data/invite'
@@ -231,15 +231,14 @@ function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
           <button type="button" className="btn small light" onClick={() => void invite()}>
             <Icon name="share" size={18} /> Inviter
           </button>
-          <button
-            type="button"
-            className={`icon-btn qr-toggle ${showQr ? 'active' : ''}`}
-            aria-label={showQr ? 'Masquer le QR code' : 'Afficher le QR code de mon lien'}
-            aria-expanded={showQr}
+          <IconButton
+            icon="qr"
+            label={showQr ? 'Masquer le QR code' : 'Afficher le QR code de mon lien'}
+            className="qr-toggle"
+            active={showQr}
+            expanded={showQr}
             onClick={() => setShowQr((v) => !v)}
-          >
-            <Icon name="qr" />
-          </button>
+          />
         </div>
       </div>
       {showQr && link && <InviteQr link={link} />}
@@ -276,15 +275,7 @@ function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
           <button type="button" className="btn small" disabled={busy} onClick={() => void run(() => acceptFriend(f.userId))}>
             Accepter
           </button>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Refuser"
-            disabled={busy}
-            onClick={() => void run(() => removeFriend(f.userId))}
-          >
-            <Icon name="close" />
-          </button>
+          <IconButton icon="close" label="Refuser" disabled={busy} onClick={() => void run(() => removeFriend(f.userId))} />
         </div>
       ))}
 
@@ -297,15 +288,12 @@ function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
       {outgoing.map((f) => (
         <div className="friend-row" key={f.userId}>
           <PersonLink id={f.userId} name={f.name} detail="demande envoyée" />
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Annuler la demande"
+          <IconButton
+            icon="close"
+            label="Annuler la demande"
             disabled={busy}
             onClick={() => void run(() => removeFriend(f.userId))}
-          >
-            <Icon name="close" />
-          </button>
+          />
         </div>
       ))}
     </div>

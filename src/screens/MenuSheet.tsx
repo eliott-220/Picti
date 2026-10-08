@@ -1,5 +1,5 @@
 import { Icon, Logo, type IconName } from '../components/Icon'
-import { Sheet } from '../components/ui'
+import { IconButton, Sheet } from '../components/ui'
 import { useStore } from '../data/storeContext'
 import { useCameraFocal } from '../sensors/cameraFocal'
 import { formatVersion, reloadApp } from '../data/appUpdate'
@@ -38,9 +38,7 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
           <strong>PICTI</strong>
           <span>{profile?.name}</span>
         </div>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Fermer">
-          <Icon name="close" />
-        </button>
+        <IconButton icon="close" label="Fermer" onClick={onClose} />
       </div>
       <ul className="menu">
         {items.map((it) => (

@@ -13,7 +13,9 @@ export function RoundButton({
   dim = false,
   className = '',
   badge,
-  glass = false,
+  glass = true,
+  iconRotation,
+  tint,
 }: {
   icon: IconName
   label: string
@@ -24,11 +26,17 @@ export function RoundButton({
   badge?: number
   /** Dans l'app iOS 26+ : remplacé par un vrai bouton Liquid Glass natif (`src/glassButtons.ts`). */
   glass?: boolean
+  /** Icône tournée (degrés), ex. le nord de la carte. */
+  iconRotation?: number
+  /** Couleur de l'icône du bouton natif (celle du web vient du CSS). */
+  tint?: string
 }) {
   const ref = useRef<HTMLButtonElement>(null)
   const native = useGlassButton(
     ref,
-    glass ? { icon, label, badge, dim, active: className.split(' ').includes('active') } : null,
+    glass
+      ? { icon, label, badge, dim, active: className.split(' ').includes('active'), rotation: iconRotation, color: tint }
+      : null,
   )
   return (
     <button
@@ -41,8 +49,56 @@ export function RoundButton({
       aria-hidden={native || undefined}
       tabIndex={native ? -1 : undefined}
     >
-      <Icon name={icon} />
+      {iconRotation == null ? (
+        <Icon name={icon} />
+      ) : (
+        <span style={{ transform: `rotate(${iconRotation}deg)` }}>
+          <Icon name={icon} />
+        </span>
+      )}
       {!!badge && <span className="round-badge">{badge > 99 ? '99+' : badge}</span>}
+    </button>
+  )
+}
+
+/**
+ * Bouton icône sans fond (fermer une feuille, QR code, refuser…) ; dans l'app iOS 26+, remplacé
+ * par un vrai bouton Liquid Glass natif comme `RoundButton`.
+ */
+export function IconButton({
+  icon,
+  label,
+  onClick,
+  className = '',
+  disabled,
+  active,
+  expanded,
+}: {
+  icon: IconName
+  label: string
+  onClick?: () => void
+  className?: string
+  disabled?: boolean
+  /** Bouton enfoncé (ex. QR code affiché). */
+  active?: boolean
+  /** `aria-expanded` d'un bouton qui déplie un contenu. */
+  expanded?: boolean
+}) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const native = useGlassButton(ref, { icon, label, active, disabled })
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={`icon-btn ${className}${active ? ' active' : ''}${native ? ' glass-native' : ''}`}
+      onClick={onClick}
+      aria-label={label}
+      aria-expanded={expanded}
+      disabled={disabled}
+      aria-hidden={native || undefined}
+      tabIndex={native ? -1 : undefined}
+    >
+      <Icon name={icon} />
     </button>
   )
 }

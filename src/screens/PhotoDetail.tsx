@@ -4,7 +4,7 @@ import { photoTime } from '../components/arProjection'
 import { FriendButton } from '../components/FriendButton'
 import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
-import { Avatar, PhotoTile, RoundButton } from '../components/ui'
+import { Avatar, IconButton, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
@@ -125,9 +125,7 @@ export function PhotoSheet({ photo, banner, onClose }: { photo: GeoPhoto; banner
         <header className="photo-sheet-head" {...grip}>
           <span className="sheet-grip" aria-hidden="true" />
           <strong>{banner}</strong>
-          <button type="button" className="icon-btn" aria-label="Fermer la fiche et contempler la photo in situ" onClick={onClose}>
-            <Icon name="close" />
-          </button>
+          <IconButton icon="close" label="Fermer la fiche et contempler la photo in situ" onClick={onClose} />
         </header>
         <div className="photo-sheet-scroll">
           <PhotoDetailView photo={photo} sheet onContemplate={onClose} />

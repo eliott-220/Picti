@@ -128,11 +128,11 @@ Apple), en mettre un autre dans Signing & Capabilities pour ses essais, sans le 
   `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` (AndroidManifest). Capacitor accorde
   ensuite caméra et boussole à la WebView sans seconde question.
 
-**Boutons Liquid Glass** (0.19.0, iPhone en iOS 26 ou plus) : dans le viseur, les boutons ronds
-(notifications, carte, filtrer, rechercher, selfie, « + », Menu) sont de vrais boutons iOS en verre
-liquide (plugin Swift `ios/App/App/GlassButtonsPlugin.swift`, piloté par `src/glassButtons.ts`) ;
-ils se cachent sous les feuilles et fiches. Le déclencheur reste celui de la charte, et le site
-garde ses boutons habituels.
+**Boutons Liquid Glass** (0.19.0, iPhone en iOS 26 ou plus) : tous les boutons ronds de l'app (viseur,
+retour de chaque page, carte et sa boussole, profil, chasse, recalage) et les croix des feuilles sont de
+vrais boutons iOS en verre liquide (plugin Swift `ios/App/App/GlassButtonsPlugin.swift`, piloté par
+`src/glassButtons.ts`) ; ils se cachent sous les feuilles et fiches. Le déclencheur reste celui de la
+charte, et le site garde ses boutons habituels.
 
 Limite connue : sur Android, « Enregistrer » une photo ne fait rien (la WebView Android n'a ni
 feuille de partage ni téléchargement) ; il faudra un plugin (`@capacitor/filesystem` +

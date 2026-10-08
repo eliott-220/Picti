@@ -14,7 +14,9 @@ const rect = { x: 309.26, y: 79.74, width: 48, height: 48 }
 
 describe('boutons Liquid Glass', () => {
   it('ont un symbole SF pour chaque bouton du viseur', () => {
-    for (const icon of ['bell', 'pin', 'filter', 'search', 'flipCamera', 'plus', 'grid', 'close'] as const) {
+    for (const icon of [
+      'bell', 'pin', 'filter', 'search', 'flipCamera', 'plus', 'grid', 'close', 'back', 'pencil', 'compass', 'arrow', 'qr',
+    ] as const) {
       expect(glassSymbol(icon)).toBeTruthy()
     }
     expect(glassSymbol('heart')).toBeNull()
@@ -39,6 +41,9 @@ describe('boutons Liquid Glass', () => {
       badge: '2',
       dim: false,
       active: false,
+      disabled: false,
+      rotation: 0,
+      color: null,
       visible: true,
     })
   })
@@ -51,6 +56,11 @@ describe('boutons Liquid Glass', () => {
   it('gardent l’état enfoncé et estompé', () => {
     const spec = toSpec('a', rect, { icon: 'flipCamera', label: 'Selfie', active: true, dim: true }, true)
     expect(spec).toMatchObject({ active: true, dim: true })
+  })
+
+  it('tournent l’icône de la boussole et gardent sa couleur', () => {
+    const spec = toSpec('n', rect, { icon: 'arrow', label: 'Nord', rotation: -37.26, color: '#eb0c0c' }, true)
+    expect(spec).toMatchObject({ symbol: 'location.north.fill', rotation: -37.5, color: '#eb0c0c' })
   })
 
   it('ignorent une icône sans symbole', () => {

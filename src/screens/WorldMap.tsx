@@ -7,7 +7,7 @@ import Supercluster, { type ClusterFeature, type ClusterProperties, type PointFe
 import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
 import { SwipeDeck } from '../components/SwipeDeck'
-import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
+import { EmptyState, IconButton, PhotoTile, RoundButton } from '../components/ui'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
 import { useStore } from '../data/storeContext'
@@ -433,17 +433,14 @@ export default function WorldMap() {
 
       <nav className="map-actions" aria-label="Carte">
         {Math.abs(bearing) > 0.5 && (
-          <button
-            type="button"
-            className="round-btn map-north"
+          <RoundButton
+            icon="arrow"
+            label="Remettre le nord en haut"
             onClick={() => map?.resetNorth({ duration: 300 })}
-            aria-label="Remettre le nord en haut"
-            title="Remettre le nord en haut"
-          >
-            <span style={{ transform: `rotate(${-bearing}deg)` }}>
-              <Icon name="arrow" />
-            </span>
-          </button>
+            className="map-north"
+            iconRotation={-bearing}
+            tint="#eb0c0c"
+          />
         )}
         <RoundButton icon="compass" label="Ma position" onClick={locate} />
         <RoundButton icon="grid" label="Liste à proximité" onClick={() => navigate('/proximite')} />
@@ -466,9 +463,7 @@ export default function WorldMap() {
                   ` · ${formatDistance(distanceMeters(fix, { lat: selection.lngLat[1], lon: selection.lngLat[0] }))}`}
               </span>
             </div>
-            <button type="button" className="icon-btn" aria-label="Fermer" onClick={() => setSelection(null)}>
-              <Icon name="close" />
-            </button>
+            <IconButton icon="close" label="Fermer" onClick={() => setSelection(null)} />
           </div>
           {selection.sameSpot && selection.photos.length > 1 ? (
             <SwipeDeck

@@ -88,6 +88,11 @@ struct GlassButtonSpec {
     let badge: String?
     let dim: Bool
     let active: Bool
+    let disabled: Bool
+    /// Rotation de l'icône en degrés (boussole de la carte).
+    let rotation: CGFloat
+    /// Couleur de l'icône (« #eb0c0c »), nil : couleur du verre.
+    let color: UIColor?
     let visible: Bool
 
     init?(_ object: JSObject) {
@@ -100,14 +105,32 @@ struct GlassButtonSpec {
         badge = object["badge"] as? String
         dim = object["dim"] as? Bool ?? false
         active = object["active"] as? Bool ?? false
+        disabled = object["disabled"] as? Bool ?? false
+        rotation = number("rotation")
+        color = (object["color"] as? String).flatMap(UIColor.init(hex:))
         visible = object["visible"] as? Bool ?? true
+    }
+}
+
+extension UIColor {
+    /// « #rrggbb ».
+    convenience init?(hex: String) {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        self.init(
+            red: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
+        )
     }
 }
 
 @available(iOS 26.0, *)
 final class GlassButton: UIButton {
     private let badgeLabel = UILabel()
-    private var shown: (symbol: String, active: Bool)?
+    private var shown: (symbol: String, active: Bool, color: UIColor?)?
+    private var rotation: CGFloat = 0
 
     init(id: String, onTap: @escaping (String) -> Void) {
         super.init(frame: .zero)
@@ -126,27 +149,43 @@ final class GlassButton: UIButton {
         fatalError("init(coder:) non utilisé")
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        imageView?.transform = CGAffineTransform(rotationAngle: rotation * .pi / 180)
+    }
+
     func update(_ spec: GlassButtonSpec) {
-        if shown?.symbol != spec.symbol || shown?.active != spec.active {
+        if shown?.symbol != spec.symbol || shown?.active != spec.active || shown?.color != spec.color {
             // Verre standard : ses icônes passent du noir au blanc selon ce qui est derrière (caméra
             // claire ou sombre) ; le verre clair gardait des icônes noires, invisibles sur un fond sombre.
             // Teinté en rouge PICTI quand le bouton est actif (selfie).
             var config: UIButton.Configuration = spec.active ? .prominentGlass() : .glass()
-            config.image = UIImage(
+            let image = UIImage(
                 systemName: spec.symbol,
                 withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .semibold)
             )
             config.cornerStyle = .capsule
             if spec.active {
+                config.image = image
                 config.baseBackgroundColor = badgeLabel.backgroundColor
                 config.baseForegroundColor = .white
+            } else if let color = spec.color {
+                // Le verre impose la couleur de ses icônes : la couleur est fixée dans l'image.
+                config.image = image?.withTintColor(color, renderingMode: .alwaysOriginal)
+            } else {
+                config.image = image
             }
             configuration = config
-            shown = (spec.symbol, spec.active)
+            shown = (spec.symbol, spec.active, spec.color)
         }
         if frame != spec.frame { frame = spec.frame }
+        if rotation != spec.rotation {
+            rotation = spec.rotation
+            setNeedsLayout()
+        }
         accessibilityLabel = spec.label
-        alpha = spec.dim ? 0.55 : 1
+        isEnabled = !spec.disabled
+        alpha = spec.dim || spec.disabled ? 0.55 : 1
         isHidden = !spec.visible
 
         badgeLabel.isHidden = spec.badge == nil

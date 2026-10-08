@@ -18,5 +18,15 @@ les boutons liquid ? » puis « les 2 en même temps » (prompt `PROMPT-0.019.0.
   menu ouvert et boutons natifs cachés dessous, puis revenus ; cloche → Notifications (boutons
   retirés) ; selfie → bouton rouge. Premier essai en verre **clair** : icônes noires invisibles sur la
   caméra sombre du selfie → verre standard, qui passe du clair au sombre selon le fond.
-- Pas vu : vraie caméra sur iPhone, mode Reproduire, VoiceOver.
-- Version 0.19.0. typecheck, lint, 307 tests, build, `cap sync`, `xcodebuild` OK.
+- **Puis tous les écrans** (demande d'Eliott : « rajoute ceux de tous les autres menus : boutons retour,
+  ceux dans la carte, le profil ») : `RoundButton` en verre par défaut (retour de chaque page, crayon du
+  profil, « Ma position », « Liste à proximité », croix de la chasse et du recalage), nouveau
+  `IconButton` pour les boutons sans fond (croix des feuilles Menu, Import, carte et fiche, QR code,
+  refuser / annuler), boussole de la carte en verre avec sa flèche rouge qui tourne (`iconRotation`,
+  `tint`). Vu au simulateur : menu, profil (le verre prend la teinte de la photo et de l'en-tête ; le
+  crayon et le QR suivent le défilement, le retour se cache hors de l'écran), carte (boussole rouge,
+  boutons cachés sous la feuille d'un groupe, croix en verre), Notifications. Premier essai : flèche
+  noire (le verre impose sa couleur) → couleur fixée dans l'image.
+- Pas vu : vraie caméra sur iPhone, mode Reproduire, VoiceOver, défilement rapide sur un vrai
+  téléphone (léger retard possible des boutons qui défilent).
+- Version 0.19.0. typecheck, lint, 308 tests, build, `cap sync`, `xcodebuild` OK.

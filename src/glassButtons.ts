@@ -1,5 +1,5 @@
 // Vrais boutons Liquid Glass dans l'app iOS 26+ (plugin natif `GlassButtons`, depuis 0.19.0).
-// Un `RoundButton glass` reste à sa place dans la page mais devient transparent ; à chaque image,
+// Un `RoundButton` ou un `IconButton` reste à sa place dans la page mais devient transparent ; à chaque image,
 // sa position est recopiée vers un bouton natif posé au-dessus de la page, et un appui sur ce
 // bouton déclenche le `click()` du bouton web. Ailleurs (site, Android, iOS < 26) : rien ne change.
 
@@ -9,6 +9,7 @@ import { GlassButtons, platform, type GlassButtonSpec } from './native'
 
 /** Symbole SF de chaque icône proposée en verre (les autres restent des boutons web). */
 const SYMBOLS: Partial<Record<IconName, string>> = {
+  back: 'chevron.left',
   bell: 'bell',
   pin: 'mappin.and.ellipse',
   filter: 'line.3.horizontal.decrease',
@@ -17,6 +18,12 @@ const SYMBOLS: Partial<Record<IconName, string>> = {
   plus: 'plus',
   grid: 'square.grid.2x2',
   close: 'xmark',
+  pencil: 'pencil',
+  /** « Ma position » sur la carte : la flèche de localisation d'iOS. */
+  compass: 'location',
+  /** Nord de la carte (tourné avec elle). */
+  arrow: 'location.north.fill',
+  qr: 'qrcode',
 }
 
 export function glassSymbol(icon: IconName): string | null {
@@ -35,6 +42,9 @@ export interface GlassOptions {
   badge?: number
   dim?: boolean
   active?: boolean
+  disabled?: boolean
+  rotation?: number
+  color?: string
 }
 
 type Rect = { x: number; y: number; width: number; height: number }
@@ -58,6 +68,9 @@ export function toSpec(id: string, rect: Rect, options: GlassOptions, onTop: boo
     badge: badgeText(options.badge),
     dim: !!options.dim,
     active: !!options.active,
+    disabled: !!options.disabled,
+    rotation: half(options.rotation ?? 0),
+    color: options.color ?? null,
     visible: onTop && rect.width > 0 && rect.height > 0,
   }
 }

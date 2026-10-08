@@ -45,8 +45,13 @@ export interface GlassButtonSpec {
   /** Pastille rouge (« 3 », « 99+ »), null sans pastille. */
   badge: string | null
   dim: boolean
-  /** Bouton enfoncé (selfie) : verre teinté en rouge. */
+  /** Bouton enfoncé (selfie, QR affiché) : verre teinté en rouge. */
   active: boolean
+  disabled: boolean
+  /** Rotation de l'icône en degrés (boussole de la carte). */
+  rotation: number
+  /** Couleur de l'icône (« #eb0c0c »), null : couleur du verre. */
+  color: string | null
   /** Faux quand le bouton web est recouvert (feuille, fiche…) ou hors de l'écran. */
   visible: boolean
 }

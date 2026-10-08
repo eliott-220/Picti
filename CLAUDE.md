@@ -489,15 +489,23 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   (`prominentGlass()` teinté rouge quand `active`) : le verre **clair** (`clearGlass()`) gardait des
   icônes noires, invisibles sur une caméra sombre (vu au simulateur le 08/10) ; le verre standard
   passe seul du clair au sombre. Pastille rouge native comme `.round-badge`. Côté web :
-  `RoundButton glass` → `useGlassButton` (`src/glassButtons.ts`) : dans l'app iOS 26+, le bouton web
+  **tous** les `RoundButton` (option `glass`, vraie par défaut ; `glass={false}` pour en garder un en
+  web) et les `IconButton` (boutons icône sans fond `.icon-btn` : croix des feuilles Menu, Import,
+  carte et fiche, QR code, refuser / annuler dans le profil) → `useGlassButton`
+  (`src/glassButtons.ts`) : dans l'app iOS 26+, le bouton web
   reste en place, transparent (`.glass-native`, `aria-hidden`, `tabIndex -1`) ; une boucle
   `requestAnimationFrame` (tant qu'un bouton est inscrit) mesure chaque bouton, le dit **recouvert**
   si `elementFromPoint` en son centre ne tombe pas sur lui (feuille, fiche, toast, carte de
   capture) et n'envoie la liste au natif que si elle change (cadres au demi-point) ; un `tap` natif
-  appelle le `click()` du bouton web (mêmes actions). Icônes → symboles SF (`glassSymbol` : cloche,
-  carte `mappin.and.ellipse`, filtre, loupe, selfie, plus, menu `square.grid.2x2`, croix) ; une icône
-  sans symbole reste web. Viseur seulement (rail, « + », Menu, croix et selfie de Reproduire) ; le
-  déclencheur reste web. Tests : `src/glassButtons.test.ts`. Pour voir le viseur au simulateur sans
+  appelle le `click()` du bouton web (mêmes actions). Icônes → symboles SF (`glassSymbol` : retour
+  `chevron.left`, cloche, carte `mappin.and.ellipse`, filtre, loupe, selfie, plus, menu
+  `square.grid.2x2`, croix, crayon, « Ma position » `location`, nord `location.north.fill`, QR) ; une
+  icône sans symbole reste web. Nord de la carte : `RoundButton iconRotation={-bearing} tint` (la
+  rotation est appliquée à l'icône native dans `layoutSubviews` ; la couleur est fixée dans l'image,
+  `withTintColor(.alwaysOriginal)`, car le verre impose la sienne). Bouton désactivé : `disabled`
+  (estompé, `isEnabled` faux). Boutons dans une page qui défile : recopiés à chaque image (un léger
+  retard est possible pendant un défilement rapide), cachés quand ils sortent de l'écran. Le
+  déclencheur, les pastilles « Monde / Amis » et les autres boutons à texte restent web. Tests : `src/glassButtons.test.ts`. Pour voir le viseur au simulateur sans
   compte : web du banc (`.bench/`, `vite build --config .bench/vite.config.ts`) copié dans
   `ios/App/App/public` après `cap sync`, puis `npm run native:sync` pour revenir au vrai web.
 - **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
@@ -596,7 +604,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.016.3 : fiche d'une photo non capturée : le bouton « Chasser in situ » devient « Capturer » (« Revoir in situ » inchangé).
 - 0.017.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). Numéro repris des boutons verre liquide (abandonnés, jamais en ligne) ; 0.018.0 est réservée à la coque Capacitor.
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
-- 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ (viseur : rail, « + », Menu ; Reproduire), plugin Swift local ; site inchangé.
+- 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage) et les croix des feuilles ; plugin Swift local ; site inchangé.
 - 0.18.0 : coque native Capacitor 8 (iOS + Android), web embarqué ; liens des e-mails vers l'app en ligne, pas de bandeau de mise à jour, « · app iOS » dans le menu ; liens d'invitation préparés (pas actifs). Site web inchangé.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
