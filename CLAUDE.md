@@ -446,7 +446,8 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   `/ios` et `/android` ; `tsc -b` ne voit ni `capacitor.config.ts` ni les projets natifs.
 - **`src/native.ts`**, seul module qui importe `@capacitor/core` : `isNative()`
   (`Capacitor.isNativePlatform()`), `platform()` (`ios` / `android` / `web`), `platformLabel()`,
-  `authRedirectUrl()`, `appLinkHash()`, `listenForAppLinks()` (appelé dans `main.tsx`, charge
+  `setStatusBarText()` / `useDarkStatusBar()`, `authRedirectUrl()`, `appLinkHash()`,
+  `listenForAppLinks()` (appelé dans `main.tsx`, charge
   `@capacitor/app` à la demande, seulement dans la coque). Tests : `src/native.test.ts` (mock de
   `@capacitor/core`). **Dans le navigateur, rien ne change.**
 - **Adaptations en natif** : liens des e-mails Supabase (`emailRedirectTo`, `redirectTo` dans
@@ -456,7 +457,12 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   `useUpdateAvailable` ne vérifie rien (pas de bandeau : mise à jour par les stores) ;
   `formatVersion(app = platformLabel())` ajoute « · app iOS » / « · app Android » et jamais
   « (locale) » (une app est toujours compilée sur le Mac). Bouton « Recharger » du menu gardé
-  (recharge la copie embarquée).
+  (recharge la copie embarquée). **Barre d'état** : texte blanc par défaut (Info.plist, config
+  Android) ; les écrans clairs en haut appellent `useDarkStatusBar()` (texte foncé tant qu'ils
+  sont affichés, `SystemBars.setStyle`, barre d'état seulement) : `Auth`, `NewPassword`, `Search`,
+  `WorldMap`. Tout nouvel écran à fond clair en haut doit l'appeler aussi (vu au simulateur le
+  08/10 : heure et batterie invisibles sur la connexion — le même défaut existe dans la version
+  web installée sur l'écran d'accueil, `black-translucent`, non corrigé).
 - **Natif** : `Info.plist` — `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`,
   `NSMotionUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`
   (textes en français), `CFBundleDevelopmentRegion` `fr`, portrait seul (iPhone et iPad, avec

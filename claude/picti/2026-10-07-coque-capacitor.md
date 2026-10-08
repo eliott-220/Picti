@@ -11,9 +11,12 @@ web embarqué, sans rien changer à https://picti.vercel.app. Branche `claude/co
   `native:sync`, `native:ios`, `native:android`.
 - **Autorisations** en français : caméra, position, mouvement, photos (lecture et ajout) ;
   `CAMERA`, positions fine et approximative, caméra non obligatoire. Portrait seul. Barre d'état
-  en texte blanc comme la version web (`UIStatusBarStyleLightContent`, `SystemBars` `DARK`).
-- **`src/native.ts`** (seul import de `@capacitor/core`) + 8 tests : `isNative`, `platform`,
-  `platformLabel`, `authRedirectUrl`, `appLinkHash`, `listenForAppLinks`.
+  en texte blanc comme la version web (`UIStatusBarStyleLightContent`, `SystemBars` `DARK`),
+  foncé sur les écrans clairs en haut (connexion, nouveau mot de passe, recherche, carte) : au
+  simulateur, l'heure et la batterie étaient invisibles sur l'écran de connexion.
+- **`src/native.ts`** (seul import de `@capacitor/core`) + 10 tests : `isNative`, `platform`,
+  `platformLabel`, `setStatusBarText` / `useDarkStatusBar`, `authRedirectUrl`, `appLinkHash`,
+  `listenForAppLinks`.
 - **Adaptations en natif seulement** : liens des e-mails Supabase vers `APP_URL` (message « mot de
   passe oublié » adapté : le lien s'ouvre dans le navigateur) ; pas de vérification de mise à
   jour ; « · app iOS / Android » dans le menu, sans « (locale) ».
@@ -25,5 +28,10 @@ web embarqué, sans rien changer à https://picti.vercel.app. Branche `claude/co
   de signature ignorées à la racine ; `.vercelignore` exclut `ios/` et `android/`.
 - **Limite** : « Enregistrer » ne marche pas sur Android (pas de partage ni de téléchargement dans
   la WebView) — plugin à ajouter.
-- Le Mac d'Eliott : Xcode 26.3 installé le 07/10 (macOS Sequoia 15.7), pas d'Android Studio.
-- Version 0.18.0. typecheck, lint, 299 tests, build et `cap sync` OK.
+- Le Mac d'Eliott : Xcode 26.3 installé le 07-08/10 (macOS Sequoia 15.7, simulateur iOS 26.3),
+  pas d'Android Studio (Android non compilé).
+- **Vérifié** : `xcodebuild` pour le simulateur (BUILD SUCCEEDED), app lancée sur iPhone 17 Pro
+  simulé : écran de connexion sous l'encoche, barre d'état lisible, JS chargé
+  (`capacitor://localhost`). Aperçu Vercel : site identique, `.well-known` en `application/json`,
+  `ios/` et `android/` non publiés. Pas testé : caméra, GPS, boussole (vrai iPhone nécessaire).
+- Version 0.18.0. typecheck, lint, 301 tests, build et `cap sync` OK.
