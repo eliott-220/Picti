@@ -1,19 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Plateforme simulée : « web » (navigateur), « ios » ou « android » (coque Capacitor).
-const capacitor = vi.hoisted(() => ({ platform: 'web' }))
+const capacitor = vi.hoisted(() => ({ platform: 'web', setStyle: vi.fn(() => Promise.resolve()) }))
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
     getPlatform: () => capacitor.platform,
     isNativePlatform: () => capacitor.platform !== 'web',
   },
+  SystemBars: { setStyle: capacitor.setStyle },
+  SystemBarsStyle: { Dark: 'DARK', Light: 'LIGHT', Default: 'DEFAULT' },
+  SystemBarType: { StatusBar: 'StatusBar', NavigationBar: 'NavigationBar' },
 }))
 
-const { appLinkHash, authRedirectUrl, isNative, platform, platformLabel } = await import('./native')
+const { appLinkHash, authRedirectUrl, isNative, platform, platformLabel, setStatusBarText } = await import('./native')
 const { formatVersion } = await import('./data/appUpdate')
 
 afterEach(() => {
   capacitor.platform = 'web'
+  capacitor.setStyle.mockClear()
 })
 
 describe('plateforme', () => {
@@ -31,6 +35,21 @@ describe('plateforme', () => {
     capacitor.platform = 'android'
     expect(platform()).toBe('android')
     expect(platformLabel()).toBe('app Android')
+  })
+})
+
+describe('barre d’état', () => {
+  it('ne touche à rien dans le navigateur', () => {
+    setStatusBarText('dark')
+    expect(capacitor.setStyle).not.toHaveBeenCalled()
+  })
+
+  it('texte foncé sur les écrans clairs, blanc ailleurs (barre d’état seulement)', () => {
+    capacitor.platform = 'ios'
+    setStatusBarText('dark')
+    expect(capacitor.setStyle).toHaveBeenLastCalledWith({ style: 'LIGHT', bar: 'StatusBar' })
+    setStatusBarText('light')
+    expect(capacitor.setStyle).toHaveBeenLastCalledWith({ style: 'DARK', bar: 'StatusBar' })
   })
 })
 

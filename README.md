@@ -121,8 +121,9 @@ Apple), en mettre un autre dans Signing & Capabilities pour ses essais, sans le 
   connecter dans l'app ;
 - pas de bandeau « Nouvelle version » : la mise à jour passe par les stores ;
 - ligne de version du menu : « … · app iOS » / « … · app Android » ;
-- portrait seulement, barre d'état en texte blanc comme la version web (Info.plist
-  `UIStatusBarStyle`, `SystemBars` sur Android), marges `safe-area` inchangées (`env()`) ;
+- portrait seulement ; barre d'état en texte blanc comme la version web (caméra, en-têtes
+  rouges), en texte foncé sur les écrans clairs en haut (connexion, nouveau mot de passe,
+  recherche, carte : `useDarkStatusBar`) ; marges `safe-area` inchangées (`env()`) ;
 - autorisations déclarées : caméra, position, mouvement, photos (Info.plist) ; `CAMERA`,
   `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` (AndroidManifest). Capacitor accorde
   ensuite caméra et boussole à la WebView sans seconde question.

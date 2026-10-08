@@ -3,7 +3,7 @@ import { Icon, Logo } from '../components/Icon'
 import { authErrorMessage, authLinkErrorMessage } from '../data/auth'
 import { rememberInvite } from '../data/invite'
 import { authLinkError, supabase } from '../data/supabase'
-import { authRedirectUrl, isNative } from '../native'
+import { authRedirectUrl, isNative, useDarkStatusBar } from '../native'
 import { parseHash } from '../router'
 
 const STEPS = [
@@ -36,6 +36,7 @@ function invitationInLink(): boolean {
 
 /** Première connexion : présentation du géocadrage, création de compte ou connexion. */
 export function Auth() {
+  useDarkStatusBar()
   // Lien de l'e-mail expiré : on revient directement sur la demande d'un nouveau lien.
   const [mode, setMode] = useState<Mode>(authLinkError ? 'oubli' : 'inscription')
   const [invited] = useState(invitationInLink)

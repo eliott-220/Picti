@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, type GeoPhoto } from '../data/types'
+import { useDarkStatusBar } from '../native'
 import { goBack, navigate } from '../router'
 
 type Filter = 'toutes' | 'direct' | 'selfies' | 'differe' | 'a-geocadrer' | 'capturees'
@@ -23,6 +24,7 @@ const fold = (s: string) =>
     .toLowerCase()
 
 export function Search({ filters }: { filters: boolean }) {
+  useDarkStatusBar()
   const { photos, captures } = useStore()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('toutes')

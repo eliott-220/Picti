@@ -14,6 +14,7 @@ import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { formatDateTime } from '../data/types'
 import { distanceMeters, formatDistance } from '../geo/geodesy'
+import { useDarkStatusBar } from '../native'
 import { groupBySpot, pileOrder } from '../geo/spots'
 import { goBack, navigate } from '../router'
 import { useGeolocation } from '../sensors/useGeolocation'
@@ -115,6 +116,7 @@ interface InBoundsRow {
  * exacte quand on zoome.
  */
 export default function WorldMap() {
+  useDarkStatusBar()
   const { userId, friends } = useStore()
   const hasFriends = friends.some((f) => f.status === 'accepted')
   const [scope, setScope] = useState<MapScope>(savedScope)

@@ -2,9 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Logo } from '../components/Icon'
 import { authErrorMessage } from '../data/auth'
 import { supabase } from '../data/supabase'
+import { useDarkStatusBar } from '../native'
 
 /** Arrivée par le lien « mot de passe oublié » : choix du nouveau mot de passe. */
 export function NewPassword({ onDone }: { onDone: () => void }) {
+  useDarkStatusBar()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)

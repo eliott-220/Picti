@@ -1,7 +1,8 @@
 // Coque native Capacitor (iOS, Android) : seul module qui importe `@capacitor/core`.
 // Dans le navigateur, tout se comporte comme avant (`isNative()` faux).
 
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core'
+import { useEffect } from 'react'
 import { APP_URL } from './config'
 
 export type Platform = 'ios' | 'android' | 'web'
@@ -21,6 +22,24 @@ export function platformLabel(p: Platform = platform()): string | null {
   if (p === 'ios') return 'app iOS'
   if (p === 'android') return 'app Android'
   return null
+}
+
+/**
+ * Texte de la barre d'état dans la coque : blanc par défaut (caméra, en-têtes rouges, comme le
+ * `black-translucent` du web), foncé sur les écrans clairs en haut. Sans effet dans le navigateur.
+ */
+export function setStatusBarText(color: 'light' | 'dark'): void {
+  if (!isNative()) return
+  const style = color === 'light' ? SystemBarsStyle.Dark : SystemBarsStyle.Light
+  SystemBars.setStyle({ style, bar: SystemBarType.StatusBar }).catch(() => {})
+}
+
+/** Écran clair en haut (connexion, recherche, carte) : texte foncé tant qu'il est affiché. */
+export function useDarkStatusBar(): void {
+  useEffect(() => {
+    setStatusBarText('dark')
+    return () => setStatusBarText('light')
+  }, [])
 }
 
 /**
