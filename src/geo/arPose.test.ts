@@ -10,6 +10,7 @@ import {
   localPoint,
   localView,
   poseAt,
+  poseJumped,
   turnRate,
   verticalFov,
   type ArPose,
@@ -119,5 +120,15 @@ describe('optique de la caméra du suivi', () => {
   it('focale équivalente et champ de l’image ARKit d’un iPhone (1920 × 1440, ~1450 px)', () => {
     expect(focal35Of(1450, 1440, 1920)).toBeCloseTo(26.1, 1)
     expect(verticalFov(1450, 1920)).toBeCloseTo(67.0, 0)
+  })
+})
+
+describe('saut du repère du suivi', () => {
+  it('un déplacement impossible d’une image à l’autre est un saut ; la marche, la course n’en sont pas', () => {
+    expect(poseJumped(pose(0, 0, [0, 0, 0]), pose(16, 0, [0, 0, -3]))).toBe(true)
+    expect(poseJumped(pose(0, 0, [0, 0, 0]), pose(16, 0, [0, 0, -0.05]))).toBe(false)
+    expect(poseJumped(pose(0, 0, [0, 0, 0]), pose(200, 0, [0, 0, -1.2]))).toBe(false)
+    // Trop longtemps sans image : on ne tranche pas.
+    expect(poseJumped(pose(0, 0, [0, 0, 0]), pose(2000, 0, [0, 0, -30]))).toBe(false)
   })
 })

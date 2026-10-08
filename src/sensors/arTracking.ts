@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import type { EncodedImage } from '../data/images'
-import { GeoAligner, localToGeo, transformOf, type AlignState, type AlignTransform, type LocalPoint } from '../geo/arAlign'
+import { ALIGN, GeoAligner, localToGeo, transformOf, type AlignState, type AlignTransform, type LocalPoint } from '../geo/arAlign'
 import {
   approachTransform,
   arBasis,
@@ -20,7 +20,9 @@ import {
   compassTheta,
   focal35Of,
   localPoint,
+  localView,
   poseAt,
+  poseJumped,
   turnRate,
   type ArPose,
 } from '../geo/arPose'
@@ -159,6 +161,7 @@ function onPose(e: NativeArPose) {
     newSession(e.s)
   }
   const pose: ArPose = { t: e.t, position: e.p, right: e.r, up: e.u, back: e.b }
+  if (lastPose && poseJumped(lastPose, pose)) carryOver(lastPose, pose)
   const dt = lastPose ? pose.t - lastPose.t : 0
   history.push(pose)
   while (history.length && history[0].t < pose.t - AR_TRACKING.history) history.shift()
@@ -169,6 +172,29 @@ function onPose(e: NativeArPose) {
   }
   if (target) shown = approachTransform(shown, target, dt, AR_TRACKING.smoothing)
   poseListeners.forEach((l) => l())
+}
+
+/**
+ * Le repère d'ARKit a sauté (relocalisation) : les anciens relevés ne s'y rapportent plus. On repart de
+ * zéro en gardant ce qu'on savait — la caméra n'a pas bougé entre les deux images : sa position et son
+ * cap calés deviennent le point de départ du nouveau calage, avec leur précision.
+ */
+function carryOver(before: ArPose, after: ArPose) {
+  const t = shown
+  const known = state.align
+  trace('jump', { from: before.position, to: after.position })
+  history = []
+  shots.clear()
+  aligner.reset()
+  if (t && Number.isFinite(known.sigmaPos)) {
+    const turn = localView(after).heading - localView(before).heading
+    aligner.addFix(localPoint(after), arPosition(before, t), t.theta - turn, {
+      sigmaPos: Math.max(known.sigmaPos, ALIGN.gpsBias),
+      sigmaTheta: Math.max(known.sigmaTheta, 3),
+    })
+  }
+  solve()
+  shown = target
 }
 
 function onCamera(e: NativeArCamera) {

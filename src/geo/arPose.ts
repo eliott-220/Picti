@@ -82,6 +82,17 @@ export function turnRate(history: readonly ArPose[], window = 250): number {
   return Math.abs(normalizeDeg(h1 - h0 + 180) - 180) / dt
 }
 
+/**
+ * Le repère du suivi a sauté entre deux images (ARKit s'est relocalisé) : le téléphone ne peut pas se
+ * déplacer de plus de `maxSpeed` m/s. Au-delà d'une demi-seconde sans image, on ne peut pas trancher.
+ */
+export function poseJumped(prev: ArPose, next: ArPose, maxSpeed = 8): boolean {
+  const dt = (next.t - prev.t) / 1000
+  if (dt <= 0 || dt > 0.5) return false
+  const d = Math.hypot(next.position[0] - prev.position[0], next.position[1] - prev.position[1], next.position[2] - prev.position[2])
+  return d > 0.3 && d / dt > maxSpeed
+}
+
 /** Conditions d'une mesure de boussole fiable (comme `geo/heading.ts`) : objectif proche de l'horizon, téléphone stable. */
 export const COMPASS_SAMPLE = {
   /** Objectif à moins de ce nombre de degrés de l'horizon. */

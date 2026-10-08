@@ -593,7 +593,10 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     pose du même instant (historique de 10 s), seulement en suivi `normal` ; boussole par
     `deviceorientation` (10 mesures/s au plus) ; calage recalculé au plus toutes les 250 ms.
     `currentView()` : position calée (précision = celle du calage), orientation (null tant que le cap
-    n'est pas calé). `useArCamera(stage, visible)` : cadre de la caméra native = rectangle de
+    n'est pas calé). **Saut du repère** (relocalisation d'ARKit, `poseJumped` : plus de 8 m/s entre
+    deux images) : calage repris de zéro avec, comme point de départ, la position et le cap calés de
+    la caméra juste avant (`carryOver`, `addFix` à leur précision) — rien ne saute à l'écran (banc :
+    saut de 5 m et 25° → 0,00 m, 0,0°). `useArCamera(stage, visible)` : cadre de la caméra native = rectangle de
     l'élément (ResizeObserver), classe **`picti-ar`** sur `<html>` (fonds transparents, vidéo web
     cachée, `styles.css`), masquage différé de 150 ms (relais d'un écran à l'autre). Réglage
     **« Suivi visuel : activé / coupé »** dans le menu (`setArSetting`, `localStorage`
