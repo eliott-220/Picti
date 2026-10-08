@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PICTI</string>
+    <string name="title_activity_main">PICTI</string>
+    <string name="package_name">app.picti</string>
+    <string name="custom_url_scheme">app.picti</string>
+</resources>

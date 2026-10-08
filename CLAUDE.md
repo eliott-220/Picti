@@ -429,6 +429,68 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
+## App native (Capacitor)
+
+Depuis 0.18.0 (prompt d'Eliott du 07/10) : coque **Capacitor 8** iOS + Android, **web embarqué**
+(`webDir: 'dist'`), `appId: 'app.picti'`, `appName: 'PICTI'`, fond blanc (`capacitor.config.ts` ;
+`server.url` vers picti.vercel.app laissé en commentaire, pour les essais seulement : Apple refuse
+souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `README.md` › « App native ».
+
+- **Prérequis** : Node 22+, Xcode 26+ (iOS, **Swift Package Manager**, pas de CocoaPods :
+  `ios/App/CapApp-SPM/Package.swift`, réécrit par `cap sync`), Android Studio 2025.2.1+ (SDK 36).
+  Scripts : `native:sync` (`npm run build && cap sync`), `native:ios`, `native:android` (sync +
+  `cap open`). Après un clone : `npm install` puis `native:sync` (copie du web
+  `ios/App/App/public`, `android/app/src/main/assets/public` et configs générées ignorées par
+  `ios/.gitignore` / `android/.gitignore` ; certificats et clés `*.jks`, `*.keystore`, `*.p12`,
+  `*.mobileprovision` ignorés à la racine). Vercel ne construit que le web : `.vercelignore` exclut
+  `/ios` et `/android` ; `tsc -b` ne voit ni `capacitor.config.ts` ni les projets natifs.
+- **`src/native.ts`**, seul module qui importe `@capacitor/core` : `isNative()`
+  (`Capacitor.isNativePlatform()`), `platform()` (`ios` / `android` / `web`), `platformLabel()`,
+  `authRedirectUrl()`, `appLinkHash()`, `listenForAppLinks()` (appelé dans `main.tsx`, charge
+  `@capacitor/app` à la demande, seulement dans la coque). Tests : `src/native.test.ts` (mock de
+  `@capacitor/core`). **Dans le navigateur, rien ne change.**
+- **Adaptations en natif** : liens des e-mails Supabase (`emailRedirectTo`, `redirectTo` dans
+  `Auth.tsx`) → `APP_URL` au lieu de `window.location.origin` (`capacitor://localhost` sur iOS,
+  `https://localhost` sur Android) ; le lien s'ouvre dans le navigateur, d'où un message « mot de
+  passe oublié » propre à la coque (« … revenez ensuite ici pour vous connecter ») ;
+  `useUpdateAvailable` ne vérifie rien (pas de bandeau : mise à jour par les stores) ;
+  `formatVersion(app = platformLabel())` ajoute « · app iOS » / « · app Android » et jamais
+  « (locale) » (une app est toujours compilée sur le Mac). Bouton « Recharger » du menu gardé
+  (recharge la copie embarquée).
+- **Natif** : `Info.plist` — `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`,
+  `NSMotionUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`
+  (textes en français), `CFBundleDevelopmentRegion` `fr`, portrait seul (iPhone et iPad, avec
+  `UIRequiresFullScreen`), `UIStatusBarStyleLightContent` (texte blanc, comme
+  `black-translucent` du web : fond caméra sombre et en-têtes rouges ; lu par
+  `CAPBridgeViewController`), `ITSAppUsesNonExemptEncryption` faux, `MARKETING_VERSION` 0.18.0.
+  `AndroidManifest.xml` — `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`,
+  `uses-feature android.hardware.camera` non obligatoire, `screenOrientation="portrait"` ;
+  `versionName` 0.18.0 ; `SystemBars: { style: 'DARK' }` (texte blanc). Capacitor accorde lui-même
+  à la WebView la caméra (`requestMediaCapturePermissionFor`) et la boussole
+  (`requestDeviceOrientationAndMotionPermissionFor`) sur iOS, la caméra et la position
+  (`BridgeWebChromeClient`) sur Android : pas de seconde question après celle du système.
+  Marges : `--safe-top` / `--safe-bottom` = `env(safe-area-inset-*)` comme avant (`viewport-fit=cover`
+  déjà là ; iOS `contentInset` « never » ; Android : `SystemBars` `insetsHandling` « css » par défaut).
+  Numéros de version natifs à garder égaux à `package.json` à chaque version.
+- **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
+  `APP_URL`, ancre `#/…` seulement) → `location.hash`. Modèles
+  `public/.well-known/apple-app-site-association` (`TEAM_ID_APPLE.app.picti`, composant
+  `"#": "/ami/*"` : seuls les liens d'invitation ouvriraient l'app, pas `#access_token=…`) et
+  `assetlinks.json` (empreinte SHA-256 à remplir) ; `vercel.json` sert l'AASA en
+  `application/json`. Pour activer : Team ID (compte payant : « Associated Domains » n'existe pas
+  en compte gratuit) + capacité `applinks:picti.vercel.app` ; Android : empreinte + `intent-filter`
+  `autoVerify` — Android ne filtre pas sur `#`, donc tous les liens du site (y compris « mot de
+  passe oublié ») ouvriraient l'app : à régler avant. Déconnecté, un lien reçu dans l'app ne
+  passe pas par `rememberInvite` (l'écran de connexion est déjà affiché) ; après connexion, la
+  route `ami` est toujours dans l'adresse et ouvre l'invitation.
+- **Limites connues** : Android — « Enregistrer » ne fait rien (`navigator.share` absent de la
+  WebView, pas de gestion des téléchargements) ; il faudra `@capacitor/filesystem` +
+  `@capacitor/share`. À vérifier sur appareil : MapLibre (processus de fond servi par
+  `capacitor://`), position dans la WebView iOS, import de photos (`<input type="file">`).
+- **Avant l'App Store** : suppression du compte dans l'app (règle 5.1.1), politique de
+  confidentialité et fiche confidentialité, icônes / écran de démarrage (`npx @capacitor/assets
+  generate`, logo 1024 × 1024 ; encore ceux du modèle Capacitor), Apple Developer Program.
+
 ## État et suite
 
 - 0.001.0 (sept. 2026) : prototype complet local (direct, différé EXIF, recalage sur place,
@@ -506,6 +568,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - 0.016.3 : fiche d'une photo non capturée : le bouton « Chasser in situ » devient « Capturer » (« Revoir in situ » inchangé).
 - 0.017.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). Numéro repris des boutons verre liquide (abandonnés, jamais en ligne) ; 0.018.0 est réservée à la coque Capacitor.
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
+- 0.18.0 : coque native Capacitor 8 (iOS + Android), web embarqué ; liens des e-mails vers l'app en ligne, pas de bandeau de mise à jour, « · app iOS » dans le menu ; liens d'invitation préparés (pas actifs). Site web inchangé.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
 - Test terrain du 30/09 (iPhone, 0.011.1) : ancrage « pratiquement parfait » — la photo ne bouge
@@ -520,7 +583,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   choix d'Eliott sur les autres points de la revue ergonomique du 30/09 (voir sa note) ; test terrain à
   plusieurs ; paiement Premium ; tester « mot de passe oublié » avec un vrai e-mail (modèles
   d'e-mails français dans `supabase/templates/`, à coller dans Supabase › Authentication › Emails ;
-  envoi d'e-mails : SMTP intégré limité) ; notifications de proximité ; piste VPS/native.
+  envoi d'e-mails : SMTP intégré limité) ; notifications de proximité ; piste VPS/native ; **coque 0.18.0 sur iPhone** (autorisations, viseur, boussole, capture, carte, connexion, mot de passe oublié), puis Android.
 
 ## Journal des discussions
 
@@ -555,3 +618,4 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - [2026-10-07 — Faille des amitiés corrigée en base (correctif A)](claude/picti/2026-10-07-faille-amities.md)
 - [2026-10-07 — Pastille de précision sans « GPS » (0.016.2)](claude/picti/2026-10-07-pastille-precision.md)
 - [2026-10-07 — Mode Public · Amis · Privé au déclencheur, puis carrousel (0.17.0, 0.17.1)](claude/picti/2026-10-07-mode-au-declencheur.md)
+- [2026-10-07 — Coque native Capacitor iOS + Android (0.18.0)](claude/picti/2026-10-07-coque-capacitor.md)

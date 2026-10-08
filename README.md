@@ -14,7 +14,8 @@ fonctionnelle et maquettes V2 dans le Google Drive du projet).
 
 ## Prototype v0.1 — ce qui fonctionne
 
-Application web mobile (PWA) utilisable dans le navigateur d'un smartphone :
+Application web mobile (PWA) utilisable dans le navigateur d'un smartphone, et depuis 0.18.0 app
+iOS / Android (coque Capacitor, voir « App native ») :
 
 | Service | Écran | Détail |
 | --- | --- | --- |
@@ -83,6 +84,78 @@ de l'iPhone, où Safari n'affiche pas de bouton de rechargement).
 | `npm run build` | Vérification TypeScript + build de production |
 | `npm test` | Tests unitaires (Vitest) du moteur de géocadrage |
 | `npm run lint` | Lint (oxlint) |
+| `npm run native:sync` / `native:ios` / `native:android` | App native : voir ci-dessous |
+
+## App native (Capacitor)
+
+Depuis 0.18.0, PICTI existe aussi en **app iOS et Android** : une coque Capacitor 8
+(`capacitor.config.ts`, projets `ios/` et `android/`) qui **embarque le web construit**
+(`dist/`) dans une WebView plein écran. Même code React, même Supabase, même moteur `src/geo/`.
+https://picti.vercel.app ne change pas, et Vercel ne construit que le web (`.vercelignore`).
+
+**Prérequis** : Node 22+ ; **Xcode 26+** avec la plateforme iOS (Swift Package Manager, pas de
+CocoaPods) ; **Android Studio 2025.2.1+** (SDK 36) pour Android.
+
+| Script | Rôle |
+| --- | --- |
+| `npm run native:sync` | Construit le web et le copie dans les deux projets (`cap sync`) — à relancer après chaque modification du code |
+| `npm run native:ios` | Idem, puis ouvre le projet dans Xcode |
+| `npm run native:android` | Idem, puis ouvre le projet dans Android Studio |
+
+Après un clone : `npm install` puis `npm run native:sync` (la copie du web et la configuration
+générée ne sont pas dans git).
+
+**Lancer l'app sur son iPhone** : `npm run native:ios` → dans Xcode, cible **App** › **Signing &
+Capabilities** › **Team** : son identifiant Apple (Xcode › Réglages › Comptes). Brancher l'iPhone,
+le choisir comme destination en haut, ▶. La première fois, sur l'iPhone : Réglages ›
+Confidentialité et sécurité › **Mode développeur** (activer, redémarrer), puis Réglages › Général ›
+VPN et gestion de l'appareil › faire confiance au développeur. Avec un compte Apple gratuit, l'app
+expire au bout de 7 jours (relancer ▶). Si Xcode refuse l'identifiant `app.picti` (déjà pris chez
+Apple), en mettre un autre dans Signing & Capabilities pour ses essais, sans le committer.
+
+**Ce qui change dans la coque** (`src/native.ts`, seul module qui importe `@capacitor/core`) :
+
+- liens des e-mails (confirmation d'inscription, mot de passe oublié) : vers `APP_URL`
+  (https://picti.vercel.app), car l'adresse de l'app vaut `capacitor://localhost` (iOS) ou
+  `https://localhost` (Android) ; le lien s'ouvre dans le navigateur, puis on revient se
+  connecter dans l'app ;
+- pas de bandeau « Nouvelle version » : la mise à jour passe par les stores ;
+- ligne de version du menu : « … · app iOS » / « … · app Android » ;
+- portrait seulement, barre d'état en texte blanc comme la version web (Info.plist
+  `UIStatusBarStyle`, `SystemBars` sur Android), marges `safe-area` inchangées (`env()`) ;
+- autorisations déclarées : caméra, position, mouvement, photos (Info.plist) ; `CAMERA`,
+  `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` (AndroidManifest). Capacitor accorde
+  ensuite caméra et boussole à la WebView sans seconde question.
+
+Limite connue : sur Android, « Enregistrer » une photo ne fait rien (la WebView Android n'a ni
+feuille de partage ni téléchargement) ; il faudra un plugin (`@capacitor/filesystem` +
+`@capacitor/share`).
+
+### Liens d'invitation dans l'app (préparé, pas encore actif)
+
+L'écouteur `appUrlOpen` (`listenForAppLinks`) recopie le `#/…` d'un lien PICTI dans l'adresse de
+l'app. Pour qu'un lien `https://picti.vercel.app/#/ami/<code>` ouvre l'app au lieu du navigateur :
+
+- **iOS** (compte Apple Developer payant) : dans `public/.well-known/apple-app-site-association`,
+  remplacer `TEAM_ID_APPLE` par son Team ID (developer.apple.com › Membership, 10 caractères),
+  puis Xcode › Signing & Capabilities › + **Associated Domains** › `applinks:picti.vercel.app`.
+  Seuls les liens `#/ami/*` ouvrent l'app (les liens « mot de passe oublié » restent dans le
+  navigateur). `vercel.json` sert ce fichier en `application/json`.
+- **Android** : dans `public/.well-known/assetlinks.json`, remplacer l'empreinte par le SHA-256
+  du certificat de signature (`keytool -list -v -keystore <fichier>`, ou Play Console ›
+  Intégrité de l'application avec « Play App Signing »), puis ajouter à `MainActivity` un
+  `intent-filter` `android:autoVerify="true"` (https, `picti.vercel.app`). Android ne filtre
+  pas sur le `#` : tous les liens du site ouvriraient l'app, y compris « mot de passe oublié » —
+  à régler avant d'activer.
+
+### Avant l'App Store / Google Play
+
+Apple Developer Program (99 $/an) et Google Play (25 $ une fois) ; **suppression du compte depuis
+l'app** (obligatoire chez Apple) ; politique de confidentialité et fiche « confidentialité » ;
+icônes et écran de démarrage (`npx @capacitor/assets generate` à partir d'un logo 1024 × 1024) ;
+numéro de version à garder égal à `package.json` (Xcode `MARKETING_VERSION`, Android
+`versionName`) et numéro de build à augmenter à chaque envoi. Jamais dans le dépôt : certificats
+Apple, clé de signature Android (à sauvegarder ailleurs : la perdre empêche de mettre l'app à jour).
 
 ## Comment marche le géocadrage
 

@@ -3,6 +3,7 @@ import { Icon, Logo } from '../components/Icon'
 import { authErrorMessage, authLinkErrorMessage } from '../data/auth'
 import { rememberInvite } from '../data/invite'
 import { authLinkError, supabase } from '../data/supabase'
+import { authRedirectUrl, isNative } from '../native'
 import { parseHash } from '../router'
 
 const STEPS = [
@@ -63,7 +64,7 @@ export function Auth() {
           password,
           options: {
             data: { name: name.trim(), city: city.trim() },
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: authRedirectUrl(),
           },
         })
         if (error) throw error
@@ -76,12 +77,15 @@ export function Auth() {
         }
       } else if (mode === 'oubli') {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin,
+          redirectTo: authRedirectUrl(),
         })
         if (error) throw error
         // Même message que le compte existe ou non : on ne révèle pas qui est inscrit.
+        // Dans la coque, le lien s'ouvre dans le navigateur (picti.vercel.app), pas dans l'app.
         setMessage({
-          text: 'Si un compte existe avec cette adresse, vous allez recevoir un e-mail : ouvrez le lien qu’il contient sur ce téléphone pour choisir un nouveau mot de passe.',
+          text: isNative()
+            ? 'Si un compte existe avec cette adresse, vous allez recevoir un e-mail : son lien ouvre PICTI dans le navigateur pour choisir un nouveau mot de passe. Revenez ensuite ici pour vous connecter.'
+            : 'Si un compte existe avec cette adresse, vous allez recevoir un e-mail : ouvrez le lien qu’il contient sur ce téléphone pour choisir un nouveau mot de passe.',
           error: false,
         })
       } else {

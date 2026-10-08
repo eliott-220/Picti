@@ -1,0 +1,3 @@
+# Vercel ne construit que le web : les projets natifs ne sont pas envoyés.
+/ios
+/android

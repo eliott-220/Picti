@@ -1,7 +1,9 @@
 // Mise à jour de l'application : on compare la version en cours avec celle
 // publiée (`version.json`) au retour dans l'app et toutes les 5 minutes.
+// Dans la coque native, le web est embarqué : la mise à jour passe par les stores.
 
 import { useEffect, useState } from 'react'
+import { isNative, platformLabel } from '../native'
 import { formatVersionNumber } from './versionNumber'
 
 const CHECK_EVERY = 5 * 60_000
@@ -29,6 +31,7 @@ async function publishedVersion(): Promise<{ version: string; number: string | n
 export function useUpdateAvailable(): string | null {
   const [available, setAvailable] = useState<string | null>(null)
   useEffect(() => {
+    if (isNative()) return
     let alive = true
     const check = async () => {
       const v = await publishedVersion()
@@ -52,9 +55,13 @@ export function reloadApp() {
   window.location.reload()
 }
 
-/** Ligne de version du menu, ex. « Version 0.015.1 · 6 oct. » (jour de la mise à jour, sans l'heure). */
-export function formatVersion(): string {
+/**
+ * Ligne de version du menu, ex. « Version 0.015.1 · 6 oct. » (jour de la mise à jour, sans l'heure) ;
+ * dans la coque : « Version 0.018.0 · 7 oct. · app iOS » (compilée sur le Mac, jamais « locale »).
+ */
+export function formatVersion(app = platformLabel()): string {
   const d = new Date(APP_BUILT_AT)
   const when = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-  return `Version ${APP_NUMBER}${APP_VERSION.length === 7 ? '' : ' (locale)'}${when ? ` · ${when}` : ''}`
+  const local = APP_VERSION.length === 7 || app ? '' : ' (locale)'
+  return `Version ${APP_NUMBER}${local}${when ? ` · ${when}` : ''}${app ? ` · ${app}` : ''}`
 }

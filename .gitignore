@@ -26,3 +26,10 @@ npm-debug.log*
 # Vite / TypeScript
 *.local
 *.tsbuildinfo
+
+# Coque native Capacitor : copies du web et compilations déjà ignorées par
+# ios/.gitignore et android/.gitignore. Jamais de certificat ni de clé de signature.
+*.jks
+*.keystore
+*.p12
+*.mobileprovision

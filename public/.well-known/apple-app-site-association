@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAM_ID_APPLE.app.picti"],
+        "components": [
+          {
+            "/": "/",
+            "#": "/ami/*",
+            "comment": "Invitations https://picti.vercel.app/#/ami/<code> : seuls ces liens ouvrent l'app"
+          }
+        ]
+      }
+    ]
+  }
+}

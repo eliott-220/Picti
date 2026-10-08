@@ -1,0 +1,61 @@
+// Coque native Capacitor (iOS, Android) : seul module qui importe `@capacitor/core`.
+// Dans le navigateur, tout se comporte comme avant (`isNative()` faux).
+
+import { Capacitor } from '@capacitor/core'
+import { APP_URL } from './config'
+
+export type Platform = 'ios' | 'android' | 'web'
+
+/** L'app tourne dans la coque native (et non dans un navigateur). */
+export function isNative(): boolean {
+  return Capacitor.isNativePlatform()
+}
+
+export function platform(): Platform {
+  const p = Capacitor.getPlatform()
+  return p === 'ios' || p === 'android' ? p : 'web'
+}
+
+/** Mention ajoutée à la ligne de version du menu (« app iOS »), null dans le navigateur. */
+export function platformLabel(p: Platform = platform()): string | null {
+  if (p === 'ios') return 'app iOS'
+  if (p === 'android') return 'app Android'
+  return null
+}
+
+/**
+ * Adresse où ramènent les liens des e-mails (confirmation d'inscription, mot de passe oublié).
+ * Dans la coque, l'origine vaut `capacitor://localhost` (iOS) ou `https://localhost` (Android),
+ * inutilisable depuis un e-mail : on renvoie vers l'application en ligne.
+ */
+export function authRedirectUrl(native = isNative(), origin = window.location.origin): string {
+  return native ? APP_URL : origin
+}
+
+/**
+ * Ancre de l'app (`#/ami/CODE`) d'un lien PICTI ouvert depuis l'extérieur (lien universel iOS,
+ * App Link Android) ; null pour un lien d'un autre site ou sans route (`#access_token=…`).
+ */
+export function appLinkHash(url: string, app = APP_URL): string | null {
+  try {
+    const u = new URL(url)
+    if (u.host !== new URL(app).host) return null
+    return u.hash.startsWith('#/') ? u.hash : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Liens d'invitation ouverts dans l'app (préparé, pas encore actif : il manque les fichiers
+ * `public/.well-known/` remplis et les réglages natifs, voir README.md › « Liens d'invitation
+ * dans l'app »). `@capacitor/app` n'est chargé que dans la coque.
+ */
+export async function listenForAppLinks(): Promise<void> {
+  if (!isNative()) return
+  const { App } = await import('@capacitor/app')
+  await App.addListener('appUrlOpen', ({ url }) => {
+    const hash = appLinkHash(url)
+    if (hash && hash !== location.hash) location.hash = hash
+  })
+}
