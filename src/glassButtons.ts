@@ -1,5 +1,6 @@
 // Vrais boutons Liquid Glass dans l'app iOS 26+ (plugin natif `GlassButtons`, depuis 0.19.0).
-// Un `RoundButton` ou un `IconButton` reste à sa place dans la page mais devient transparent ; à chaque image,
+// Un `RoundButton`, un `IconButton`, une `Chip` ou un sélecteur segmenté reste à sa place dans la
+// page mais devient transparent ; à chaque image,
 // sa position est recopiée vers un bouton natif posé au-dessus de la page, et un appui sur ce
 // bouton déclenche le `click()` du bouton web. Ailleurs (site, Android, iOS < 26) : rien ne change.
 
@@ -37,7 +38,14 @@ export function badgeText(count?: number): string | null {
 }
 
 export interface GlassOptions {
-  icon: IconName
+  /** Bouton rond : son icône (traduite en symbole SF). */
+  icon?: IconName
+  /** Pastille : son texte. */
+  title?: string
+  /** Sélecteur segmenté : ses choix, et celui qui est sélectionné. */
+  segments?: string[]
+  selected?: number
+  /** Libellé lu par VoiceOver. */
   label: string
   badge?: number
   dim?: boolean
@@ -49,17 +57,26 @@ export interface GlassOptions {
 
 type Rect = { x: number; y: number; width: number; height: number }
 
+/** Ce bouton a-t-il un équivalent natif (icône connue, texte ou choix) ? */
+export function glassable(options: GlassOptions): boolean {
+  return !!options.segments?.length || !!options.title || (!!options.icon && !!glassSymbol(options.icon))
+}
+
 /**
  * Description envoyée au natif ; cadre arrondi au demi-point pour ne renvoyer que les vrais
  * déplacements. Null pour une icône sans symbole.
  */
 export function toSpec(id: string, rect: Rect, options: GlassOptions, onTop: boolean): GlassButtonSpec | null {
-  const symbol = glassSymbol(options.icon)
-  if (!symbol) return null
+  if (!glassable(options)) return null
   const half = (v: number) => Math.round(v * 2) / 2
+  const segments = options.segments?.length ? options.segments : null
   return {
     id,
-    symbol,
+    kind: segments ? 'segmented' : 'button',
+    symbol: !segments && options.icon ? glassSymbol(options.icon) : null,
+    title: !segments ? (options.title ?? null) : null,
+    segments,
+    selected: segments ? (options.selected ?? -1) : -1,
     label: options.label,
     x: half(rect.x),
     y: half(rect.y),
@@ -88,7 +105,12 @@ function ask() {
   GlassButtons.isAvailable()
     .then(({ available: yes }) => {
       if (!yes) return
-      void GlassButtons.addListener('tap', ({ id }) => entries.get(id)?.el.click())
+      void GlassButtons.addListener('tap', ({ id, index }) => {
+        const el = entries.get(id)?.el
+        // Sélecteur segmenté : le choix touché est le index-ième bouton du groupe web.
+        if (index != null) el?.querySelectorAll('button')[index]?.click()
+        else el?.click()
+      })
       available = true
       subscribers.forEach((notify) => notify())
     })
@@ -110,9 +132,18 @@ let lastId = 0
 let frame = 0
 let sent = ''
 
-/** Le bouton web est-il au premier plan (pas sous une feuille, une fiche, un toast…) ? */
+/**
+ * Le bouton web est-il à l'écran et au premier plan (pas sous une feuille, une fiche, un toast…) ?
+ * Testé en son centre, ramené dans l'écran : une pastille à moitié sortie d'une rangée qui défile
+ * reste affichée.
+ */
 function onTop(el: HTMLElement, rect: Rect): boolean {
-  const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+  const w = window.innerWidth
+  const h = window.innerHeight
+  if (rect.x + rect.width <= 0 || rect.y + rect.height <= 0 || rect.x >= w || rect.y >= h) return false
+  const x = Math.min(Math.max(rect.x + rect.width / 2, 1), w - 1)
+  const y = Math.min(Math.max(rect.y + rect.height / 2, 1), h - 1)
+  const hit = document.elementFromPoint(x, y)
   return !!hit && (hit === el || el.contains(hit))
 }
 
@@ -145,7 +176,7 @@ function schedule() {
  */
 export function useGlassButton(ref: RefObject<HTMLElement | null>, options: GlassOptions | null): boolean {
   const ready = useSyncExternalStore(subscribe, () => available, () => false)
-  const enabled = ready && !!options && !!glassSymbol(options.icon)
+  const enabled = ready && !!options && glassable(options)
   const [id] = useState(() => `glass-${++lastId}`)
   const latest = useRef(options)
 

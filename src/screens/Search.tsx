@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from '../components/Icon'
-import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
+import { Chip, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, type GeoPhoto } from '../data/types'
 import { useDarkStatusBar } from '../native'
@@ -70,16 +70,7 @@ export function Search({ filters }: { filters: boolean }) {
         </div>
         <div className="chips" role="radiogroup" aria-label="Filtrer">
           {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              role="radio"
-              aria-checked={filter === f.id}
-              className={`chip ${filter === f.id ? 'selected' : ''}`}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-            </button>
+            <Chip key={f.id} label={f.label} selected={filter === f.id} onClick={() => setFilter(f.id)} />
           ))}
         </div>
 

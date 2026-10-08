@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { photoTime } from '../components/arProjection'
-import { EmptyState, PhotoTile, RoundButton } from '../components/ui'
+import { Chip, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
 import { usePhotosHere } from '../data/usePhotosHere'
@@ -81,16 +81,7 @@ function GalleryView({ photo }: { photo: GeoPhoto }) {
       <section className="card white">
         <div className="chips gallery-sort" role="radiogroup" aria-label="Trier les photos">
           {SORTS.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              role="radio"
-              aria-checked={sort === s.value}
-              className={`chip ${sort === s.value ? 'selected' : ''}`}
-              onClick={() => choose(s.value)}
-            >
-              {s.label}
-            </button>
+            <Chip key={s.value} label={s.label} selected={sort === s.value} onClick={() => choose(s.value)} />
           ))}
         </div>
         {sorted.length ? (

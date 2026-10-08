@@ -8,7 +8,7 @@ vi.mock('@capacitor/core', () => ({
   SystemBarType: {},
 }))
 
-const { badgeText, glassSymbol, toSpec } = await import('./glassButtons')
+const { badgeText, glassable, glassSymbol, toSpec } = await import('./glassButtons')
 
 const rect = { x: 309.26, y: 79.74, width: 48, height: 48 }
 
@@ -32,7 +32,11 @@ describe('boutons Liquid Glass', () => {
   it('décrivent le bouton au demi-point près', () => {
     expect(toSpec('glass-1', rect, { icon: 'bell', label: 'Notifications', badge: 2 }, true)).toEqual({
       id: 'glass-1',
+      kind: 'button',
       symbol: 'bell',
+      title: null,
+      segments: null,
+      selected: -1,
       label: 'Notifications',
       x: 309.5,
       y: 79.5,
@@ -61,6 +65,17 @@ describe('boutons Liquid Glass', () => {
   it('tournent l’icône de la boussole et gardent sa couleur', () => {
     const spec = toSpec('n', rect, { icon: 'arrow', label: 'Nord', rotation: -37.26, color: '#eb0c0c' }, true)
     expect(spec).toMatchObject({ symbol: 'location.north.fill', rotation: -37.5, color: '#eb0c0c' })
+  })
+
+  it('font aussi les pastilles à texte', () => {
+    const spec = toSpec('c', rect, { title: 'Mes amis', label: 'Mes amis', active: true }, true)
+    expect(spec).toMatchObject({ kind: 'button', symbol: null, title: 'Mes amis', active: true })
+  })
+
+  it('font les sélecteurs segmentés (« Monde / Amis »)', () => {
+    const spec = toSpec('s', rect, { segments: ['Monde', 'Amis'], selected: 1, label: 'Photos affichées' }, true)
+    expect(spec).toMatchObject({ kind: 'segmented', segments: ['Monde', 'Amis'], selected: 1, symbol: null, title: null })
+    expect(glassable({ segments: [], label: 'Vide' })).toBe(false)
   })
 
   it('ignorent une icône sans symbole', () => {

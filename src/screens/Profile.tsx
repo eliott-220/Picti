@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { photoTime } from '../components/arProjection'
 import { Icon } from '../components/Icon'
 import { PremiumCard } from '../components/PremiumCard'
-import { AvatarRow, EmptyState, IconButton, PersonLink, PhotoTile, RoundButton } from '../components/ui'
+import { AvatarRow, Chip, EmptyState, IconButton, PersonLink, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { inviteLink } from '../data/invite'
@@ -116,16 +116,12 @@ export function Profile({ section }: { section?: 'amis' }) {
           Mes nouvelles photos sont visibles par :
           <div className="chips" role="radiogroup" aria-label="Visibilité par défaut de mes nouvelles photos">
             {VISIBILITIES.map((v) => (
-              <button
+              <Chip
                 key={v}
-                type="button"
-                role="radio"
-                aria-checked={defaultVisibility === v}
-                className={`chip ${defaultVisibility === v ? 'selected' : ''}`}
+                label={VISIBILITY_AUDIENCE[v]}
+                selected={defaultVisibility === v}
                 onClick={() => chooseDefault(v)}
-              >
-                {VISIBILITY_AUDIENCE[v]}
-              </button>
+              />
             ))}
           </div>
           <small>

@@ -27,6 +27,14 @@ les boutons liquid ? » puis « les 2 en même temps » (prompt `PROMPT-0.019.0.
   crayon et le QR suivent le défilement, le retour se cache hors de l'écran), carte (boussole rouge,
   boutons cachés sous la feuille d'un groupe, croix en verre), Notifications. Premier essai : flèche
   noire (le verre impose sa couleur) → couleur fixée dans l'image.
+- **Puis les pastilles et « Monde / Amis »** (demande d'Eliott : « fais aussi les boutons Toutes,
+  amis… dans mes photos et monde et amis dans la carte ») : faute de savoir quel groupe il visait
+  (« Tout le monde / Mes amis / Moi seul » au-dessus de « Mes photos géocadrées », ou « Toutes / En
+  direct… » de la recherche), **toutes** les pastilles de choix passent en verre (`Chip` : profil,
+  fiche, recherche, galerie, onglets de connexion), et « Monde / Amis » devient un vrai sélecteur
+  segmenté iOS dans une capsule en verre. Vu au simulateur : « Amis » sur la carte (3 photos au lieu
+  de 8), « Mes amis » dans le profil, filtres de la recherche (la pastille à moitié hors de l'écran
+  reste affichée).
 - Pas vu : vraie caméra sur iPhone, mode Reproduire, VoiceOver, défilement rapide sur un vrai
   téléphone (léger retard possible des boutons qui défilent).
-- Version 0.19.0. typecheck, lint, 308 tests, build, `cap sync`, `xcodebuild` OK.
+- Version 0.19.0. typecheck, lint, 310 tests, build, `cap sync`, `xcodebuild` OK.

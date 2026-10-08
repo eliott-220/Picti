@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Icon, Logo } from '../components/Icon'
+import { Chip } from '../components/ui'
 import { authErrorMessage, authLinkErrorMessage } from '../data/auth'
 import { rememberInvite } from '../data/invite'
 import { authLinkError, supabase } from '../data/supabase'
@@ -132,24 +133,8 @@ export function Auth() {
           </p>
         )}
         <div className="chips auth-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={signup}
-            className={`chip ${signup ? 'selected' : ''}`}
-            onClick={() => switchMode('inscription')}
-          >
-            Créer un compte
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!signup}
-            className={`chip ${!signup ? 'selected' : ''}`}
-            onClick={() => switchMode('connexion')}
-          >
-            Se connecter
-          </button>
+          <Chip role="tab" label="Créer un compte" selected={signup} onClick={() => switchMode('inscription')} />
+          <Chip role="tab" label="Se connecter" selected={!signup} onClick={() => switchMode('connexion')} />
         </div>
 
         {forgot && (

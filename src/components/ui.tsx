@@ -62,6 +62,44 @@ export function RoundButton({
 }
 
 /**
+ * Pastille de choix (filtres, visibilité, tri, onglets) ; dans l'app iOS 26+, vraie pastille en
+ * verre (la sélectionnée en rouge).
+ */
+export function Chip({
+  label,
+  selected,
+  onClick,
+  disabled,
+  role = 'radio',
+}: {
+  label: string
+  selected: boolean
+  onClick?: () => void
+  disabled?: boolean
+  /** `radio` dans un `radiogroup`, `tab` dans une `tablist`. */
+  role?: 'radio' | 'tab'
+}) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const native = useGlassButton(ref, { title: label, label, active: selected, disabled })
+  return (
+    <button
+      ref={ref}
+      type="button"
+      role={role}
+      aria-checked={role === 'radio' ? selected : undefined}
+      aria-selected={role === 'tab' ? selected : undefined}
+      className={`chip ${selected ? 'selected' : ''}${native ? ' glass-native' : ''}`}
+      disabled={disabled}
+      onClick={onClick}
+      aria-hidden={native || undefined}
+      tabIndex={native ? -1 : undefined}
+    >
+      {label}
+    </button>
+  )
+}
+
+/**
  * Bouton icône sans fond (fermer une feuille, QR code, refuser…) ; dans l'app iOS 26+, remplacé
  * par un vrai bouton Liquid Glass natif comme `RoundButton`.
  */

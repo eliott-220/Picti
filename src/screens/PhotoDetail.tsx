@@ -4,7 +4,7 @@ import { photoTime } from '../components/arProjection'
 import { FriendButton } from '../components/FriendButton'
 import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
-import { Avatar, IconButton, PhotoTile, RoundButton } from '../components/ui'
+import { Avatar, Chip, IconButton, PhotoTile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
@@ -573,17 +573,13 @@ function MyPhotoBlock({ photo, canDelete }: { photo: GeoPhoto; canDelete: boolea
         Qui peut la découvrir sur place ?
         <div className="chips" role="radiogroup" aria-label="Visibilité">
           {VISIBILITIES.map((v) => (
-            <button
+            <Chip
               key={v}
-              type="button"
-              role="radio"
-              aria-checked={photo.visibility === v}
-              className={`chip ${photo.visibility === v ? 'selected' : ''}`}
+              label={VISIBILITY_LABEL[v]}
+              selected={photo.visibility === v}
               disabled={tooVisible(v)}
               onClick={() => void saveChanges({ visibility: v })}
-            >
-              {VISIBILITY_LABEL[v]}
-            </button>
+            />
           ))}
         </div>
         <small>

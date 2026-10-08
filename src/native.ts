@@ -34,8 +34,16 @@ export function platformLabel(p: Platform = platform()): string | null {
 /** Bouton Liquid Glass tel qu'envoyé au plugin natif (cadre en points, ceux de la page). */
 export interface GlassButtonSpec {
   id: string
-  /** Nom du symbole SF (ex. « bell »). */
-  symbol: string
+  /** `button` : bouton rond ou pastille ; `segmented` : sélecteur segmenté (« Monde / Amis »). */
+  kind: 'button' | 'segmented'
+  /** Nom du symbole SF (ex. « bell »), null pour une pastille à texte. */
+  symbol: string | null
+  /** Texte d'une pastille (« Tout le monde »). */
+  title: string | null
+  /** Choix d'un sélecteur segmenté, null pour un bouton. */
+  segments: string[] | null
+  /** Choix sélectionné d'un sélecteur segmenté (−1 : aucun). */
+  selected: number
   /** Libellé lu par VoiceOver. */
   label: string
   x: number
@@ -62,7 +70,8 @@ interface GlassButtonsPlugin {
   /** Liste complète des boutons à afficher : le natif crée, déplace et retire les siens. */
   set(options: { buttons: GlassButtonSpec[] }): Promise<void>
   clear(): Promise<void>
-  addListener(event: 'tap', listener: (event: { id: string }) => void): Promise<PluginListenerHandle>
+  /** `index` : choix touché d'un sélecteur segmenté. */
+  addListener(event: 'tap', listener: (event: { id: string; index?: number }) => void): Promise<PluginListenerHandle>
 }
 
 /** Plugin de l'app iOS (`ios/App/App/GlassButtonsPlugin.swift`), à n'appeler que sur iOS. */

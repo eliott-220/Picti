@@ -14,6 +14,7 @@ import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { formatDateTime } from '../data/types'
 import { distanceMeters, formatDistance } from '../geo/geodesy'
+import { useGlassButton } from '../glassButtons'
 import { useDarkStatusBar } from '../native'
 import { groupBySpot, pileOrder } from '../geo/spots'
 import { goBack, navigate } from '../router'
@@ -117,9 +118,16 @@ interface InBoundsRow {
  */
 export default function WorldMap() {
   useDarkStatusBar()
+  // « Monde / Amis » : vrai sélecteur segmenté iOS en verre dans l'app iOS 26+.
+  const scopeRef = useRef<HTMLDivElement>(null)
   const { userId, friends } = useStore()
   const hasFriends = friends.some((f) => f.status === 'accepted')
   const [scope, setScope] = useState<MapScope>(savedScope)
+  const nativeScope = useGlassButton(scopeRef, {
+    segments: SCOPES.map((s) => s.label),
+    selected: SCOPES.findIndex((s) => s.value === scope),
+    label: 'Photos affichées',
+  })
   const mine = (owner: string) => owner === userId
   const { fix } = useGeolocation()
   const container = useRef<HTMLDivElement | null>(null)
@@ -407,7 +415,13 @@ export default function WorldMap() {
         </div>
       </header>
 
-      <div className="map-scope segmented" role="radiogroup" aria-label="Photos affichées">
+      <div
+        ref={scopeRef}
+        className={`map-scope segmented${nativeScope ? ' glass-native' : ''}`}
+        role="radiogroup"
+        aria-label="Photos affichées"
+        aria-hidden={nativeScope || undefined}
+      >
         {SCOPES.map((s) => (
           <button
             key={s.value}
