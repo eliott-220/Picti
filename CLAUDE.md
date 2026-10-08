@@ -626,7 +626,8 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     → carte, menu, appareil sans ARKit.
   - **Pas encore vérifié sur l'iPhone** (verrouillé pendant la session du 08/10) : rendu de la caméra
     derrière la page, conventions des poses, photo haute résolution, boussole pendant ARKit. Au
-    simulateur iOS (sans ARKit) : repli sur la caméra web vérifié.
+    simulateur iOS (sans ARKit) : repli sur la caméra web vérifié. Note de session :
+    `claude/picti/2026-10-08-position-et-suivi-visuel.md`.
 - **Retour par le bord gauche** (0.19.0, app iOS) : `PictiViewController.viewDidLoad` →
   `webView.allowsBackForwardNavigationGestures = true` : le vrai geste d'iOS (glisser depuis le bord
   gauche ; depuis le bord droit pour revenir en avant), l'écran précédent apparaît dessous (image

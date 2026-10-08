@@ -88,6 +88,8 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
             if self.savedBackground == nil {
                 self.savedBackground = (webView.backgroundColor, webView.scrollView.backgroundColor)
             }
+            // Autour de la caméra (écran « Reproduire »), la page transparente laisse voir la fenêtre : noire.
+            if container.backgroundColor == nil { container.backgroundColor = .black }
             webView.isOpaque = false
             webView.backgroundColor = .clear
             webView.scrollView.backgroundColor = .clear
