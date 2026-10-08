@@ -1,10 +1,12 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
+import { VISIBLE_BY, type Visibility } from '../data/types'
 import { useGlassButton } from '../glassButtons'
 import { navigate } from '../router'
 import { Dots } from './Dots'
 import { Icon, type IconName } from './Icon'
+import { VISIBILITY_ICON } from './visibilityIcon'
 
 export function RoundButton({
   icon,
@@ -46,8 +48,6 @@ export function RoundButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      aria-hidden={native || undefined}
-      tabIndex={native ? -1 : undefined}
     >
       {iconRotation == null ? (
         <Icon name={icon} />
@@ -91,8 +91,6 @@ export function Chip({
       className={`chip ${selected ? 'selected' : ''}${native ? ' glass-native' : ''}`}
       disabled={disabled}
       onClick={onClick}
-      aria-hidden={native || undefined}
-      tabIndex={native ? -1 : undefined}
     >
       {label}
     </button>
@@ -133,8 +131,6 @@ export function IconButton({
       aria-label={label}
       aria-expanded={expanded}
       disabled={disabled}
-      aria-hidden={native || undefined}
-      tabIndex={native ? -1 : undefined}
     >
       <Icon name={icon} />
     </button>
@@ -168,6 +164,7 @@ export function PhotoTile({
   owner,
   likes,
   version = false,
+  visibility,
 }: {
   id: string
   /** Auteur, si l'appelant le connaît mieux que le store (carte) : règle de couleur. */
@@ -184,6 +181,8 @@ export function PhotoTile({
   likes?: number
   /** Reproduction d'une autre photo : symbole ↻. */
   version?: boolean
+  /** Visibilité (Mes photos) : symbole du mode, comme au déclencheur, dans le coin. */
+  visibility?: Visibility
 }) {
   const url = useImageUrl(id, 'thumb')
   // Photo d'un autre pas encore capturée : noir et blanc.
@@ -192,6 +191,11 @@ export function PhotoTile({
     <button type="button" className={`tile tile-${size}`} onClick={onClick} aria-label={label}>
       {url ? <img src={url} alt="" loading="lazy" className={inColor ? undefined : 'mono'} /> : <span className="tile-placeholder" />}
       {badge && <span className="tile-badge">{badge}</span>}
+      {visibility && (
+        <span className="tile-visibility" role="img" aria-label={`Visible par ${VISIBLE_BY[visibility]}`}>
+          <Icon name={VISIBILITY_ICON[visibility]} size={18} />
+        </span>
+      )}
       {(version || !!likes) && (
         <span className="tile-meta">
           {version && <span aria-label="Reproduction">↻</span>}

@@ -420,7 +420,6 @@ export default function WorldMap() {
         className={`map-scope segmented${nativeScope ? ' glass-native' : ''}`}
         role="radiogroup"
         aria-label="Photos affichées"
-        aria-hidden={nativeScope || undefined}
       >
         {SCOPES.map((s) => (
           <button

@@ -1,10 +1,12 @@
 import Capacitor
 import UIKit
 
-/// Vrais boutons Liquid Glass (iOS 26) posés au-dessus de la WebView, à la place des boutons
-/// ronds, des pastilles et des sélecteurs web. Le JS (`src/glassButtons.ts`) envoie la liste
-/// complète, cadres en points ; chaque appui renvoie l'événement `tap` avec l'identifiant
-/// (et, pour un sélecteur segmenté, le choix touché).
+/// Vrais boutons Liquid Glass (iOS 26) à la place des boutons ronds, des pastilles et des
+/// sélecteurs web. Le JS (`src/glassButtons.ts`) envoie la liste complète, cadres en points.
+/// Ils ne font que l'affichage : les touches passent au bouton web, transparent, en dessous
+/// (défilement, appuis, VoiceOver). Un bouton situé dans une zone qui défile est posé dans la
+/// vue de défilement d'iOS qui la porte (WebKit en crée une par zone `overflow` qui défile) : il
+/// défile avec le texte, coupé et recouvert comme la page. Les autres sont sur un calque fixe.
 @objc(GlassButtonsPlugin)
 public class GlassButtonsPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "GlassButtonsPlugin"
@@ -15,8 +17,10 @@ public class GlassButtonsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "clear", returnType: CAPPluginReturnPromise)
     ]
 
-    private var overlay: PassthroughView?
+    private var overlay: UIView?
     private var controls: [String: GlassControl] = [:]
+    /// Vue de défilement d'iOS de chaque zone qui défile (clé donnée par le JS).
+    private var scrollViews: [Int: Weak<UIScrollView>] = [:]
 
     @objc func isAvailable(_ call: CAPPluginCall) {
         if #available(iOS 26.0, *) {
@@ -48,41 +52,79 @@ public class GlassButtonsPlugin: CAPPlugin, CAPBridgedPlugin {
             control.removeFromSuperview()
             controls[id] = nil
         }
-        guard !specs.isEmpty, let container = container() else { return }
+        guard !specs.isEmpty, let overlay = container() else { return }
         UIView.performWithoutAnimation {
             for spec in specs {
-                let control = controls[spec.id] ?? makeControl(spec, in: container)
-                control.update(spec)
+                let control = controls[spec.id] ?? makeControl(spec)
+                let scrollView = spec.scroller.flatMap(scrollView(for:))
+                let target: UIView = scrollView ?? overlay
+                if control.superview !== target {
+                    target.addSubview(control)
+                } else if scrollView != nil, target.subviews.last !== control {
+                    // Toujours au-dessus du contenu que WebKit a pu ajouter depuis.
+                    target.bringSubviewToFront(control)
+                }
+                control.update(spec, embedded: scrollView != nil)
             }
         }
     }
 
     @available(iOS 26.0, *)
-    private func makeControl(_ spec: GlassButtonSpec, in container: UIView) -> GlassControl {
-        let onTap: (String, Int?) -> Void = { [weak self] id, index in
-            var data: [String: Any] = ["id": id]
-            if let index { data["index"] = index }
-            self?.notifyListeners("tap", data: data)
-        }
-        let control: GlassControl = spec.kind == .segmented
-            ? GlassSegmented(id: spec.id, onTap: onTap)
-            : GlassButton(id: spec.id, onTap: onTap)
-        container.addSubview(control)
+    private func makeControl(_ spec: GlassButtonSpec) -> GlassControl {
+        let control: GlassControl = spec.kind == .segmented ? GlassSegmented() : GlassButton()
+        // Affichage seulement : les touches vont au bouton web en dessous, VoiceOver aussi.
+        control.isUserInteractionEnabled = false
+        control.accessibilityElementsHidden = true
         controls[spec.id] = control
         return control
     }
 
-    /// Calque transparent au-dessus de la page : seuls les boutons reçoivent les touches.
-    private func container() -> PassthroughView? {
+    /// Calque fixe au-dessus de la page, pour les boutons hors des zones qui défilent.
+    private func container() -> UIView? {
         if let overlay { return overlay }
         guard let webView = bridge?.webView else { return nil }
-        let view = PassthroughView(frame: webView.bounds)
+        let view = UIView(frame: webView.bounds)
         view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
         webView.addSubview(view)
         overlay = view
         return view
     }
+
+    /**
+     Vue de défilement d'iOS d'une zone qui défile : retrouvée une fois par son cadre à l'écran
+     parmi celles que WebKit a créées, puis gardée (tant qu'elle existe).
+     */
+    private func scrollView(for scroller: GlassButtonSpec.Scroller) -> UIScrollView? {
+        if let known = scrollViews[scroller.key]?.value, known.window != nil { return known }
+        guard let webView = bridge?.webView else { return nil }
+        var best: UIScrollView?
+        var bestGap = CGFloat.greatestFiniteMagnitude
+        func visit(_ view: UIView) {
+            for sub in view.subviews {
+                if let candidate = sub as? UIScrollView, let parent = candidate.superview {
+                    let frame = parent.convert(candidate.frame, to: webView)
+                    let gap = abs(frame.minX - scroller.frame.minX) + abs(frame.minY - scroller.frame.minY)
+                        + abs(frame.width - scroller.frame.width) + abs(frame.height - scroller.frame.height)
+                    if gap < bestGap {
+                        bestGap = gap
+                        best = candidate
+                    }
+                }
+                visit(sub)
+            }
+        }
+        visit(webView.scrollView)
+        guard let best, bestGap < 4 else { return nil }
+        scrollViews[scroller.key] = Weak(best)
+        return best
+    }
+}
+
+final class Weak<T: AnyObject> {
+    weak var value: T?
+    init(_ value: T) { self.value = value }
 }
 
 /// Un bouton, une pastille ou un sélecteur tel que décrit par le JS.
@@ -90,6 +132,12 @@ struct GlassButtonSpec {
     enum Kind: String {
         case button
         case segmented
+    }
+
+    /// Zone qui défile autour du bouton : sa clé et sa partie visible à l'écran.
+    struct Scroller {
+        let key: Int
+        let frame: CGRect
     }
 
     let id: String
@@ -102,7 +150,11 @@ struct GlassButtonSpec {
     let segments: [String]
     let selected: Int
     let label: String
+    /// Cadre à l'écran (bouton fixe).
     let frame: CGRect
+    /// Zone qui défile, et position du bouton dans son contenu.
+    let scroller: Scroller?
+    let contentOrigin: CGPoint
     let badge: String?
     let dim: Bool
     let active: Bool
@@ -124,6 +176,16 @@ struct GlassButtonSpec {
         selected = (object["selected"] as? NSNumber)?.intValue ?? -1
         label = object["label"] as? String ?? ""
         frame = CGRect(x: number("x"), y: number("y"), width: number("width"), height: number("height"))
+        if let zone = object["scroller"] as? JSObject, let key = (zone["key"] as? NSNumber)?.intValue {
+            func value(_ name: String) -> CGFloat { CGFloat((zone[name] as? NSNumber)?.doubleValue ?? 0) }
+            scroller = Scroller(
+                key: key,
+                frame: CGRect(x: value("x"), y: value("y"), width: value("width"), height: value("height"))
+            )
+        } else {
+            scroller = nil
+        }
+        contentOrigin = CGPoint(x: number("cx"), y: number("cy"))
         badge = object["badge"] as? String
         dim = object["dim"] as? Bool ?? false
         active = object["active"] as? Bool ?? false
@@ -151,10 +213,24 @@ extension UIColor {
     }
 }
 
-/// Vue native qui remplace un bouton web.
+/// Vue native qui affiche un bouton web.
 protocol GlassControlUpdating {
     var kind: GlassButtonSpec.Kind { get }
-    func update(_ spec: GlassButtonSpec)
+    /// `embedded` : posé dans une vue de défilement (cadre dans son contenu, recouvert par la page).
+    func update(_ spec: GlassButtonSpec, embedded: Bool)
+}
+
+extension GlassButtonSpec {
+    /// Cadre dans la vue qui porte le bouton.
+    func frame(embedded: Bool) -> CGRect {
+        embedded ? CGRect(origin: contentOrigin, size: frame.size) : frame
+    }
+
+    /// Un bouton fixe se cache quand le web est recouvert ; un bouton dans une zone qui défile est
+    /// coupé et recouvert par la page elle-même.
+    func hidden(embedded: Bool) -> Bool {
+        embedded ? frame.isEmpty : !visible
+    }
 }
 
 typealias GlassControl = UIView & GlassControlUpdating
@@ -167,9 +243,8 @@ final class GlassButton: UIButton, GlassControlUpdating {
     private var shown: (symbol: String?, title: String?, active: Bool, color: UIColor?)?
     private var rotation: CGFloat = 0
 
-    init(id: String, onTap: @escaping (String, Int?) -> Void) {
+    init() {
         super.init(frame: .zero)
-        addAction(UIAction { _ in onTap(id, nil) }, for: .primaryActionTriggered)
         badgeLabel.backgroundColor = .picti
         badgeLabel.textColor = .white
         badgeLabel.font = .systemFont(ofSize: 12, weight: .semibold)
@@ -189,7 +264,7 @@ final class GlassButton: UIButton, GlassControlUpdating {
         imageView?.transform = CGAffineTransform(rotationAngle: rotation * .pi / 180)
     }
 
-    func update(_ spec: GlassButtonSpec) {
+    func update(_ spec: GlassButtonSpec, embedded: Bool) {
         if shown?.symbol != spec.symbol || shown?.title != spec.title || shown?.active != spec.active
             || shown?.color != spec.color {
             // Verre standard : ses icônes passent du noir au blanc selon ce qui est derrière (caméra
@@ -221,16 +296,15 @@ final class GlassButton: UIButton, GlassControlUpdating {
             configuration = config
             shown = (spec.symbol, spec.title, spec.active, spec.color)
         }
-        if frame != spec.frame { frame = spec.frame }
+        let target = spec.frame(embedded: embedded)
+        if frame != target { frame = target }
         if rotation != spec.rotation {
             rotation = spec.rotation
             setNeedsLayout()
         }
-        accessibilityLabel = spec.label
-        accessibilityTraits = spec.active && spec.title != nil ? [.button, .selected] : .button
         isEnabled = !spec.disabled
         alpha = spec.dim || spec.disabled ? 0.55 : 1
-        isHidden = !spec.visible
+        isHidden = spec.hidden(embedded: embedded)
 
         badgeLabel.isHidden = spec.badge == nil
         if let badge = spec.badge {
@@ -250,7 +324,7 @@ final class GlassSegmented: UIView, GlassControlUpdating {
     private let control = UISegmentedControl()
     private var segments: [String] = []
 
-    init(id: String, onTap: @escaping (String, Int?) -> Void) {
+    init() {
         super.init(frame: .zero)
         glass.cornerConfiguration = .capsule()
         addSubview(glass)
@@ -261,16 +335,13 @@ final class GlassSegmented: UIView, GlassControlUpdating {
             [.font: UIFont.systemFont(ofSize: 15, weight: .semibold), .foregroundColor: UIColor.white],
             for: .selected
         )
-        control.addAction(UIAction { [weak control] _ in
-            onTap(id, control?.selectedSegmentIndex ?? 0)
-        }, for: .valueChanged)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) non utilisé")
     }
 
-    func update(_ spec: GlassButtonSpec) {
+    func update(_ spec: GlassButtonSpec, embedded: Bool) {
         if segments != spec.segments {
             control.removeAllSegments()
             for (index, title) in spec.segments.enumerated() {
@@ -280,21 +351,13 @@ final class GlassSegmented: UIView, GlassControlUpdating {
         }
         let selected = spec.selected >= 0 ? spec.selected : UISegmentedControl.noSegment
         if control.selectedSegmentIndex != selected { control.selectedSegmentIndex = selected }
-        if frame != spec.frame {
-            frame = spec.frame
+        let target = spec.frame(embedded: embedded)
+        if frame != target {
+            frame = target
             glass.frame = bounds
             control.frame = bounds.insetBy(dx: 4, dy: 4)
         }
-        accessibilityLabel = spec.label
         alpha = spec.dim ? 0.55 : 1
-        isHidden = !spec.visible
-    }
-}
-
-/// Laisse passer à la page toutes les touches qui ne tombent pas sur un bouton.
-final class PassthroughView: UIView {
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let hit = super.hitTest(point, with: event)
-        return hit === self ? nil : hit
+        isHidden = spec.hidden(embedded: embedded)
     }
 }

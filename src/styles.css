@@ -229,7 +229,8 @@ img {
   color: #fff;
 }
 
-/* App iOS 26+ : un vrai bouton Liquid Glass natif est posé par-dessus (src/glassButtons.ts). */
+/* App iOS 26+ : un vrai bouton Liquid Glass natif l'affiche ; le bouton web, transparent, reste celui
+   qu'on touche (src/glassButtons.ts). */
 .round-btn.glass-native,
 .icon-btn.glass-native,
 .chip.glass-native,
@@ -1513,6 +1514,15 @@ img {
   border-color: var(--red);
   background: var(--red);
   color: #fff;
+}
+
+/* App iOS 26+ : les pastilles en verre natives sont posées dans la vue de défilement de la rangée,
+   qui coupe ce qui dépasse : on lui laisse de la place pour l'ombre du verre (même espacement total). */
+.chips:has(> .chip.glass-native) {
+  margin-top: -6px;
+  margin-bottom: -2px;
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 /* ---------- Première connexion ---------- */
@@ -3043,6 +3053,16 @@ button.avatar-item {
 }
 
 /* Vignettes : ↻ et likes en haut à droite. */
+/* Mes photos : symbole du mode (globe, amis, cadenas) comme au déclencheur, sans pastille. */
+.tile-visibility {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  display: flex;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.65));
+}
+
 .tile-meta {
   position: absolute;
   top: 8px;

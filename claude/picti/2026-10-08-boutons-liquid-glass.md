@@ -35,6 +35,15 @@ les boutons liquid ? » puis « les 2 en même temps » (prompt `PROMPT-0.019.0.
   segmenté iOS dans une capsule en verre. Vu au simulateur : « Amis » sur la carte (3 photos au lieu
   de 8), « Mes amis » dans le profil, filtres de la recherche (la pastille à moitié hors de l'écran
   reste affichée).
-- Pas vu : vraie caméra sur iPhone, mode Reproduire, VoiceOver, défilement rapide sur un vrai
-  téléphone (léger retard possible des boutons qui défilent).
-- Version 0.19.0. typecheck, lint, 310 tests, build, `cap sync`, `xcodebuild` OK.
+- **Retours d'Eliott sur iPhone** : (1) en défilant, les boutons bougeaient par rapport au texte ;
+  (2) la rangée « Toutes / En direct / Selfies… » ne défilait plus (le glissement étirait le bouton
+  en verre) ; (3) dans « Mes photos géocadrées », remplacer le texte rouge « Publique / Moi seul /
+  Amis » par le symbole du déclencheur, petit, sans le rond rouge. Corrigé : les boutons natifs ne
+  font plus que l'affichage (les touches vont au bouton web en dessous) ; ceux d'une zone qui défile
+  sont posés dans la vue de défilement d'iOS de cette zone (ils défilent avec le texte, au pixel
+  près) ; marge intérieure des rangées de pastilles pour l'ombre du verre ; symbole blanc (globe,
+  amis, cadenas) en haut à gauche de **toutes** les vignettes de « Mes photos ». Vu au simulateur :
+  rangée de filtres qui défile et appui sur « À géocadrer », profil capturé en plein élan (crayon,
+  QR et pastilles collés au texte), « Tout le monde » et Menu qui répondent.
+- Pas vu : vraie caméra sur iPhone, mode Reproduire, VoiceOver.
+- Version 0.19.0. typecheck, lint, 311 tests, build, `cap sync`, `xcodebuild` OK.

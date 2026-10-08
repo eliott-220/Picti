@@ -67,7 +67,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     **Depuis 0.17.0, l'app ne lit plus cette colonne** (voir « Choix à la prise »).
     `addPhoto` sans visibilité → `getShotVisibility()`. Libellés partagés dans
     `src/data/types.ts` (`VISIBILITIES`, `VISIBILITY_SHORT`, `VISIBILITY_AUDIENCE`, `VISIBLE_BY`,
-    `visibilityHelp`). Vignettes de « Mes photos » : badge seulement si la visibilité diffère du mode actuel.
+    `visibilityHelp`). Vignettes de « Mes photos » : symbole du mode en haut à gauche, comme au déclencheur (`PhotoTile visibility`, `.tile-visibility` : globe / amis / cadenas blancs avec ombre, sans pastille, sur toutes les vignettes ; avant le 08/10, texte rouge « Publique / Amis / Moi seul » seulement quand la visibilité différait du mode actuel).
   - **Choix à la prise** (0.17.0, à la demande d'Eliott) : plus de pastille au-dessus du
     déclencheur. Le déclencheur (`src/components/Shutter.tsx`) montre le symbole du mode (globe /
     amis / cadenas, `VISIBILITY_ICON`) ; appui court = photo ; **appui long (300 ms) ou glissement
@@ -483,38 +483,48 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   npm), enregistré par `PictiViewController` (sous-classe de `CAPBridgeViewController`,
   `capacitorDidLoad` → `registerPluginInstance`), utilisé par `SceneDelegate`. Les deux fichiers
   Swift sont déclarés à la main dans `project.pbxproj` (pas de dossier synchronisé) : tout nouveau
-  fichier Swift doit l'être aussi. Calque `PassthroughView` ajouté à la WebView (touches hors des
-  boutons → page) ; méthodes `isAvailable` (iOS 26+), `set({ buttons })` (liste complète, le natif
-  crée / déplace / retire), `clear`, événement `tap`. Boutons `UIButton.Configuration.glass()`
-  (`prominentGlass()` teinté rouge quand `active`) : le verre **clair** (`clearGlass()`) gardait des
-  icônes noires, invisibles sur une caméra sombre (vu au simulateur le 08/10) ; le verre standard
-  passe seul du clair au sombre. Pastille rouge native comme `.round-badge`. Côté web :
-  **tous** les `RoundButton` (option `glass`, vraie par défaut ; `glass={false}` pour en garder un en
-  web) et les `IconButton` (boutons icône sans fond `.icon-btn` : croix des feuilles Menu, Import,
-  carte et fiche, QR code, refuser / annuler dans le profil), les **`Chip`** (pastilles de choix
-  `.chip` : visibilité « Tout le monde / Mes amis / Moi seul » du profil et de la fiche, filtres
-  « Toutes / En direct… » de la recherche, tri de la galerie, onglets de connexion ; pastille en verre
-  avec son texte, la sélectionnée en `prominentGlass` rouge) et le sélecteur **« Monde / Amis »** de
-  la carte (`kind: 'segmented'` : vrai `UISegmentedControl` dans une capsule `UIGlassEffect`,
-  segment sélectionné rouge ; l'appui renvoie `{ id, index }` et le JS clique le index-ième bouton du
-  groupe web) → `useGlassButton`
-  (`src/glassButtons.ts`) : dans l'app iOS 26+, le bouton web
-  reste en place, transparent (`.glass-native`, `aria-hidden`, `tabIndex -1`) ; une boucle
-  `requestAnimationFrame` (tant qu'un bouton est inscrit) mesure chaque bouton, le dit **recouvert**
-  si `elementFromPoint` en son centre (ramené dans l'écran : une pastille à moitié sortie d'une
-  rangée qui défile reste affichée) ne tombe pas sur lui (feuille, fiche, toast, carte de capture) et n'envoie la liste au natif que si elle change (cadres au demi-point) ; un `tap` natif
-  appelle le `click()` du bouton web (mêmes actions). Icônes → symboles SF (`glassSymbol` : retour
-  `chevron.left`, cloche, carte `mappin.and.ellipse`, filtre, loupe, selfie, plus, menu
-  `square.grid.2x2`, croix, crayon, « Ma position » `location`, nord `location.north.fill`, QR) ; une
-  icône sans symbole reste web. Nord de la carte : `RoundButton iconRotation={-bearing} tint` (la
-  rotation est appliquée à l'icône native dans `layoutSubviews` ; la couleur est fixée dans l'image,
-  `withTintColor(.alwaysOriginal)`, car le verre impose la sienne). Bouton désactivé : `disabled`
-  (estompé, `isEnabled` faux). Boutons dans une page qui défile : recopiés à chaque image (un léger
-  retard est possible pendant un défilement rapide), cachés quand ils sortent de l'écran. Le
-  déclencheur et les boutons à texte (« Inviter », « Chasser »…) restent web. Textes des pastilles
-  natives en police système (SF), pas Outfit. Tests : `src/glassButtons.test.ts`. Pour voir le viseur au simulateur sans
-  compte : web du banc (`.bench/`, `vite build --config .bench/vite.config.ts`) copié dans
-  `ios/App/App/public` après `cap sync`, puis `npm run native:sync` pour revenir au vrai web.
+  fichier Swift doit l'être aussi. Méthodes `isAvailable` (iOS 26+), `set({ buttons })` (liste
+  complète, le natif crée / déplace / retire), `clear`.
+  - **Le natif ne fait que l'affichage** (`isUserInteractionEnabled` faux, caché à VoiceOver) : le
+    bouton web reste en place, transparent (`.glass-native`, opacité 0) mais **c'est lui qu'on
+    touche** (appuis, défilement, VoiceOver). Version précédente (boutons natifs qui captaient les
+    touches et renvoyaient un `tap`) abandonnée le 08/10 : un glissement sur une pastille étirait le
+    bouton au lieu de faire défiler la rangée (retour d'Eliott sur iPhone).
+  - **Zones qui défilent** : WebKit crée une `UIScrollView` (WKChildScrollView) pour chaque élément
+    `overflow: auto/scroll` dont le contenu dépasse. Pour un bouton dans une telle zone, le JS envoie
+    `scroller` (clé, partie visible à l'écran) et sa position dans le contenu (`cx`, `cy` =
+    position à l'écran − zone + `scrollLeft/Top`, fixe pendant le défilement) ; le natif retrouve la
+    vue de défilement par son cadre (écart < 4 pt, gardée ensuite par clé, `Weak`) et y **pose le
+    bouton** (au premier plan, `bringSubviewToFront`) : il défile avec le texte sans attendre le JS,
+    est coupé et recouvert comme la page (pas de masquage par `elementFromPoint`, seulement si sa
+    taille est nulle). Version précédente (calque fixe recopié à chaque image) : les boutons
+    bougeaient par rapport au texte pendant le défilement (retour d'Eliott). Les autres boutons
+    (viseur, carte) sont sur un **calque fixe** ajouté à la WebView, cachés quand le web est
+    recouvert (`elementFromPoint` en leur centre, ramené dans l'écran). La vue de défilement coupe
+    l'ombre du verre : `.chips:has(> .chip.glass-native)` donne 24 px de marge intérieure à la
+    rangée (marges extérieures réduites d'autant).
+  - Boutons `UIButton.Configuration.glass()` (`prominentGlass()` teinté rouge quand `active`) : le
+    verre **clair** (`clearGlass()`) gardait des icônes noires, invisibles sur une caméra sombre (vu
+    au simulateur le 08/10) ; le verre standard passe seul du clair au sombre. Pastille rouge native
+    comme `.round-badge`. Côté web : **tous** les `RoundButton` (option `glass`, vraie par défaut ;
+    `glass={false}` pour en garder un en web), les `IconButton` (boutons icône sans fond `.icon-btn` :
+    croix des feuilles Menu, Import, carte et fiche, QR code, refuser / annuler dans le profil), les
+    **`Chip`** (pastilles de choix `.chip` : visibilité « Tout le monde / Mes amis / Moi seul » du
+    profil et de la fiche, filtres « Toutes / En direct… » de la recherche, tri de la galerie, onglets
+    de connexion ; texte en police système SF, la sélectionnée en `prominentGlass` rouge) et le
+    sélecteur **« Monde / Amis »** de la carte (`kind: 'segmented'` : `UISegmentedControl` dans une
+    capsule `UIGlassEffect`, segment sélectionné rouge) → `useGlassButton` (`src/glassButtons.ts`) :
+    une boucle `requestAnimationFrame` (tant qu'un bouton est inscrit) mesure chaque bouton et
+    n'envoie la liste au natif que si elle change (cadres au demi-point). Icônes → symboles SF
+    (`glassSymbol` : retour `chevron.left`, cloche, carte `mappin.and.ellipse`, filtre, loupe, selfie,
+    plus, menu `square.grid.2x2`, croix, crayon, « Ma position » `location`, nord
+    `location.north.fill`, QR) ; une icône sans symbole reste web. Nord de la carte : `RoundButton
+    iconRotation={-bearing} tint` (rotation appliquée à l'icône native dans `layoutSubviews` ; couleur
+    fixée dans l'image, `withTintColor(.alwaysOriginal)`, car le verre impose la sienne). Bouton
+    désactivé : `disabled` (estompé). Le déclencheur et les boutons à texte (« Inviter »,
+    « Chasser »…) restent web. Tests : `src/glassButtons.test.ts`. Pour voir l'app au simulateur sans
+    compte : web du banc (`.bench/`, `vite build --config .bench/vite.config.ts`) copié dans
+    `ios/App/App/public` après `cap sync`, puis `npm run native:sync` pour revenir au vrai web.
 - **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
   `APP_URL`, ancre `#/…` seulement) → `location.hash`. Modèles
   `public/.well-known/apple-app-site-association` (`TEAM_ID_APPLE.app.picti`, composant

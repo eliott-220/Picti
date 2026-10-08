@@ -12,7 +12,6 @@ import {
   isGeoframed,
   VISIBILITIES,
   VISIBILITY_AUDIENCE,
-  VISIBILITY_LABEL,
   visibilityHelp,
   type PersonResult,
   type Visibility,
@@ -138,8 +137,7 @@ export function Profile({ section }: { section?: 'amis' }) {
               <PhotoTile
                 key={p.id}
                 id={p.id}
-                // Seules les photos qui ne suivent pas le mode actuel sont signalées.
-                badge={p.visibility !== defaultVisibility ? VISIBILITY_LABEL[p.visibility] : undefined}
+                visibility={p.visibility}
                 stack={1 + others.length}
                 likes={p.likesCount}
                 version={p.versionOf != null}

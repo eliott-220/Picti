@@ -1,14 +1,7 @@
 // Coque native Capacitor (iOS, Android) : seul module qui importe `@capacitor/core`.
 // Dans le navigateur, tout se comporte comme avant (`isNative()` faux).
 
-import {
-  Capacitor,
-  registerPlugin,
-  SystemBars,
-  SystemBarsStyle,
-  SystemBarType,
-  type PluginListenerHandle,
-} from '@capacitor/core'
+import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core'
 import { useEffect } from 'react'
 import { APP_URL } from './config'
 
@@ -46,10 +39,18 @@ export interface GlassButtonSpec {
   selected: number
   /** Libellé lu par VoiceOver. */
   label: string
+  /** Cadre à l'écran. */
   x: number
   y: number
   width: number
   height: number
+  /**
+   * Zone qui défile autour du bouton (clé, partie visible à l'écran) : le natif pose son bouton dans
+   * la vue de défilement d'iOS correspondante, en (cx, cy) dans son contenu. Null : bouton fixe.
+   */
+  scroller: { key: number; x: number; y: number; width: number; height: number } | null
+  cx: number
+  cy: number
   /** Pastille rouge (« 3 », « 99+ »), null sans pastille. */
   badge: string | null
   dim: boolean
@@ -60,7 +61,7 @@ export interface GlassButtonSpec {
   rotation: number
   /** Couleur de l'icône (« #eb0c0c »), null : couleur du verre. */
   color: string | null
-  /** Faux quand le bouton web est recouvert (feuille, fiche…) ou hors de l'écran. */
+  /** Faux quand le bouton web est recouvert (feuille, fiche…) ou hors de l'écran (bouton fixe). */
   visible: boolean
 }
 
@@ -70,8 +71,6 @@ interface GlassButtonsPlugin {
   /** Liste complète des boutons à afficher : le natif crée, déplace et retire les siens. */
   set(options: { buttons: GlassButtonSpec[] }): Promise<void>
   clear(): Promise<void>
-  /** `index` : choix touché d'un sélecteur segmenté. */
-  addListener(event: 'tap', listener: (event: { id: string; index?: number }) => void): Promise<PluginListenerHandle>
 }
 
 /** Plugin de l'app iOS (`ios/App/App/GlassButtonsPlugin.swift`), à n'appeler que sur iOS. */

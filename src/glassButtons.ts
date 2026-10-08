@@ -1,8 +1,9 @@
 // Vrais boutons Liquid Glass dans l'app iOS 26+ (plugin natif `GlassButtons`, depuis 0.19.0).
 // Un `RoundButton`, un `IconButton`, une `Chip` ou un sélecteur segmenté reste à sa place dans la
-// page mais devient transparent ; à chaque image,
-// sa position est recopiée vers un bouton natif posé au-dessus de la page, et un appui sur ce
-// bouton déclenche le `click()` du bouton web. Ailleurs (site, Android, iOS < 26) : rien ne change.
+// page, transparent mais toujours actif : c'est lui qui reçoit les touches (appuis, défilement,
+// VoiceOver). Le natif ne fait que l'affichage : à chaque image, la position du bouton web lui est
+// envoyée ; dans une zone qui défile, le bouton natif est posé dans la vue de défilement d'iOS qui
+// la porte et défile avec le texte sans attendre le JS. Ailleurs (site, Android, iOS < 26) : rien.
 
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import type { IconName } from './components/Icon'
@@ -57,6 +58,14 @@ export interface GlassOptions {
 
 type Rect = { x: number; y: number; width: number; height: number }
 
+/** Zone qui défile autour d'un bouton : sa clé, sa partie visible à l'écran et son défilement. */
+export interface ScrollerPort {
+  key: number
+  port: Rect
+  left: number
+  top: number
+}
+
 /** Ce bouton a-t-il un équivalent natif (icône connue, texte ou choix) ? */
 export function glassable(options: GlassOptions): boolean {
   return !!options.segments?.length || !!options.title || (!!options.icon && !!glassSymbol(options.icon))
@@ -66,7 +75,13 @@ export function glassable(options: GlassOptions): boolean {
  * Description envoyée au natif ; cadre arrondi au demi-point pour ne renvoyer que les vrais
  * déplacements. Null pour une icône sans symbole.
  */
-export function toSpec(id: string, rect: Rect, options: GlassOptions, onTop: boolean): GlassButtonSpec | null {
+export function toSpec(
+  id: string,
+  rect: Rect,
+  options: GlassOptions,
+  onTop: boolean,
+  scroller: ScrollerPort | null = null,
+): GlassButtonSpec | null {
   if (!glassable(options)) return null
   const half = (v: number) => Math.round(v * 2) / 2
   const segments = options.segments?.length ? options.segments : null
@@ -82,6 +97,18 @@ export function toSpec(id: string, rect: Rect, options: GlassOptions, onTop: boo
     y: half(rect.y),
     width: half(rect.width),
     height: half(rect.height),
+    scroller: scroller
+      ? {
+          key: scroller.key,
+          x: half(scroller.port.x),
+          y: half(scroller.port.y),
+          width: half(scroller.port.width),
+          height: half(scroller.port.height),
+        }
+      : null,
+    // Position dans le contenu de la zone qui défile (fixe pendant le défilement).
+    cx: half(scroller ? rect.x - scroller.port.x + scroller.left : rect.x),
+    cy: half(scroller ? rect.y - scroller.port.y + scroller.top : rect.y),
     badge: badgeText(options.badge),
     dim: !!options.dim,
     active: !!options.active,
@@ -105,12 +132,6 @@ function ask() {
   GlassButtons.isAvailable()
     .then(({ available: yes }) => {
       if (!yes) return
-      void GlassButtons.addListener('tap', ({ id, index }) => {
-        const el = entries.get(id)?.el
-        // Sélecteur segmenté : le choix touché est le index-ième bouton du groupe web.
-        if (index != null) el?.querySelectorAll('button')[index]?.click()
-        else el?.click()
-      })
       available = true
       subscribers.forEach((notify) => notify())
     })
@@ -123,10 +144,50 @@ function subscribe(notify: () => void) {
   return () => subscribers.delete(notify)
 }
 
+// ---------- Zones qui défilent ----------
+
+const scrollerKeys = new WeakMap<HTMLElement, number>()
+let lastScrollerKey = 0
+
+function scrollerKey(el: HTMLElement): number {
+  let key = scrollerKeys.get(el)
+  if (!key) {
+    key = ++lastScrollerKey
+    scrollerKeys.set(el, key)
+  }
+  return key
+}
+
+/** Ancêtres qui peuvent défiler (`overflow` auto ou scroll), du plus proche au plus lointain. */
+function scrollParents(el: HTMLElement): HTMLElement[] {
+  const list: HTMLElement[] = []
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const style = getComputedStyle(p)
+    if (/auto|scroll/.test(style.overflowX + style.overflowY)) list.push(p)
+  }
+  return list
+}
+
+/**
+ * La plus proche qui défile vraiment (contenu plus grand qu'elle) : iOS ne crée une vue de
+ * défilement que pour celles-là.
+ */
+function activeScroller(parents: HTMLElement[]): ScrollerPort | null {
+  const el = parents.find((p) => p.scrollHeight > p.clientHeight + 1 || p.scrollWidth > p.clientWidth + 1)
+  if (!el) return null
+  const r = el.getBoundingClientRect()
+  return {
+    key: scrollerKey(el),
+    port: { x: r.left + el.clientLeft, y: r.top + el.clientTop, width: el.clientWidth, height: el.clientHeight },
+    left: el.scrollLeft,
+    top: el.scrollTop,
+  }
+}
+
 // ---------- Boutons affichés et recopie à chaque image ----------
 
 /** `options` : dernières options du bouton (elles changent à chaque rendu). */
-type Entry = { el: HTMLElement; options: () => GlassOptions | null }
+type Entry = { el: HTMLElement; options: () => GlassOptions | null; parents: HTMLElement[] }
 const entries = new Map<string, Entry>()
 let lastId = 0
 let frame = 0
@@ -134,8 +195,8 @@ let sent = ''
 
 /**
  * Le bouton web est-il à l'écran et au premier plan (pas sous une feuille, une fiche, un toast…) ?
- * Testé en son centre, ramené dans l'écran : une pastille à moitié sortie d'une rangée qui défile
- * reste affichée.
+ * Testé en son centre, ramené dans l'écran : une pastille à moitié sortie de l'écran reste affichée.
+ * (Un bouton posé dans une vue de défilement d'iOS est, lui, recouvert et coupé comme la page.)
  */
 function onTop(el: HTMLElement, rect: Rect): boolean {
   const w = window.innerWidth
@@ -151,11 +212,11 @@ function tick() {
   frame = 0
   const pageVisible = document.visibilityState === 'visible'
   const specs: GlassButtonSpec[] = []
-  for (const [id, { el, options }] of entries) {
+  for (const [id, { el, options, parents }] of entries) {
     const current = options()
     if (!current) continue
     const rect = el.getBoundingClientRect()
-    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect))
+    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect), activeScroller(parents))
     if (spec) specs.push(spec)
   }
   const json = JSON.stringify(specs)
@@ -172,7 +233,8 @@ function schedule() {
 
 /**
  * Double le bouton web `ref` d'un vrai bouton Liquid Glass dans l'app iOS 26+ (options null :
- * bouton web ordinaire). Renvoie vrai quand le bouton natif le remplace (le web devient transparent).
+ * bouton web ordinaire). Renvoie vrai quand le natif l'affiche (le web devient transparent, mais
+ * reste celui qu'on touche).
  */
 export function useGlassButton(ref: RefObject<HTMLElement | null>, options: GlassOptions | null): boolean {
   const ready = useSyncExternalStore(subscribe, () => available, () => false)
@@ -187,7 +249,7 @@ export function useGlassButton(ref: RefObject<HTMLElement | null>, options: Glas
   useEffect(() => {
     const el = ref.current
     if (!enabled || !el) return
-    entries.set(id, { el, options: () => latest.current })
+    entries.set(id, { el, options: () => latest.current, parents: scrollParents(el) })
     schedule()
     return () => {
       entries.delete(id)

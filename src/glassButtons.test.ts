@@ -42,6 +42,9 @@ describe('boutons Liquid Glass', () => {
       y: 79.5,
       width: 48,
       height: 48,
+      scroller: null,
+      cx: 309.5,
+      cy: 79.5,
       badge: '2',
       dim: false,
       active: false,
@@ -76,6 +79,20 @@ describe('boutons Liquid Glass', () => {
     const spec = toSpec('s', rect, { segments: ['Monde', 'Amis'], selected: 1, label: 'Photos affichées' }, true)
     expect(spec).toMatchObject({ kind: 'segmented', segments: ['Monde', 'Amis'], selected: 1, symbol: null, title: null })
     expect(glassable({ segments: [], label: 'Vide' })).toBe(false)
+  })
+
+  it('dans une zone qui défile, sont placés dans son contenu (fixe pendant le défilement)', () => {
+    // Rangée de pastilles défilée de 120 px vers la gauche, page défilée de 300 px vers le bas.
+    const scroller = { key: 4, port: { x: 0, y: 410.2, width: 402, height: 44 }, left: 120, top: 0 }
+    const chip = { x: 236.3, y: 412.2, width: 90, height: 40 }
+    const spec = toSpec('c', chip, { title: 'Selfies', label: 'Selfies' }, true, scroller)
+    expect(spec).toMatchObject({
+      scroller: { key: 4, x: 0, y: 410, width: 402, height: 44 },
+      cx: 356.5,
+      cy: 2,
+      x: 236.5,
+      y: 412,
+    })
   })
 
   it('ignorent une icône sans symbole', () => {
