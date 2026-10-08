@@ -319,7 +319,10 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   → une fois « Activez Réglages › Confidentialité et sécurité › Service de localisation › Sites web
   Safari › Position exacte. » (« Compris » mémorisé dans `localStorage`
   `picti.position-exacte.compris`, sous try/catch) ; « dehors » ne se détecte pas. `watchPosition` :
-  `enableHighAccuracy: true`, `maximumAge: 0` (vérifié). **Photo dépassée (vue de dos)** (depuis 0.012.0) :
+  `enableHighAccuracy: true`, `maximumAge: 0` (vérifié). **Dans l'app iOS** (0.20.0), les relevés
+  viennent d'iOS (plugin `Position`, voir « App native ») et le message est celui de l'app (tout de
+  suite, une fois par lancement : « … Réglages › PICTI › Position › Position exacte », « Ouvrir les
+  réglages » / « Plus tard »). **Photo dépassée (vue de dos)** (depuis 0.012.0) :
   reste visible comme **imprimée sur une vitre dépolie** — l'homographie du plan vu de derrière
   donne d'elle-même l'image en miroir (rien n'est retourné à la main) ; `ArPhoto glass` : classe
   `.glass` (flou 12 px, désaturée, éclaircie), opacité × `GLASS_OPACITY` (0,45) et calque de reflet
@@ -528,6 +531,27 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     « Chasser »…) restent web. Tests : `src/glassButtons.test.ts`. Pour voir l'app au simulateur sans
     compte : web du banc (`.bench/`, `vite build --config .bench/vite.config.ts`) copié dans
     `ios/App/App/public` après `cap sync`, puis `npm run native:sync` pour revenir au vrai web.
+- **Position native** (0.20.0, app iOS ; prompt `PROMPT-0.020.0.md` du dossier d'Eliott) : la WebView
+  ne lit plus la position (`navigator.geolocation` : réglages de WebKit, et iOS ne connaît pas de
+  « Position exacte » des sites dans une app). Plugin local **`Position`**
+  (`ios/App/App/PositionPlugin.swift`, enregistré par `PictiViewController`, déclaré à la main dans
+  `project.pbxproj`) : `CLLocationManager` en `kCLLocationAccuracyBestForNavigation`, `activityType`
+  `.fitness` (piéton : pas de recalage sur les routes), `distanceFilter` aucun, pas de pause
+  automatique ; relevés mesurés avant `start` (cache) ou à précision négative écartés ; arrêt en
+  arrière-plan, reprise au retour (vérifié au simulateur : aucun relevé pendant 8 s en arrière-plan,
+  pas de rafale au retour). Méthodes `start` (demande l'autorisation la première fois), `stop`,
+  `status`, `requestFullAccuracy` (`requestTemporaryFullAccuracyAuthorization`, clé `geocadrage` de
+  `NSLocationTemporaryUsageDescriptionDictionary`), `openSettings` ; événements `location` (lat, lon,
+  précision, altitude seulement si iOS donne sa précision, vitesse / cap GPS et leurs précisions,
+  **instant de la mesure**, `simulated`), `error` (`denied`, `restricted`, `unavailable` ;
+  `locationUnknown`, passager, ignoré), `status` (`authorization`, `precise`). Côté web :
+  **`src/sensors/positionSource.ts`** = source unique des relevés (`watchPositionSource`) — iOS dans
+  l'app (`hasNativePosition()`, `src/native.ts`), `navigator.geolocation` ailleurs (`WEB_OPTIONS`) ;
+  plugin absent (page plus récente que l'app, `server.url`) → repli automatique sur la page ;
+  `nativeFix` / `webFix` (testés) ; `GpsFix` porte aussi `speedAccuracy`, `course`, `courseAccuracy`.
+  `useGeolocation` : `denied` (pastille « Position refusée · Réglages » dans l'app, qui ouvre les
+  réglages) et `precise` (`full` | `reduced` | `asking` | null, `nextPrecise`) : sans position exacte,
+  iOS la propose une fois par lancement (`asking`), puis `reduced` → `PreciseLocationNotice`.
 - **Retour par le bord gauche** (0.19.0, app iOS) : `PictiViewController.viewDidLoad` →
   `webView.allowsBackForwardNavigationGestures = true` : le vrai geste d'iOS (glisser depuis le bord
   gauche ; depuis le bord droit pour revenir en avant), l'écran précédent apparaît dessous (image

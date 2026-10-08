@@ -30,6 +30,11 @@
 	<string>PICTI utilise la caméra pour le viseur : prendre vos photos géocadrées et retrouver celles des autres à leur place.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>PICTI utilise votre position pour géocadrer vos photos à l’endroit exact de la prise de vue et vous montrer celles qui vous attendent autour de vous.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>geocadrage</key>
+		<string>PICTI a besoin de votre position exacte pour placer vos photos à leur point de vue, au mètre près, et vous guider jusqu’à celles des autres.</string>
+	</dict>
 	<key>NSMotionUsageDescription</key>
 	<string>PICTI utilise la boussole et les capteurs de mouvement pour enregistrer l’orientation de vos photos et les replacer dans le décor.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

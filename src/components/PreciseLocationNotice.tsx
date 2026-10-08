@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { GeoFix } from '../geo/geodesy'
+import { preciseLocationText } from '../data/shotWarnings'
+import { hasNativePosition } from '../native'
+import { openAppSettings } from '../sensors/positionSource'
+import type { GeolocationState } from '../sensors/useGeolocation'
 import { Icon } from './Icon'
 
 /**
@@ -33,42 +36,63 @@ function remember() {
   }
 }
 
-/** Explication « Position exacte » sur iPhone, affichée une fois (bouton « Compris », mémorisé). */
-export function PreciseLocationNotice({ fix }: { fix: GeoFix | null }) {
-  const [enabled] = useState(() => isIos() && !understood() && !shown)
-  const [open, setOpen] = useState(false)
+/**
+ * Explication « Position exacte » sur iPhone. Dans le navigateur : déduite d'une précision restée
+ * mauvaise, affichée une fois (« Compris », mémorisé). Dans l'app : iOS dit lui-même que la position
+ * exacte est désactivée (et l'a déjà proposée une fois) ; affichée une fois par lancement, avec un
+ * bouton vers les réglages de l'app.
+ */
+export function PreciseLocationNotice({ geo }: { geo: GeolocationState }) {
+  const [inApp] = useState(hasNativePosition)
+  const [enabled] = useState(() => (inApp || (isIos() && !understood())) && !shown)
   const [done, setDone] = useState(false)
-  const vague = fix != null && fix.accuracy > APPROXIMATE_ACCURACY
+  const [timedOut, setTimedOut] = useState(false)
+  const vague = geo.fix != null && geo.fix.accuracy > APPROXIMATE_ACCURACY
+  // L'app sait que la position exacte est désactivée : tout de suite ; sinon, une précision
+  // restée mauvaise (le délai repart à chaque fois qu'elle le redevient).
+  const open = enabled && !done && (geo.precise === 'reduced' || timedOut)
 
-  // Le délai repart à chaque fois que la précision redevient mauvaise.
   useEffect(() => {
-    if (!enabled || done || !vague) return
-    const t = setTimeout(() => {
-      shown = true
-      setOpen(true)
-    }, APPROXIMATE_MS)
-    return () => clearTimeout(t)
-  }, [enabled, done, vague])
+    if (open) shown = true
+  }, [open])
 
-  if (!open || done) return null
+  useEffect(() => {
+    if (!enabled || done || !vague || geo.precise === 'full' || geo.precise === 'asking') return
+    const t = setTimeout(() => setTimedOut(true), APPROXIMATE_MS)
+    return () => clearTimeout(t)
+  }, [enabled, done, vague, geo.precise])
+
+  if (!open) return null
+  const close = () => {
+    if (!inApp) remember()
+    setDone(true)
+  }
   return (
     <div className="notice-layer" role="alertdialog" aria-label="Position approximative">
       <div className="notice-card">
         <Icon name="pin" size={28} />
-        <p>
-          Votre iPhone donne une position approximative. Activez Réglages › Confidentialité et sécurité › Service de
-          localisation › Sites web Safari › Position exacte.
-        </p>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            remember()
-            setDone(true)
-          }}
-        >
-          Compris
-        </button>
+        <p>{preciseLocationText(inApp)}</p>
+        {inApp ? (
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                openAppSettings()
+                setDone(true)
+              }}
+            >
+              Ouvrir les réglages
+            </button>
+            <button type="button" className="btn ghost" onClick={close}>
+              Plus tard
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn" onClick={close}>
+            Compris
+          </button>
+        )}
       </div>
     </div>
   )

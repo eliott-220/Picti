@@ -135,6 +135,13 @@ et le sélecteur « Monde / Amis » de la carte sont de vrais boutons iOS en ver
 `src/glassButtons.ts`) ; ils se cachent sous les feuilles et fiches. Le déclencheur reste celui de la
 charte, et le site garde ses boutons habituels.
 
+**Position lue par iOS** (0.20.0, app iOS) : la position ne passe plus par la page web mais par
+CoreLocation (plugin `ios/App/App/PositionPlugin.swift`, source unique `src/sensors/positionSource.ts`) :
+réglée pour la marche à pied et la meilleure précision, instant exact de chaque mesure, coupée en
+arrière-plan. Si « Position exacte » est désactivée pour PICTI, iOS propose de l'activer le temps de
+l'usage, puis l'app explique où la régler (« Ouvrir les réglages »). Position refusée : la pastille
+« Position refusée · Réglages » ouvre les réglages de l'app. Le site et Android ne changent pas.
+
 **Retour en arrière** (0.19.0, app iOS) : glisser le doigt depuis le bord gauche de l'écran, comme
 dans les autres apps de l'iPhone (l'écran précédent apparaît dessous).
 

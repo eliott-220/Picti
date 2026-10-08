@@ -1,4 +1,6 @@
 import { GPS_GOOD_ACCURACY } from '../geo/tracking'
+import { hasNativePosition } from '../native'
+import { openAppSettings } from '../sensors/positionSource'
 import type { GeolocationState } from '../sensors/useGeolocation'
 import { currentMotion } from '../sensors/motion'
 import { isRemembered } from '../sensors/permissions'
@@ -37,11 +39,21 @@ export function SensorStatus({ geo, orientation }: { geo: GeolocationState; orie
       compass = { ok: false, text: 'Boussole…' }
   }
 
+  // App iPhone, position refusée : la pastille ouvre les réglages de l'app (le navigateur, lui,
+  // ne permet pas d'y aller).
+  const settings = geo.denied && !geo.fix && hasNativePosition()
+
   return (
     <div className="sensor-status">
-      <span className={`chip ${gps.ok ? 'ok' : ''} ${gps.warn ? 'warn' : ''}`} title="Précision du GPS" aria-label={`Précision du GPS : ${gps.text}`}>
-        <Icon name="pin" size={14} /> {gps.text}
-      </span>
+      {settings ? (
+        <button type="button" className="chip action" onClick={openAppSettings}>
+          <Icon name="pin" size={14} /> Position refusée · Réglages
+        </button>
+      ) : (
+        <span className={`chip ${gps.ok ? 'ok' : ''} ${gps.warn ? 'warn' : ''}`} title="Précision du GPS" aria-label={`Précision du GPS : ${gps.text}`}>
+          <Icon name="pin" size={14} /> {gps.text}
+        </span>
+      )}
       {orientation.status === 'needs-permission' ? (
         <button type="button" className="chip action" onClick={() => void orientation.requestPermission()}>
           <Icon name="compass" size={14} /> {compass.text}

@@ -58,3 +58,10 @@ export function outOfViewMessage(s: ReproduceState, owner: string): string {
 /** Feuille ouverte quand on déclenche avec un GPS imprécis. */
 export const vaguePositionMessage = (accuracy: number) =>
   `Position imprécise (±${Math.round(accuracy)} m) : la photo risque d’être mal placée.`
+
+/** « Position exacte » désactivée : où l'activer (réglages de l'app iPhone, ou des sites web de Safari). */
+export function preciseLocationText(inApp: boolean): string {
+  return inApp
+    ? 'La position exacte est désactivée pour PICTI : vos photos seraient placées à plusieurs centaines de mètres près. Activez Réglages › PICTI › Position › Position exacte.'
+    : 'Votre iPhone donne une position approximative. Activez Réglages › Confidentialité et sécurité › Service de localisation › Sites web Safari › Position exacte.'
+}

@@ -509,7 +509,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         </Sheet>
       )}
 
-      <PreciseLocationNotice fix={geo.fix} />
+      <PreciseLocationNotice geo={geo} />
     </main>
   )
 }

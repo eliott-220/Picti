@@ -83,6 +83,12 @@ export type TrackMode = 'moving' | 'settling' | 'still'
 export interface GpsFix extends GeoFix {
   /** Vitesse sol (m/s), null si inconnue. */
   speed?: number | null
+  /** Précision de la vitesse (m/s), null si inconnue (navigateur). */
+  speedAccuracy?: number | null
+  /** Cap du déplacement (degrés depuis le nord), null si inconnu ou à l'arrêt. */
+  course?: number | null
+  /** Précision de ce cap (degrés), null si inconnue (navigateur). */
+  courseAccuracy?: number | null
 }
 
 /**

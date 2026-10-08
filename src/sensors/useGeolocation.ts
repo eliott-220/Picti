@@ -1,7 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { GeoFix } from '../geo/geodesy'
 import { trackFix, updateTrack, walkTrack, type Track } from '../geo/tracking'
+import type { NativePositionStatus } from '../native'
 import { currentMotion, watchMotion } from './motion'
+import { nextPrecise, requestFullAccuracy, watchPositionSource, type PreciseLocation } from './positionSource'
 
 export interface GeolocationState {
   /** Position estimée au dernier relevé GPS. */
@@ -9,21 +11,13 @@ export interface GeolocationState {
   /** Suivi de la position, pour la faire avancer entre deux relevés (`useLivePosition`). */
   track: Track | null
   error: string | null
+  /** Accès refusé (le message peut alors proposer les réglages). */
+  denied: boolean
+  precise: PreciseLocation
 }
 
-function describe(err: GeolocationPositionError): string {
-  switch (err.code) {
-    case err.PERMISSION_DENIED:
-      return 'Accès à la position refusé'
-    case err.POSITION_UNAVAILABLE:
-      return 'Position indisponible'
-    default:
-      return 'Position introuvable pour le moment'
-  }
-}
-
-const IDLE: GeolocationState = { fix: null, track: null, error: null }
-const UNSUPPORTED: GeolocationState = { fix: null, track: null, error: 'Géolocalisation non prise en charge' }
+const IDLE: GeolocationState = { fix: null, track: null, error: null, denied: false, precise: null }
+const UNSUPPORTED: GeolocationState = { ...IDLE, error: 'Géolocalisation non prise en charge' }
 
 // Un seul suivi GPS pour toute l'app : passer de l'accueil à la chasse garde
 // la position acquise (la photo ne saute pas d'un écran à l'autre).
@@ -35,7 +29,9 @@ let track: Track | null = null
 /** Jusqu'à cet instant (ms), un écran fait avancer la position pas à pas (`walkPosition`). */
 let steppingUntil = 0
 const listeners = new Set<() => void>()
-let watch: { id: number; stopMotion: () => void } | null = null
+let watch: { stop: () => void; stopMotion: () => void } | null = null
+/** « Position exacte » déjà proposée par iOS pendant ce lancement de l'app. */
+let fullAccuracyAsked = false
 let users = 0
 let stopTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -56,33 +52,41 @@ function startWatching() {
   if (watch) return
   const stopMotion = watchMotion()
   track = null
-  const id = navigator.geolocation.watchPosition(
-    (pos) => {
-      track = updateTrack(
-        track,
-        {
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          alt: pos.coords.altitude,
-          accuracy: Math.max(1, pos.coords.accuracy),
-          // Heure de réception : même horloge que l'affichage, quel que soit le navigateur.
-          timestamp: Date.now(),
-          speed: pos.coords.speed,
-        },
-        currentMotion(),
-        Date.now() < steppingUntil,
-      )
-      publish({ fix: trackFix(track), track, error: null })
+  const stop = watchPositionSource({
+    fix(fix) {
+      track = updateTrack(track, fix, currentMotion(), Date.now() < steppingUntil)
+      publish({ ...state, fix: trackFix(track), track, error: null, denied: false })
     },
-    (err) => publish({ ...state, error: describe(err) }),
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 30_000 },
-  )
-  watch = { id, stopMotion }
+    error(message, code) {
+      publish({ ...state, error: message, denied: code === 'denied' })
+    },
+    status: onStatus,
+  })
+  watch = { stop, stopMotion }
+}
+
+/** App iOS : autorisation et « Position exacte » ; celle-ci est proposée par iOS une fois. */
+function onStatus(s: NativePositionStatus) {
+  if (s.authorization === 'notDetermined') return
+  if (s.authorization === 'denied' || s.authorization === 'restricted') {
+    publish({ ...state, error: 'Accès à la position refusé', denied: true })
+    return
+  }
+  // Autorisée (éventuellement après un passage par les réglages) : plus d'erreur d'accès.
+  const base = state.denied ? { ...state, error: null, denied: false } : state
+  const precise = nextPrecise(state.precise, s.precise, fullAccuracyAsked)
+  if (precise === 'asking') {
+    fullAccuracyAsked = true
+    void requestFullAccuracy().then((answer) => {
+      if (watch) publish({ ...state, precise: answer?.precise ? 'full' : 'reduced' })
+    })
+  }
+  if (base !== state || precise !== state.precise) publish({ ...base, precise })
 }
 
 function stopWatching() {
   if (!watch) return
-  navigator.geolocation.clearWatch(watch.id)
+  watch.stop()
   watch.stopMotion()
   watch = null
   track = null

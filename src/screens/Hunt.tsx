@@ -324,7 +324,7 @@ function HuntView({
         {demo && <p className="demo-hint">Mode démo : faites glisser pour regarder autour de vous.</p>}
       </footer>
 
-      <PreciseLocationNotice fix={geo.fix} />
+      <PreciseLocationNotice geo={geo} />
 
       {phase === 'captured' && (
         // Célébration (~1,5 s) ; un appui passe directement à la fiche.

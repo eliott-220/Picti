@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fromENU } from '../geo/geodesy'
 import { reproduceStatus } from '../geo/reproduce'
 import type { ViewPoint } from '../geo/views'
-import { outOfViewMessage, reproduceAlert, vaguePositionMessage, viewpointAt } from './shotWarnings'
+import { outOfViewMessage, preciseLocationText, reproduceAlert, vaguePositionMessage, viewpointAt } from './shotWarnings'
 
 const origin = { lat: 46.1558, lon: -1.1522 }
 const parent: ViewPoint = { position: origin, accuracy: 6, heading: 270, pitch: 0 }
@@ -40,5 +40,12 @@ describe('avertissements de la prise de vue', () => {
 
   it('feuille GPS imprécis', () => {
     expect(vaguePositionMessage(17.6)).toBe('Position imprécise (±18 m) : la photo risque d’être mal placée.')
+  })
+})
+
+describe('position exacte', () => {
+  it('dans l’app : réglages de PICTI ; dans Safari : réglages des sites web', () => {
+    expect(preciseLocationText(true)).toContain('Réglages › PICTI › Position › Position exacte')
+    expect(preciseLocationText(false)).toContain('Sites web Safari › Position exacte')
   })
 })

@@ -1,11 +1,13 @@
 // Coque native Capacitor (iOS, Android) : seul module qui importe `@capacitor/core`.
 // Dans le navigateur, tout se comporte comme avant (`isNative()` faux).
 
-import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core'
+import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType, type PluginListenerHandle } from '@capacitor/core'
 import { useEffect } from 'react'
 import { APP_URL } from './config'
 
 export type Platform = 'ios' | 'android' | 'web'
+
+export type { PluginListenerHandle }
 
 /** L'app tourne dans la coque native (et non dans un navigateur). */
 export function isNative(): boolean {
@@ -75,6 +77,57 @@ interface GlassButtonsPlugin {
 
 /** Plugin de l'app iOS (`ios/App/App/GlassButtonsPlugin.swift`), à n'appeler que sur iOS. */
 export const GlassButtons = registerPlugin<GlassButtonsPlugin>('GlassButtons')
+
+/** Relevé de position de l'app iOS (CoreLocation) ; `null` : valeur que l'appareil ne donne pas. */
+export interface NativeLocation {
+  lat: number
+  lon: number
+  /** Rayon de confiance horizontal (m). */
+  accuracy: number
+  altitude: number | null
+  altitudeAccuracy: number | null
+  /** Vitesse sol (m/s) et sa précision. */
+  speed: number | null
+  speedAccuracy: number | null
+  /** Cap du déplacement (degrés depuis le nord) et sa précision. */
+  course: number | null
+  courseAccuracy: number | null
+  /** Instant de la mesure (ms depuis 1970, même horloge que `Date.now()`). */
+  timestamp: number
+  /** Position simulée (Xcode, simulateur). */
+  simulated: boolean
+}
+
+/** Autorisation de position de l'app et « Position exacte ». */
+export interface NativePositionStatus {
+  authorization: 'notDetermined' | 'denied' | 'restricted' | 'whenInUse' | 'always'
+  precise: boolean
+}
+
+export interface NativePositionError {
+  code: 'denied' | 'restricted' | 'unavailable'
+  message: string
+}
+
+interface PositionPlugin {
+  /** Démarre les relevés (et demande l'autorisation la première fois). */
+  start(): Promise<NativePositionStatus>
+  stop(): Promise<void>
+  status(): Promise<NativePositionStatus>
+  /** « Position exacte » désactivée : iOS la propose le temps de l'usage de l'app. */
+  requestFullAccuracy(): Promise<NativePositionStatus>
+  /** Ouvre les réglages de l'app. */
+  openSettings(): Promise<void>
+  addListener(event: 'location', listener: (location: NativeLocation) => void): Promise<PluginListenerHandle>
+  addListener(event: 'error', listener: (error: NativePositionError) => void): Promise<PluginListenerHandle>
+  addListener(event: 'status', listener: (status: NativePositionStatus) => void): Promise<PluginListenerHandle>
+}
+
+/** Plugin de l'app iOS (`ios/App/App/PositionPlugin.swift`), à n'appeler que sur iOS. */
+export const NativePosition = registerPlugin<PositionPlugin>('Position')
+
+/** La position vient d'iOS (CoreLocation) plutôt que de la page : app iOS seulement. */
+export const hasNativePosition = (p: Platform = platform()): boolean => p === 'ios'
 
 /**
  * Texte de la barre d'état dans la coque : blanc par défaut (caméra, en-têtes rouges, comme le
