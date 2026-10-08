@@ -35,8 +35,8 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
     private var sessionId = 0
     private var lastTracking = ""
     private var lastCamera = ""
-    /// Couleurs de la WebView avant qu'elle ne devienne transparente.
-    private var savedBackground: (UIColor?, UIColor?)?
+    /// Opacité et couleurs de la WebView avant qu'elle ne devienne transparente.
+    private var savedBackground: (opaque: Bool, view: UIColor?, scroll: UIColor?)?
     private let imageContext = CIContext()
     private var lastCapture: URL?
 
@@ -86,7 +86,7 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
             let frame = rect.width > 0 && rect.height > 0 ? webView.convert(rect, to: container) : webView.frame
             if view.frame != frame { view.frame = frame }
             if self.savedBackground == nil {
-                self.savedBackground = (webView.backgroundColor, webView.scrollView.backgroundColor)
+                self.savedBackground = (webView.isOpaque, webView.backgroundColor, webView.scrollView.backgroundColor)
             }
             // Autour de la caméra (écran « Reproduire »), la page transparente laisse voir la fenêtre : noire.
             if container.backgroundColor == nil { container.backgroundColor = .black }
@@ -221,10 +221,10 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
 
     private func hideView() {
         arView?.isHidden = true
-        guard let webView = bridge?.webView, let (background, scroll) = savedBackground else { return }
-        webView.backgroundColor = background
-        webView.scrollView.backgroundColor = scroll
-        webView.isOpaque = true
+        guard let webView = bridge?.webView, let saved = savedBackground else { return }
+        webView.backgroundColor = saved.view
+        webView.scrollView.backgroundColor = saved.scroll
+        webView.isOpaque = saved.opaque
         savedBackground = nil
     }
 

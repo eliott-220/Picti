@@ -100,6 +100,8 @@ let target: AlignTransform | null = null
 let shown: AlignTransform | null = null
 let lastSolve = 0
 let lastTracedPose = 0
+/** Dernier état du suivi reçu (avec sa session). */
+let lastTracking: NativeArTracking | null = null
 let solveTimer: ReturnType<typeof setTimeout> | undefined
 let lastCompass = 0
 let stopInputs: (() => void) | null = null
@@ -125,6 +127,7 @@ function subscribe(listener: () => void) {
 
 /** Nouveau repère (démarrage, reprise après une interruption) : le calage repart de zéro. */
 function newSession(s: number) {
+  if (s === session && state.status === 'running' && lastPose) return
   trace('session', { s })
   session = s
   history = []
@@ -133,7 +136,9 @@ function newSession(s: number) {
   shown = null
   aligner.reset()
   shots.clear()
-  publish({ align: aligner.state, tracking: null, trackingReason: null })
+  // L'état du suivi de cette session a pu arriver avant elle (ordre des messages) : on le garde.
+  const known = lastTracking?.s === s ? lastTracking : null
+  publish({ align: aligner.state, tracking: known?.state ?? null, trackingReason: known?.reason ?? null })
 }
 
 function solve() {
@@ -203,6 +208,7 @@ function onCamera(e: NativeArCamera) {
 
 function onTracking(e: NativeArTracking) {
   if (e.s < session) return
+  lastTracking = e
   trace('tracking', { s: e.s, state: e.state, reason: e.reason })
   if (e.state === 'failed') {
     // Caméra refusée, capteur indisponible : retour à la caméra web.
