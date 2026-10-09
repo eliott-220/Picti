@@ -10,7 +10,7 @@ vi.mock('@capacitor/core', () => ({
   SystemBarType: {},
 }))
 
-const { AR_REFINE, refinement } = await import('./arTracking')
+const { AR_REFINE, arLeavesCamera, arState, refinement } = await import('./arTracking')
 
 const REF = { lat: 46.1558, lon: -1.152 }
 
@@ -41,5 +41,17 @@ describe('photo prise pendant une session : replacée quand le calage s’affine
     expect(refinement(shot, { ...t0, e0: 0.2, theta: 100.5 }, 3, AR_REFINE.every)).toBeNull()
     // Le cap seul suffit : 2° de plus.
     expect(refinement(shot, { ...t0, theta: 102 }, 3, AR_REFINE.every)?.heading).toBeCloseTo(252, 9)
+  })
+})
+
+describe('caméra web et suivi visuel ne se disputent pas l’objectif', () => {
+  it('hors de l’app iOS, la caméra web sert dès le premier affichage', () => {
+    expect(arState().status).toBe('unavailable')
+    expect(arLeavesCamera(arState().status)).toBe(true)
+  })
+
+  it('dans l’app iOS, elle attend tant que le suivi peut encore démarrer', () => {
+    for (const status of ['off', 'checking', 'starting', 'running'] as const) expect(arLeavesCamera(status)).toBe(false)
+    for (const status of ['unavailable', 'disabled', 'failed'] as const) expect(arLeavesCamera(status)).toBe(true)
   })
 })

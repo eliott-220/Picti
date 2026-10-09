@@ -45,6 +45,20 @@ function stopShared() {
   if (s) void s.stream.then((st) => st.getTracks().forEach((t) => t.stop())).catch(() => undefined)
 }
 
+/**
+ * Coupe tout de suite le flux gardé ouvert (sans attendre `KEEP_ALIVE_MS`) : le suivi visuel d'ARKit
+ * (app iOS) va prendre l'objectif, et un flux encore ouvert le lui disputerait — caméra noire.
+ * Attend (au plus `wait` ms) qu'une demande encore en route soit arrivée et coupée. Vrai s'il y en avait un.
+ */
+export async function stopWebCamera(wait = 1000): Promise<boolean> {
+  const s = shared
+  if (!s) return false
+  clearTimeout(s.stopTimer)
+  stopShared()
+  await Promise.race([s.stream.catch(() => undefined), new Promise((r) => setTimeout(r, wait))])
+  return true
+}
+
 async function acquireStream(facing: CameraFacing): Promise<MediaStream> {
   if (shared && shared.facing === facing) {
     clearTimeout(shared.stopTimer)

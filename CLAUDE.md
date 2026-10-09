@@ -589,7 +589,17 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     `checking` | `starting` | `running` | `unavailable` | `disabled` | `failed` ; **tout échec**
     (plugin absent ou plus ancien que la page, caméra refusée, exception) → `failed` → caméra web,
     jamais d'écran noir (défaut trouvé par le banc le 08/10 : un appel qui lève restait bloqué en
-    `checking`). Relevés GPS **bruts** (`onFix` de `useGeolocation`, avant le filtre) associés à la
+    `checking`). **Un seul client pour l'objectif** (09/10, caméra arrière noire à l'ouverture sur
+    l'iPhone, selfie normal) : au premier affichage le statut valait `off`, la caméra web démarrait
+    pour la caméra arrière quelques ms avant ARKit, puis restait ouverte 15 s (`KEEP_ALIVE_MS`) et
+    privait ARKit d'images (`interrupted`) ; idem au retour du selfie (caméra avant encore ouverte).
+    Désormais : statut initial `unavailable` hors de l'app iOS (`disabled` si réglage coupé), la caméra
+    web ne s'ouvre que si `arLeavesCamera(status)` (`unavailable` | `disabled` | `failed`), et
+    `startSession` coupe d'abord le flux web gardé (`stopWebCamera`, puis 300 ms) avant
+    `ArTracking.start`. **Surveillance** : session en marche, page affichée, aucune image depuis 4 s
+    → relancée une fois, puis `failed` (`trackingReason: 'stalled'`) → caméra web (le menu « Suivi
+    visuel » coupé puis activé permet de réessayer). Démarrages numérotés (`startRun`) : un arrêt ou
+    un démarrage plus récent rend caducs ceux en route. Relevés GPS **bruts** (`onFix` de `useGeolocation`, avant le filtre) associés à la
     pose du même instant (historique de 10 s), seulement en suivi `normal` ; boussole par
     `deviceorientation` (10 mesures/s au plus) ; calage recalculé au plus toutes les 250 ms.
     `currentView()` : position calée (précision = celle du calage), orientation (null tant que le cap
@@ -605,8 +615,8 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     chasse, recalage) — caméra (`capture` ARKit, avec focale et pose), géolocalisation, orientation
     (celle du suivi dès que son cap est calé, sinon les capteurs), position (suivi calé, sinon
     `useLivePosition`), focale (celle d'ARKit, sinon `useCameraFocal` ; la mesure de focale en tournant
-    ne tourne qu'en caméra web). La caméra web attend tant que le suivi démarre (`checking` /
-    `starting`). Pastilles : précision de la position réellement utilisée, « Suivi visuel » au lieu de
+    ne tourne qu'en caméra web). La caméra web attend tant que le suivi peut encore servir (`off` dans
+    l'app iOS, `checking`, `starting`) : `arLeavesCamera`. Pastilles : précision de la position réellement utilisée, « Suivi visuel » au lieu de
     « Boussole » (`SensorStatus position visual`).
   - **Regéocadrage** : une photo prise avec le suivi (`trackArShot`, pose de son image) est récrite
     (`ArShotRefiner`, monté avec le store → `updatePhoto`) quand le calage s'affine : au plus toutes les
@@ -632,7 +642,9 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   - **Banc « iPhone simulé »** (hors dépôt, voir la note de session) : `@capacitor/core` remplacé par des
     plugins simulés (vérité terrain, GPS bruité, repère ARKit au cap arbitraire, boussole faussée, décor
     de synthèse derrière la page) ; scénarios Playwright : marche, regéocadrage, selfie, accueil → chasse
-    → carte, menu, appareil sans ARKit.
+    → carte, menu, appareil sans ARKit. Depuis le 09/10, le faux ARKit est privé d'images tant qu'un
+    flux de caméra web est ouvert (comme sur l'iPhone) et `?blind=N` bloque ses N prochains
+    démarrages : reproduit la caméra arrière noire avec l'ancien code, corrigée avec le nouveau.
   - **Pas encore vérifié sur l'iPhone** (verrouillé pendant la session du 08/10) : rendu de la caméra
     derrière la page, conventions des poses, photo haute résolution, boussole pendant ARKit. Au
     simulateur iOS (sans ARKit) : repli sur la caméra web vérifié. Note de session :

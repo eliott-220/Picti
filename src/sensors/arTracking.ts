@@ -40,12 +40,14 @@ import {
   type PluginListenerHandle,
 } from '../native'
 import { trace, TRACE_ENABLED } from './arTrace'
+import { stopWebCamera } from './useCamera'
 import { onFix } from './useGeolocation'
 
 /**
  * `checking` / `starting` : en route (la caméra web ne doit pas démarrer) ; `running` : caméra et poses
  * d'ARKit ; `unavailable` : appareil sans ARKit, ou pas dans l'app iOS ; `disabled` : réglage coupé ;
- * `failed` : la session a échoué (caméra refusée…) ; `off` : arrêtée.
+ * `failed` : la session a échoué (caméra refusée, aucune image…) ; `off` : arrêtée (dans l'app iOS, un
+ * écran caméra qui s'ouvre la démarre : la caméra web attend aussi).
  */
 export type ArStatus = 'off' | 'checking' | 'starting' | 'running' | 'unavailable' | 'disabled' | 'failed'
 
@@ -69,6 +71,10 @@ export const AR_TRACKING = {
   compassEvery: 100,
   /** Écran caméra quitté : la session continue ce temps (ms), le temps d'ouvrir l'écran suivant. */
   keepAlive: 1500,
+  /** Caméra web coupée juste avant : iOS la rend en ce temps (ms) avant qu'ARKit ne la prenne. */
+  handover: 300,
+  /** Session en marche mais sans image depuis … ms, page affichée : relancée une fois, puis caméra web. */
+  stall: 4000,
 }
 
 const SETTING_KEY = 'picti.suivi-visuel'
@@ -82,10 +88,23 @@ export function arSettingEnabled(): boolean {
   }
 }
 
+/**
+ * La caméra web peut-elle filmer à la place du suivi ? Seulement quand il ne servira pas : ouverte ne
+ * serait-ce qu'un instant pendant qu'il démarre, elle prend l'objectif à ARKit (caméra arrière noire).
+ */
+export const arLeavesCamera = (status: ArStatus): boolean =>
+  status === 'unavailable' || status === 'disabled' || status === 'failed'
+
+/** Statut au chargement : hors de l'app iOS ou réglage coupé, la caméra web sert dès le premier affichage. */
+function initialStatus(): ArStatus {
+  if (!hasArTracking()) return 'unavailable'
+  return arSettingEnabled() ? 'off' : 'disabled'
+}
+
 // --- État partagé ---------------------------------------------------------------------------
 
 const aligner = new GeoAligner()
-let state: ArState = { status: 'off', camera: null, tracking: null, trackingReason: null, align: aligner.state }
+let state: ArState = { status: initialStatus(), camera: null, tracking: null, trackingReason: null, align: aligner.state }
 const listeners = new Set<() => void>()
 const poseListeners = new Set<() => void>()
 
@@ -110,6 +129,12 @@ let nativeListeners: Promise<PluginListenerHandle | null>[] | null = null
 /** Écrans qui affichent la caméra du suivi ; masquage différé (relais d'un écran à l'autre). */
 let showCount = 0
 let hideTimer: ReturnType<typeof setTimeout> | undefined
+/** Dernière image reçue (ou départ de la session), relances sans image, surveillance. */
+let lastFrameAt = 0
+let restarts = 0
+let watchdog: ReturnType<typeof setInterval> | undefined
+/** Numéro du dernier démarrage : un arrêt ou un démarrage plus récent rend caducs ceux d'avant. */
+let startRun = 0
 
 /** État du suivi (statut, image, calage), hors React. */
 export const arState = (): ArState => state
@@ -174,6 +199,8 @@ function onPose(e: NativeArPose) {
     if (e.s < session) return
     newSession(e.s)
   }
+  lastFrameAt = Date.now()
+  restarts = 0
   const pose: ArPose = { t: e.t, position: e.p, right: e.r, up: e.u, back: e.b }
   if (lastPose && poseJumped(lastPose, pose)) carryOver(lastPose, pose)
   const dt = lastPose ? pose.t - lastPose.t : 0
@@ -279,7 +306,15 @@ function startInputs() {
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Caméra web encore ouverte (selfie, écran précédent) : coupée d'abord, sinon ARKit n'a pas l'objectif. */
+async function takeCamera() {
+  if (await stopWebCamera()) await sleep(AR_TRACKING.handover)
+}
+
 async function startSession() {
+  const run = ++startRun
   if (!hasArTracking()) return publish({ status: 'unavailable' })
   if (!arSettingEnabled()) return publish({ status: 'disabled' })
   publish({ status: 'checking' })
@@ -288,19 +323,69 @@ async function startSession() {
       .then((r) => r.available)
       .catch(() => false)
     if (!(await available)) return publish({ status: 'unavailable' })
+    if (run !== startRun) return
     if (TRACE_ENABLED) probeGeoTracking()
     if (users === 0) return publish({ status: 'off' })
     publish({ status: 'starting' })
     listenNative()
+    await takeCamera()
+    if (run !== startRun) return
     const { session: s } = await ArTracking.start()
+    if (run !== startRun) return
     newSession(s)
     startInputs()
     publish({ status: users === 0 ? 'off' : 'running' })
     if (users === 0) stopSession()
+    else watch()
   } catch {
     // Quoi qu'il arrive (plugin absent ou plus ancien que la page, caméra refusée…), la caméra web
     // prend le relais : jamais d'écran noir.
+    if (run === startRun) publish({ status: 'failed' })
+  }
+}
+
+/**
+ * Surveille la session : page affichée mais aucune image d'ARKit depuis `stall` ms (objectif pris
+ * ailleurs, session bloquée), on la relance une fois ; toujours rien, la caméra web prend le relais.
+ */
+function watch() {
+  clearInterval(watchdog)
+  lastFrameAt = Date.now()
+  watchdog = setInterval(checkFrames, 1000)
+}
+
+function checkFrames() {
+  const now = Date.now()
+  // Page cachée (app en arrière-plan, écran verrouillé) : iOS coupe la caméra, c'est normal.
+  if (state.status !== 'running' || document.visibilityState !== 'visible') {
+    lastFrameAt = now
+    return
+  }
+  if (now - lastFrameAt < AR_TRACKING.stall) return
+  trace('stall', { s: session, restarts, tracking: state.tracking })
+  if (TRACE_ENABLED) console.info('[suivi] aucune image', JSON.stringify({ s: session, restarts, tracking: state.tracking }))
+  if (restarts === 0) {
+    restarts++
+    lastFrameAt = now
+    void restartSession()
+    return
+  }
+  // Le menu « Suivi visuel » (coupé puis activé) permet de réessayer.
+  publish({ status: 'failed', trackingReason: 'stalled' })
+  stopSession()
+}
+
+async function restartSession() {
+  const run = ++startRun
+  try {
+    await takeCamera()
+    if (run !== startRun) return
+    const { session: s } = await ArTracking.start()
+    if (run === startRun) newSession(s)
+  } catch {
+    if (run !== startRun) return
     publish({ status: 'failed' })
+    stopSession()
   }
 }
 
@@ -329,14 +414,20 @@ function probeGeoTracking() {
     .catch((e: unknown) => console.info('[suivi] VPS Apple : erreur', String(e)))
 }
 
+/** Le suivi est en route ou en marche (il tient, ou va tenir, l'objectif). */
+const arBusy = (status: ArStatus) => status === 'checking' || status === 'starting' || status === 'running'
+
 function stopSession() {
+  // Un démarrage encore en route n'aboutira pas : le prochain écran en relance un.
+  startRun++
   clearTimeout(stopTimer)
+  clearInterval(watchdog)
   stopInputs?.()
   stopInputs = null
   void ArTracking.stop().catch(() => undefined)
   history = []
   lastPose = null
-  if (state.status === 'running' || state.status === 'starting') publish({ status: 'off' })
+  if (arBusy(state.status)) publish({ status: 'off' })
 }
 
 function acquire() {
@@ -362,7 +453,7 @@ export function setArSetting(enabled: boolean) {
     // Stockage refusé : le réglage vaut pour cette visite.
   }
   if (!enabled) {
-    if (state.status === 'running' || state.status === 'starting') stopSession()
+    if (arBusy(state.status)) stopSession()
     publish({ status: 'disabled' })
   } else if (state.status === 'disabled') {
     publish({ status: 'off' })

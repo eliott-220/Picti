@@ -3,7 +3,7 @@ import type { EncodedImage } from '../data/images'
 import { focal35Of } from '../geo/arPose'
 import type { GeoFix } from '../geo/geodesy'
 import type { NativeArPose } from '../native'
-import { captureArPhoto, useArCamera, useArTracking, type ArState } from './arTracking'
+import { arLeavesCamera, captureArPhoto, useArCamera, useArTracking, type ArState } from './arTracking'
 import { useCameraFocal } from './cameraFocal'
 import { useCamera, type CameraFacing, type CameraStatus } from './useCamera'
 import { useFocalCalibration } from './useFocalCalibration'
@@ -57,8 +57,10 @@ export function useViewfinder({
   const wanted = facing === 'environment'
   const { state: arState, view } = useArTracking(wanted)
   const arActive = wanted && arState.status === 'running'
-  // En route : la caméra web attend (les deux ne peuvent pas tenir l'objectif en même temps).
-  const arPending = wanted && (arState.status === 'checking' || arState.status === 'starting')
+  // En route, ou sur le point de l'être (premier affichage) : la caméra web attend que le suivi ait
+  // renoncé. Les deux ne peuvent pas tenir l'objectif en même temps : ouverte un instant, elle laissait
+  // ARKit sans image (caméra arrière noire, selfie normal).
+  const arPending = wanted && !arActive && !arLeavesCamera(arState.status)
   const web = useCamera(!arActive && !arPending, facing)
   const geo = useGeolocation()
   const sensors = useOrientation()
