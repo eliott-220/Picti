@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } fro
 import type { EncodedImage } from '../data/images'
 import { ALIGN, GeoAligner, localToGeo, transformOf, type AlignState, type AlignTransform, type LocalPoint } from '../geo/arAlign'
 import {
+  acrossJump,
   approachTransform,
   arBasis,
   arPosition,
@@ -26,7 +27,8 @@ import {
   turnRate,
   type ArPose,
 } from '../geo/arPose'
-import { distanceMeters, type GeoFix, type GeoPoint } from '../geo/geodesy'
+import { distanceMeters, toENU, type GeoFix, type GeoPoint } from '../geo/geodesy'
+import { ON_FOOT, updateVehicle, VEHICLE, type MotionSample, type VehicleState } from '../geo/arVehicle'
 import { angleDiffDeg, normalizeDeg } from '../geo/math'
 import type { GpsFix } from '../geo/tracking'
 import { anglesFromBasis, type CameraAngles, type CameraBasis } from '../geo/orientation'
@@ -58,6 +60,11 @@ export interface ArState {
   tracking: NativeArTracking['state'] | null
   trackingReason: string | null
   align: AlignState
+  /**
+   * Dans un véhicule (`geo/arVehicle.ts`) : ARKit suit l'intérieur du véhicule, pas la Terre — les
+   * écrans reviennent au GPS et à la boussole, le calage repart de zéro une fois redescendu.
+   */
+  vehicle: boolean
 }
 
 export const AR_TRACKING = {
@@ -104,7 +111,7 @@ function initialStatus(): ArStatus {
 // --- État partagé ---------------------------------------------------------------------------
 
 const aligner = new GeoAligner()
-let state: ArState = { status: initialStatus(), camera: null, tracking: null, trackingReason: null, align: aligner.state }
+let state: ArState = { status: initialStatus(), camera: null, tracking: null, trackingReason: null, align: aligner.state, vehicle: false }
 const listeners = new Set<() => void>()
 const poseListeners = new Set<() => void>()
 
@@ -165,9 +172,11 @@ function newSession(s: number) {
   shown = null
   aligner.reset()
   shots.clear()
+  motion = []
+  vehicle = ON_FOOT
   // L'état du suivi de cette session a pu arriver avant elle (ordre des messages) : on le garde.
   const known = lastTracking?.s === s ? lastTracking : null
-  publish({ align: aligner.state, tracking: known?.state ?? null, trackingReason: known?.reason ?? null })
+  publish({ align: aligner.state, tracking: known?.state ?? null, trackingReason: known?.reason ?? null, vehicle: false })
 }
 
 function solve() {
@@ -224,11 +233,16 @@ function carryOver(before: ArPose, after: ArPose) {
   const t = shown
   const known = state.align
   trace('jump', { from: before.position, to: after.position })
+  const turn = localView(after).heading - localView(before).heading
   history = []
-  shots.clear()
+  motion = []
+  // Photos de la session : leur place est ramenée dans le nouveau repère (elles restent replacées).
+  for (const shot of shots.values()) {
+    shot.q = acrossJump(shot.q, before, after, turn)
+    shot.theta -= turn
+  }
   aligner.reset()
   if (t && Number.isFinite(known.sigmaPos)) {
-    const turn = localView(after).heading - localView(before).heading
     aligner.addFix(localPoint(after), arPosition(before, t), t.theta - turn, {
       sigmaPos: Math.max(known.sigmaPos, ALIGN.gpsBias),
       sigmaTheta: Math.max(known.sigmaTheta, 3),
@@ -259,9 +273,42 @@ function onTracking(e: NativeArTracking) {
 function onGps(fix: GpsFix) {
   if (state.status !== 'running') return
   trace('gps', { at: fix.timestamp, lat: fix.lat, lon: fix.lon, acc: fix.accuracy, speed: fix.speed, course: fix.course, tracking: state.tracking })
-  if (state.tracking !== 'normal') return
-  const pose = poseAt(history, fix.timestamp)
+  const pose = state.tracking === 'normal' ? poseAt(history, fix.timestamp) : null
+  if (checkVehicle(fix, pose)) return
   if (pose && aligner.addGps(fix, localPoint(pose))) solveSoon()
+}
+
+/** Relevés récents (déplacement du GPS et du suivi) et état « dans un véhicule ». */
+let motion: MotionSample[] = []
+let motionRef: GeoPoint | null = null
+let vehicle: VehicleState = ON_FOOT
+
+/**
+ * Véhicule : on y entre quand le GPS file sans que le suivi visuel bouge ; tant qu'on y est, le calage
+ * est suspendu (les écrans reviennent au GPS et à la boussole) ; en sortant, il repart de zéro (le
+ * repère d'ARKit a tourné avec le véhicule). Vrai si l'on est dans un véhicule.
+ */
+function checkVehicle(fix: GpsFix, pose: ArPose | null): boolean {
+  motionRef ??= { lat: fix.lat, lon: fix.lon }
+  const [e, n] = toENU(motionRef, fix)
+  motion.push({ t: fix.timestamp, e, n, speed: fix.speed ?? null, q: pose ? localPoint(pose) : null })
+  motion = motion.filter((m) => fix.timestamp - m.t <= 2 * VEHICLE.window)
+  const was = vehicle.inVehicle
+  vehicle = updateVehicle(vehicle, motion)
+  if (vehicle.inVehicle !== was) {
+    trace('vehicle', { inVehicle: vehicle.inVehicle })
+    if (!vehicle.inVehicle) {
+      // Redescendu : nouveau calage, comme une nouvelle session (sans couper la caméra).
+      history = lastPose ? [lastPose] : []
+      target = null
+      shown = null
+      aligner.reset()
+      shots.clear()
+      motion = []
+    }
+    publish({ vehicle: vehicle.inVehicle, align: aligner.state })
+  }
+  return vehicle.inVehicle
 }
 
 interface CompassEvent extends DeviceOrientationEvent {
@@ -273,7 +320,7 @@ interface CompassEvent extends DeviceOrientationEvent {
 function onCompass(e: Event) {
   const ev = e as CompassEvent
   const now = Date.now()
-  if (state.status !== 'running' || state.tracking !== 'normal' || !lastPose) return
+  if (state.status !== 'running' || state.tracking !== 'normal' || !lastPose || state.vehicle) return
   if (typeof ev.webkitCompassHeading !== 'number' || now - lastCompass < AR_TRACKING.compassEvery) return
   lastCompass = now
   const accuracy = typeof ev.webkitCompassAccuracy === 'number' ? ev.webkitCompassAccuracy : null
@@ -575,7 +622,7 @@ const NO_VIEW: ArView = { fix: null, basis: null, angles: null, at: -Infinity }
 
 /** Vue actuelle d'après la dernière pose et le calage affiché. */
 export function currentView(): ArView {
-  if (!lastPose || !shown) return NO_VIEW
+  if (!lastPose || !shown || state.vehicle) return NO_VIEW
   const p = arPosition(lastPose, shown)
   const fix: GeoFix = {
     lat: p.lat,

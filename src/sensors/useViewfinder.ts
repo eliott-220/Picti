@@ -35,8 +35,11 @@ export interface Viewfinder {
   position: GeoFix | null
   /** Focale équivalente de l'image affichée. */
   focal35: number
-  /** Suivi visuel (app iOS) : caméra d'iOS et poses ARKit ; `active` : c'est lui qui sert. */
-  ar: { active: boolean; state: ArState }
+  /**
+   * Suivi visuel (app iOS) : caméra d'iOS et poses ARKit ; `active` : c'est lui qui sert ;
+   * `oriented` : l'orientation (et la position) viennent bien de lui (cap calé, pas en véhicule).
+   */
+  ar: { active: boolean; oriented: boolean; state: ArState }
 }
 
 /**
@@ -107,6 +110,6 @@ export function useViewfinder({
     orientation,
     position: arActive && view.fix ? view.fix : webPosition,
     focal35: arCamera ? focal35Of(arCamera.focal, arCamera.width, arCamera.height) : webFocal35,
-    ar: { active: arActive, state: arState },
+    ar: { active: arActive, oriented: arActive && view.basis != null, state: arState },
   }
 }

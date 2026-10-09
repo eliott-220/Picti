@@ -6,7 +6,7 @@
 // Axes de la caméra (écran en portrait, `viewMatrix(for: .portrait)`) : droite, haut, arrière ; l'objectif
 // regarde vers −arrière.
 
-import { localToGeo, type AlignTransform, type LocalPoint } from './arAlign'
+import { localToGeo, rotateLocal, type AlignTransform, type LocalPoint } from './arAlign'
 import type { GeoPoint } from './geodesy'
 import { approach, DEG, normalizeDeg, type Vec3 } from './math'
 import { anglesFromBasis, rotateAboutUp, type CameraBasis } from './orientation'
@@ -91,6 +91,17 @@ export function poseJumped(prev: ArPose, next: ArPose, maxSpeed = 8): boolean {
   if (dt <= 0 || dt > 0.5) return false
   const d = Math.hypot(next.position[0] - prev.position[0], next.position[1] - prev.position[1], next.position[2] - prev.position[2])
   return d > 0.3 && d / dt > maxSpeed
+}
+
+/**
+ * Point du repère local d'avant un saut, exprimé dans le repère d'après : la caméra n'a pas bougé entre
+ * les deux images (`before` → `after`), le repère a tourné de `turn` degrés (cap local d'après − d'avant).
+ */
+export function acrossJump(q: LocalPoint, before: ArPose, after: ArPose, turn: number): LocalPoint {
+  const [b0, b1] = localPoint(before)
+  const [a0, a1] = localPoint(after)
+  const [d0, d1] = rotateLocal([q[0] - b0, q[1] - b1], turn)
+  return [a0 + d0, a1 + d1]
 }
 
 /** Conditions d'une mesure de boussole fiable (comme `geo/heading.ts`) : objectif proche de l'horizon, téléphone stable. */

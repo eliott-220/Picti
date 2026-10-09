@@ -606,7 +606,8 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     n'est pas calé). **Saut du repère** (relocalisation d'ARKit, `poseJumped` : plus de 8 m/s entre
     deux images) : calage repris de zéro avec, comme point de départ, la position et le cap calés de
     la caméra juste avant (`carryOver`, `addFix` à leur précision) — rien ne saute à l'écran (banc :
-    saut de 5 m et 25° → 0,00 m, 0,0°). `useArCamera(stage, visible)` : cadre de la caméra native = rectangle de
+    saut de 5 m et 25° → 0,00 m, 0,0°). Les photos de la session sont ramenées dans le nouveau repère
+    (`acrossJump`) et continuent d'être replacées. `useArCamera(stage, visible)` : cadre de la caméra native = rectangle de
     l'élément (ResizeObserver), classe **`picti-ar`** sur `<html>` (fonds transparents, vidéo web
     cachée, `styles.css`), masquage différé de 150 ms (relais d'un écran à l'autre). Réglage
     **« Suivi visuel : activé / coupé »** dans le menu (`setArSetting`, `localStorage`
@@ -616,8 +617,17 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     (celle du suivi dès que son cap est calé, sinon les capteurs), position (suivi calé, sinon
     `useLivePosition`), focale (celle d'ARKit, sinon `useCameraFocal` ; la mesure de focale en tournant
     ne tourne qu'en caméra web). La caméra web attend tant que le suivi peut encore servir (`off` dans
-    l'app iOS, `checking`, `starting`) : `arLeavesCamera`. Pastilles : précision de la position réellement utilisée, « Suivi visuel » au lieu de
+    l'app iOS, `checking`, `starting`) : `arLeavesCamera` (aussi vu dans les journaux de l'iPhone du 09/10 : 7 sessions « interrupted » juste après leur démarrage ; test du banc `ar-camera-conflict.mjs` qui compte les flux `getUserMedia` vivants pendant le suivi : 37 à 40 relevés en conflit avant, 0 après). Pastilles : précision de la position réellement utilisée, « Suivi visuel » au lieu de
     « Boussole » (`SensorStatus position visual`).
+  - **Véhicule** (`src/geo/arVehicle.ts`, testé) : dans une voiture, un bus, un tram, ARKit suit
+    l'intérieur (position immobile, cap faux) pendant que le GPS file — vu sur l'iPhone d'Eliott le
+    09/10 (50 m à 15-20 km/h, ARKit immobile à 40 cm près, faux demi-tour de 150°). `updateVehicle` :
+    3 relevés à plus de 2,5 m/s d'affilée, plus de 20 m de GPS en 10 s et le suivi visuel qui n'en fait
+    pas 30 % → `vehicle` ; calage suspendu (plus de relevés ni de boussole), `currentView` vide : les
+    écrans reviennent au GPS et à la boussole (pastille « Boussole ») ; sortie après 8 s à moins de
+    1,5 m/s (un feu rouge ne suffit pas) → calage repris de zéro. Vélo, course : ARKit avance avec le
+    GPS, rien ne change. Sur le vrai trajet : détecté 2 à 4 s après le départ du véhicule ; au banc :
+    5,4 s, nouveau calage à 1,6 m après être redescendu.
   - **Regéocadrage** : une photo prise avec le suivi (`trackArShot`, pose de son image) est récrite
     (`ArShotRefiner`, monté avec le store → `updatePhoto`) quand le calage s'affine : au plus toutes les
     20 s, seulement si la précision gagne 0,3 m et que la photo bouge de 0,75 m ou tourne de 1,5°
