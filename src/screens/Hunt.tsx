@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { AimCrosshair } from '../components/AimCrosshair'
 import { AlignGauges, ArPhoto, CaptureCard, SpotTimeline } from '../components/ar'
 import {
   coverTransform,
@@ -18,6 +19,7 @@ import { useStore } from '../data/storeContext'
 import { huntSaturation, usePhotoInColor } from '../data/photoColor'
 import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
+import { aimsAt } from '../geo/aim'
 import { CAPTURE_RADIUS, computeAlignment, guidance, viewerEye } from '../geo/alignment'
 import type { GeoFix } from '../geo/geodesy'
 import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
@@ -225,6 +227,10 @@ function HuntView({
           scale={ar ? overlayScale(ar) : 1}
           glass={ar ? !ar.facing : false}
         />
+      )}
+      {/* Croix de visée : jaune sur la photo quand elle se capture d'ici ; masquée une fois la capture lancée. */}
+      {cam && viewerBasis && phase === 'hunting' && capture.active == null && (
+        <AimCrosshair ready={canCapture && ar != null && aimsAt(ar.projection, cam)} />
       )}
       {/* Capture : la carte quitte sa place et s'agrandit jusqu'à couvrir l'écran. */}
       {cam && capture.active === photo.id && capture.state.phase !== 'idle' && (

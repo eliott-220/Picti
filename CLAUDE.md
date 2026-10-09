@@ -360,6 +360,15 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `transform` de `.capture-card` (une annulation repart de là où en est l'agrandissement), aucun
   rendu React par image. Après la capture : viseur, retour à sa place après 0,6 s, en couleur
   avec surbrillance ; chasse, plein écran sous « Capturée ! », retour à sa place sur « Contempler ».
+- **Croix de visée** (depuis 0.22.0, demande d'Eliott du 09/10) : petite croix fixe au centre de
+  l'écran pour viser la photo à capturer (`AimCrosshair`, même trait blanc ombré que la croix fixe
+  de « Reproduire »). Viseur : affichée dès qu'une photo est à l'écran (pas en selfie ni en
+  Reproduire, qui a ses deux croix) ; chasse : pendant la chasse. **Jaune et un peu plus grande**
+  quand elle est sur la photo visée (`aimsAt`, `src/geo/aim.ts` : centre de l'écran dans la carte
+  telle qu'affichée, taille plafonnée comprise) **et** que celle-ci se capture d'ici (même
+  condition que le bouton « Capturer » : photo d'un autre, pas encore capturée, à moins de 5 m) ;
+  blanche sinon. Masquée pendant l'agrandissement. Règles de capture inchangées : « Capturer »
+  reste actif même si la croix est à côté de la photo.
 - **Cap sur iPhone** (depuis 0.010.1, `src/geo/heading.ts`) : les mouvements viennent du
   gyroscope (`alpha`) ; le nord de `webkitCompassHeading` n'est recalé que **lentement**
   (τ 2 s), téléphone stable (< 8°/s) et objectif à moins de 55° de l'horizon ; recalage rapide
@@ -757,6 +766,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). Numéro repris des boutons verre liquide (abandonnés, jamais en ligne) ; 0.018.0 est réservée à la coque Capacitor.
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.22.0 : croix de visée au centre du viseur et de la chasse, jaune sur une photo qui se capture d'ici (règles de capture inchangées).
 - 0.18.0 : coque native Capacitor 8 (iOS + Android), web embarqué ; liens des e-mails vers l'app en ligne, pas de bandeau de mise à jour, « · app iOS » dans le menu ; liens d'invitation préparés (pas actifs). Site web inchangé.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
@@ -809,3 +819,4 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - [2026-10-07 — Mode Public · Amis · Privé au déclencheur, puis carrousel (0.17.0, 0.17.1)](claude/picti/2026-10-07-mode-au-declencheur.md)
 - [2026-10-07 — Coque native Capacitor iOS + Android (0.18.0)](claude/picti/2026-10-07-coque-capacitor.md)
 - [2026-10-08 — Vrais boutons Liquid Glass dans l'app iOS (0.19.0)](claude/picti/2026-10-08-boutons-liquid-glass.md)
+- [2026-10-09 — Croix de visée pour capturer (0.22.0)](claude/picti/2026-10-09-croix-de-visee.md)

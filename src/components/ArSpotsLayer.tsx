@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useColorRule } from '../data/photoColor'
+import { aimsAt } from '../geo/aim'
 import { withinCaptureRadius } from '../geo/alignment'
 import type { GeoPhoto } from '../data/types'
 import { distanceMeters, type GeoFix } from '../geo/geodesy'
@@ -7,6 +8,7 @@ import type { ViewportCamera } from '../geo/optics'
 import { anglesFromBasis, type CameraBasis } from '../geo/orientation'
 import { cycle, groupBySpot } from '../geo/spots'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
+import { AimCrosshair } from './AimCrosshair'
 import { ArPhoto, CaptureCard, CaptureHint, SpotTimeline } from './ar'
 import {
   coverTransform,
@@ -41,6 +43,8 @@ interface Card {
  * Appui sur une photo : sa fiche ; à moins de 5 m de son point de vue, une photo d'un autre pas
  * encore capturée se capture (comme « Capturer ») : elle s'agrandit jusqu'à couvrir l'écran
  * (voir `useCapture`), reste en plein écran le temps de la célébration, puis revient à sa place.
+ * Dès qu'une photo est à l'écran, une croix fixe au centre aide à viser : jaune quand elle est sur
+ * la photo visée et que celle-ci se capture d'ici.
  */
 export function ArSpotsLayer({
   photos,
@@ -185,6 +189,10 @@ export function ArSpotsLayer({
             onClick={() => tap(s.cards[s.index])}
           />
         ),
+      )}
+      {/* Croix de visée, masquée pendant la capture (la photo vient couvrir l'écran). */}
+      {focusTop && capture.active == null && (
+        <AimCrosshair ready={capturable(focusTop) && aimsAt(focusTop.ar.projection, cam)} />
       )}
       {captured && capture.state.phase !== 'idle' && (
         <CaptureCard

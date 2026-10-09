@@ -3916,3 +3916,42 @@ button.tile-author {
   }
   .cross-message { bottom: 24px; font-size: 13px; }
 }
+
+/* Croix de visée (viseur, chasse) : fixe au centre de l'écran, même trait que les croix de
+   « Reproduire » ; jaune et un peu plus grande sur une photo qui se capture d'ici. */
+.aim-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  color: #fff;
+  pointer-events: none;
+  transition: color 150ms ease-out, transform 150ms ease-out;
+  animation: aim-in 200ms ease-out;
+}
+.aim-crosshair svg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px #000) drop-shadow(0 0 1px #000);
+}
+.aim-crosshair path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.aim-crosshair.ready {
+  color: #ffdc3c;
+  transform: scale(1.25);
+}
+@keyframes aim-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aim-crosshair {
+    transition: none;
+    animation: none;
+  }
+}
