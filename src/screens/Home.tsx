@@ -8,6 +8,7 @@ import { SensorStatus } from '../components/SensorStatus'
 import { Shutter } from '../components/Shutter'
 import { useElementSize } from '../components/useElementSize'
 import { useReproduceStatus } from '../components/useReproduceStatus'
+import { useSwipeOpen } from '../components/useSwipeOpen'
 import { DirectionArrow, RoundButton, Sheet, Thumb } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { CELEBRATION_MS } from '../components/useCapture'
@@ -35,6 +36,7 @@ import type { NativeArPose } from '../native'
 import { ImportSheet } from './ImportSheet'
 import { MenuSheet } from './MenuSheet'
 import { PhotoSheet } from './PhotoDetail'
+import { Profile } from './Profile'
 
 /**
  * Prise de vue suspendue à un choix (feuille) : l'image est figée à l'écran dès le déclenchement.
@@ -126,6 +128,16 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
     // `shoot` met fin à l'attente.
     void shootRef.current({ skipGps: true })
   }, [waitGps, busy, held, liveAccuracy])
+
+  // Glisser le doigt de droite à gauche sur le viseur : le profil arrive par la droite (pendant du
+  // retour par le bord gauche). Pas en « Reproduire », ni avec une feuille ou une prise en cours.
+  const toProfile = useSwipeOpen(
+    () => navigate('/profil'),
+    !reproduce && !sheet && !captureSheet?.open && !frozen && !held && !waitGps && !busy,
+  )
+  // Le profil affiché pendant le glissement (préparé caché peu après l'ouverture du viseur) : même
+  // élément d'un rendu à l'autre, il n'est pas redessiné à chaque image du viseur.
+  const profilePeek = useMemo(() => <Profile />, [])
 
   // Photos d'autres utilisateurs à chasser autour de soi.
   const captured = new Set(captures.map((c) => c.photoId))
@@ -293,7 +305,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           : null
 
   return (
-    <main className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`}>
+    <main className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`} {...toProfile.handlers}>
       <div className="camera-stage" ref={stageRef}>
         {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
             Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
@@ -512,6 +524,17 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       )}
 
       <PreciseLocationNotice geo={geo} />
+
+      {toProfile.mounted && (
+        <div
+          className={`swipe-peek ${toProfile.phase === 'idle' ? 'idle' : ''}`}
+          ref={toProfile.panelRef}
+          style={toProfile.panelStyle}
+          aria-hidden="true"
+        >
+          {profilePeek}
+        </div>
+      )}
     </main>
   )
 }
