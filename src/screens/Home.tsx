@@ -364,7 +364,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
             ? () => void orientation.requestPermission() : undefined}
         />
       ) : (
-        <SensorStatus geo={geo} orientation={orientation} position={position} visual={ar.active && ar.state.align.ok} />
+        <SensorStatus geo={geo} orientation={orientation} position={position} visual={ar.oriented} />
       )}
 
       {!reproduce && (

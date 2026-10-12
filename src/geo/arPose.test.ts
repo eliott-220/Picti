@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { localToGeo } from './arAlign'
 import {
+  acrossJump,
   approachTransform,
   arBasis,
   arPosition,
@@ -130,5 +131,17 @@ describe('saut du repère du suivi', () => {
     expect(poseJumped(pose(0, 0, [0, 0, 0]), pose(200, 0, [0, 0, -1.2]))).toBe(false)
     // Trop longtemps sans image : on ne tranche pas.
     expect(poseJumped(pose(0, 0, [0, 0, 0]), pose(2000, 0, [0, 0, -30]))).toBe(false)
+  })
+})
+
+describe('point suivi à travers un saut du repère', () => {
+  it('un point à 5 m devant la caméra reste à 5 m devant elle, dans le nouveau repère', () => {
+    // Avant : caméra en (0, 0), cap local 0 ; le point est 5 m devant. Après : repère décalé et tourné
+    // de 30° (la caméra, elle, n'a pas bougé : cap local 30, position (2, −1)).
+    const before = pose(0, 0, [0, 1.5, 0])
+    const after = pose(16, 30, [2, 1.5, 1])
+    const q = acrossJump([0, 5], before, after, 30)
+    expect(q[0]).toBeCloseTo(2 + 5 * Math.sin((30 * Math.PI) / 180), 9)
+    expect(q[1]).toBeCloseTo(-1 + 5 * Math.cos((30 * Math.PI) / 180), 9)
   })
 })
