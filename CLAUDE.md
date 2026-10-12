@@ -435,6 +435,64 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
 - Conventions : identifiants en anglais, commentaires et UI en français, pas de point-virgule,
   guillemets simples.
 
+- **Tutoriel du premier lancement** (0.22.0, prompt `PROMPT-0.022.0.md` du dossier d'Eliott ;
+  `src/screens/Tutorial.tsx`, logique pure `src/geo/tutorial.ts`, testée) : **premier écran, avant la
+  création du compte**, sans compte ni réseau, une seule fois (drapeau `picti.onboardingDone` :
+  `localStorage` lu tout de suite + **Capacitor Preferences** dans l'app, `src/data/onboarding.ts` ;
+  dans l'app, `App` attend la lecture — écran de démarrage — avant de choisir). Un utilisateur déjà
+  connecté sur l'appareil ne le voit pas et le drapeau est posé (pas de tutoriel après une
+  déconnexion) ; pas de tutoriel par-dessus un lien d'e-mail expiré (`authLinkError`). On le revoit
+  à tout moment : menu › « Revoir le tutoriel » (route `#/tutoriel` ; à la fin, retour là où l'on
+  était, `goBack`) et, sans compte, lien « Revoir le tutoriel » sous le formulaire de connexion
+  (`Auth onTutorial`). Fin du tutoriel sans compte : `Auth initialMode` = inscription (ou connexion
+  pour « J'ai déjà un compte »).
+  - **Déroulé** : 1. « Prends ta première photo » (viseur plein écran, vrai bouton rouge sans le
+    carrousel, « Passer » toujours visible ; flash, `haptic('clac')`) ; 2. « Elle est posée là.
+    Tourne-toi. » : la photo devient la plaque en **noir et blanc**, accrochée dans l'axe de la prise
+    (`ArPhoto`, rendu du viseur, carte plafonnée) ; étape 3 quand elle est **entièrement hors champ**
+    (`plateOffView` : écart > demi-champ + 10° sur un axe, et carte projetée hors de l'écran) ;
+    3. « Retrouve-la » : flèche de bord d'écran (`EdgeArrow` / `edgeArrowDeg`, extraits de la chasse),
+    `alignmentLevel` (1 dessus, ½ à la limite des tolérances) → plaque plus nette et plus opaque
+    (`plateLook`), vibrations de plus en plus rapprochées (`pulseInterval`, géométrique de 900 à 110 ms ;
+    `haptic('tick' | 'strong')`) et un « tic » sonore discret (Web Audio, plus aigu en s'alignant,
+    débloqué par le geste du déclencheur) ; « Capturer » actif à cap ±20° et inclinaison ±15° (les
+    tolérances d'une même vue, `VIEW_*_TOLERANCE`) **et** le centre de la plaque à l'écran
+    (`plateInView` : en portrait le demi-champ horizontal, ~17°, est plus étroit que 20°) ;
+    4. capture par agrandissement (`useCapture` + `CaptureCard`, comme la vraie, « Ne bouge plus… »),
+    `haptic('success')`, la plaque en couleur couvre l'écran puis **se fond dans le décor**
+    (`.tutorial-melt`), carte « C'est ça, PICTI · Des photos posées dans le monde réel, à retrouver
+    sur place » → Continuer ; 5. écran final (voir plus bas).
+  - **Orientation relative seulement** (`useRelativeOrientation`) : poses brutes d'ARKit quand le suivi
+    visuel tourne (`localCameraBasis`, `nativePoseBasis` pour la pose de l'image prise, repère de la
+    session, sans calage), sinon l'événement **`deviceorientation`** (gyroscope, relatif sur Android et
+    iPhone) — **jamais** `deviceorientationabsolute` ni `webkitCompassHeading` : chez soi, GPS faux et
+    boussole perturbée (vu le 12/10). Sans capteurs (ordinateur) ou accès refusé : on regarde autour en
+    faisant glisser l'image. iPhone (navigateur) : l'accès aux capteurs est demandé sur l'appui du
+    déclencheur (`requestCompass`, exporté), puis on attend la première mesure (1,5 s au plus).
+  - **Autorisations au moment où elles servent** : caméra (et mouvement sur iPhone web) à l'étape 1 ;
+    `useViewfinder({ locate: false })` ne suit pas la position ; la position n'est demandée qu'à l'écran
+    final (`useGeolocation`). Caméra refusée : « Sans la caméra, pas de photo d'essai » + Réessayer
+    (caméra redemandée) + « Passer à l'inscription ».
+  - **Photo d'essai locale** (`demo: true`) : image servie par `registerLocalImage` (adresse `blob:`,
+    pas de réseau ; `ArPhoto` et `CaptureCard` inchangés), **effacée** (URL révoquée) à l'écran final,
+    en quittant ou en reprenant une photo ; jamais envoyée en base ni dans le stockage (vérifié au banc :
+    aucune écriture vers `photos`, `captures` ni le stockage).
+  - **Écran final** : position lue (relevé ≤ 300 m, ou le meilleur au bout de 6 s ; aucun au bout de
+    15 s = pas de distance) → RPC **`nearest_public_photo(p_lat, p_lng)`** (migration
+    `20261012160000_photo_la_plus_proche.sql`, security definer, **appelable sans compte**) : photo
+    **publique** géocadrée la plus proche à moins de 5 km, distance arrondie à 10 m et direction au
+    huitième de tour seulement (jamais l'auteur, la position exacte, l'original ni le chemin des images,
+    qui commence par l'identifiant de l'auteur) ; connecté, aussi son id et le chemin de sa vignette, en
+    écartant ses photos et celles déjà capturées. « La photo la plus proche est à **240 m au nord-est** »
+    (`nearestText`, `src/data/nearestPhoto.ts`, testé), vignette N&B floutée (connecté ; sans compte,
+    une carte grise : voir la note de session), « Créer mon compte pour la chasser » + « J'ai déjà un
+    compte » ; connecté : « Y aller » (`#/chasse/<id>`) + « Plus tard ». Rien à moins de 5 km :
+    « Personne n'a encore posé de photo près de toi. Sois le premier ! » ; position refusée, ou base
+    sans la fonction : « Crée ton compte pour voir les photos autour de toi ».
+  - **Retours haptiques** : `haptic(kind)` (`src/native.ts`) — `@capacitor/haptics` dans l'app (chargé à
+    la demande), `navigator.vibrate` dans un navigateur Android, rien dans Safari sur iPhone.
+    `loadPreference` / `savePreference` : `@capacitor/preferences` dans l'app.
+
 ## App native (Capacitor)
 
 Depuis 0.18.0 (prompt d'Eliott du 07/10) : coque **Capacitor 8** iOS + Android, **web embarqué**
@@ -767,6 +825,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.0 : mode des photos au déclencheur — plus de pastille au-dessus ; appui long sur le bouton rouge puis glisser à gauche / droite (Public · Amis · Privé), le symbole du bouton suit ; Public à la première ouverture, puis le dernier mode choisi est gardé (sur l'appareil). Numéro repris des boutons verre liquide (abandonnés, jamais en ligne) ; 0.018.0 est réservée à la coque Capacitor.
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.22.0 : tutoriel du premier lancement, avant la création du compte : photo d'essai prise avec sa caméra et posée devant soi, à retrouver en se tournant (flèche, netteté, vibrations), capture en couleur, puis « la photo la plus proche est à 240 m au nord-est » (fonction `nearest_public_photo`, sans compte) ; orientation relative seulement (ARKit ou gyroscope), ni GPS ni boussole ; « Revoir le tutoriel » dans le menu. Plugins Capacitor Haptics et Preferences. Numéro libéré par l'abandon de la croix de visée (09/10, jamais en ligne).
 - 0.18.0 : coque native Capacitor 8 (iOS + Android), web embarqué ; liens des e-mails vers l'app en ligne, pas de bandeau de mise à jour, « · app iOS » dans le menu ; liens d'invitation préparés (pas actifs). Site web inchangé.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
   la photo garde sa taille et suit le téléphone (rotation sur place : OK) → 0.011.3.
@@ -819,3 +878,4 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - [2026-10-07 — Mode Public · Amis · Privé au déclencheur, puis carrousel (0.17.0, 0.17.1)](claude/picti/2026-10-07-mode-au-declencheur.md)
 - [2026-10-07 — Coque native Capacitor iOS + Android (0.18.0)](claude/picti/2026-10-07-coque-capacitor.md)
 - [2026-10-08 — Vrais boutons Liquid Glass dans l'app iOS (0.19.0)](claude/picti/2026-10-08-boutons-liquid-glass.md)
+- [2026-10-12 — Tutoriel du premier lancement : photo d'essai, puis la vraie photo la plus proche (0.22.0)](claude/picti/2026-10-12-photo-essai.md)
