@@ -154,6 +154,11 @@ boussole seuls. Selfie, site et Android : comme avant.
 **Retour en arrière** (0.19.0, app iOS) : glisser le doigt depuis le bord gauche de l'écran, comme
 dans les autres apps de l'iPhone (l'écran précédent apparaît dessous).
 
+**Profil en glissant** (0.21.1, partout) : sur l'accueil (viseur), glisser le doigt de droite à
+gauche fait arriver son profil par la droite, en suivant le doigt ; on le lâche plus loin qu'un tiers
+de l'écran (ou d'un geste vif) pour l'ouvrir. Le déclencheur, la frise et les piles de photos gardent
+leurs propres gestes ; pas pendant « Reproduire ».
+
 Limite connue : sur Android, « Enregistrer » une photo ne fait rien (la WebView Android n'a ni
 feuille de partage ni téléchargement) ; il faudra un plugin (`@capacitor/filesystem` +
 `@capacitor/share`).

@@ -314,6 +314,29 @@ html.picti-ar .camera-video {
   visibility: hidden;
 }
 
+/* Profil qui arrive par la droite quand on glisse le doigt vers la gauche sur le viseur. Rien n'y
+   réagit au doigt, mais le panneau lui-même recouvre les boutons du viseur : ceux en verre de l'app
+   iOS, testés en leur centre (`glassButtons.ts`), s'effacent quand il passe dessus. */
+.swipe-peek {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  overflow: hidden;
+  background: var(--paper);
+  transform: translateX(100%);
+  box-shadow: -10px 0 30px rgb(0 0 0 / 0.45);
+  will-change: transform;
+}
+
+.swipe-peek * {
+  pointer-events: none !important;
+}
+
+/* Préparé mais pas affiché : ni mise en page, ni image chargée (la photo d'en-tête est un fond). */
+.swipe-peek.idle {
+  display: none;
+}
+
 .camera-video {
   position: absolute;
   inset: 0;
