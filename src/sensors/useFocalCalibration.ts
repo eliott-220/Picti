@@ -8,20 +8,21 @@ import {
   profileShift,
 } from '../geo/focalCalibration'
 import type { CameraAngles } from '../geo/orientation'
-import { setMeasuredFocal } from './cameraFocal'
+import { setMeasuredFocal, type Lens } from './cameraFocal'
 
 /** Largeur (px) de l'image réduite analysée à chaque image. */
 const WIDTH = 240
 
 /**
- * Mesure en continu la focale de la caméra principale (voir
- * `geo/focalCalibration.ts`) pendant qu'on tourne le téléphone, et
- * l'enregistre dès que plusieurs mesures concordent.
+ * Mesure en continu la focale de la caméra (voir `geo/focalCalibration.ts`) pendant qu'on tourne le
+ * téléphone, et l'enregistre dès que plusieurs mesures concordent — pour l'objectif `lens` (principal,
+ * ou ultra grand-angle quand le viseur est à 0,5).
  */
 export function useFocalCalibration(
   videoRef: RefObject<HTMLVideoElement | null>,
   angles: CameraAngles | null,
   active: boolean,
+  lens: Lens = 'wide',
 ) {
   const latest = useRef(angles)
   useEffect(() => {
@@ -57,7 +58,7 @@ export function useFocalCalibration(
         state = feedFocal(state, { t: performance.now(), heading: a.heading, pitch: a.pitch, roll: a.roll, shift })
         const focal = measuredFocal(state, WIDTH)
         const mm = focal && focal35FromProfile(focal, WIDTH, vw, vh)
-        if (mm) setMeasuredFocal(mm)
+        if (mm) setMeasuredFocal(mm, lens)
       }
       schedule()
     }
@@ -73,5 +74,5 @@ export function useFocalCalibration(
       if (video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
     }
-  }, [videoRef, active])
+  }, [videoRef, active, lens])
 }

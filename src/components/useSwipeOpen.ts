@@ -47,7 +47,17 @@ export function useSwipeOpen(onOpen: () => void, enabled: boolean) {
 
   const handlers = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
-      if (!enabled || phase !== 'idle' || !e.isPrimary || e.button !== 0 || !freeToSwipe(e.target)) return
+      // Un second doigt (pincement pour zoomer) : ce n'est plus un glissement.
+      if (!e.isPrimary) {
+        if (!start.current) return
+        start.current = null
+        if (dragging.current) {
+          dragging.current = false
+          finish(false)
+        }
+        return
+      }
+      if (!enabled || phase !== 'idle' || e.button !== 0 || !freeToSwipe(e.target)) return
       start.current = {
         x: e.clientX,
         y: e.clientY,

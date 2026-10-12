@@ -1,4 +1,5 @@
 import ARKit
+import AVFoundation
 import Capacitor
 import CoreLocation
 import CoreImage
@@ -14,6 +15,10 @@ import UIKit
 ///
 /// Repère : `worldAlignment = .gravity` (y vers le haut, cap arbitraire : c'est le calage qui le
 /// trouve). Poses en portrait (`viewMatrix(for: .portrait)`) : colonnes droite, haut, arrière.
+///
+/// Zoom (0.22.1) : ARKit ne filme qu'avec l'objectif principal. Au-delà de 1, l'image est agrandie à
+/// l'écran (`show`, `zoom`) et la photo recadrée d'autant (`capture`, `zoom`) ; le grand angle (0,5)
+/// passe par la caméra web de la page, le suivi arrêté.
 @objc(ArTrackingPlugin)
 public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
     public let identifier = "ArTrackingPlugin"
@@ -30,6 +35,9 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
     ]
 
     private var arView: ARSCNView?
+    /// Cadre de la caméra à l'écran : coupe l'image agrandie par le zoom à ses bords.
+    private var frameView: UIView?
+    private var zoom: CGFloat = 1
     private var running = false
     /// Numéro de la session : un nouveau repère à chaque démarrage (le JS repart de zéro).
     private var sessionId = 0
@@ -40,8 +48,26 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
     private let imageContext = CIContext()
     private var lastCapture: URL?
 
+    /// ARKit disponible, et ce que l'appareil propose pour le zoom : le plugin sait agrandir l'image
+    /// (`zoom`), il y a un ultra grand-angle (`ultraWide`, pour le 0,5 de la caméra web), facteur du
+    /// téléobjectif (`telephoto`, par rapport à l'objectif principal).
     @objc func isAvailable(_ call: CAPPluginCall) {
-        call.resolve(["available": ARWorldTrackingConfiguration.isSupported])
+        let ultraWide = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) != nil
+        var telephoto: Any = NSNull()
+        if let triple = AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: .back) {
+            // Zooms où la caméra virtuelle passe à l'objectif suivant : principal, puis téléobjectif.
+            let factors = triple.virtualDeviceSwitchOverVideoZoomFactors.map { $0.doubleValue }
+            if factors.count >= 2, factors[0] > 0 { telephoto = (factors[1] / factors[0] * 10).rounded() / 10 }
+        } else if let dual = AVCaptureDevice.default(.builtInDualCamera, for: .video, position: .back),
+                  let factor = dual.virtualDeviceSwitchOverVideoZoomFactors.first?.doubleValue {
+            telephoto = (factor * 10).rounded() / 10
+        }
+        call.resolve([
+            "available": ARWorldTrackingConfiguration.isSupported,
+            "zoom": true,
+            "ultraWide": ultraWide,
+            "telephoto": telephoto
+        ])
     }
 
     /// Démarre une nouvelle session (nouveau repère). Sans effet visible tant que `show` n'est pas appelé.
@@ -65,7 +91,8 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
         }
     }
 
-    /// Affiche la caméra derrière la page, dans le cadre `x`, `y`, `width`, `height` (points de la page).
+    /// Affiche la caméra derrière la page, dans le cadre `x`, `y`, `width`, `height` (points de la page),
+    /// agrandie `zoom` fois autour de son centre (zoom numérique du viseur).
     @objc func show(_ call: CAPPluginCall) {
         let rect = CGRect(
             x: call.getDouble("x") ?? 0,
@@ -73,18 +100,34 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
             width: call.getDouble("width") ?? 0,
             height: call.getDouble("height") ?? 0
         )
+        let zoom = CGFloat(max(1, min(call.getDouble("zoom") ?? 1, 10)))
         DispatchQueue.main.async {
             guard let webView = self.bridge?.webView, let container = webView.superview else {
                 call.reject("Page indisponible")
                 return
             }
             let view = self.view()
-            if view.superview !== container {
+            let holder = self.holder()
+            if holder.superview !== container {
+                holder.removeFromSuperview()
+                container.insertSubview(holder, belowSubview: webView)
+            }
+            if view.superview !== holder {
                 view.removeFromSuperview()
-                container.insertSubview(view, belowSubview: webView)
+                holder.addSubview(view)
             }
             let frame = rect.width > 0 && rect.height > 0 ? webView.convert(rect, to: container) : webView.frame
-            if view.frame != frame { view.frame = frame }
+            if holder.frame != frame { holder.frame = frame }
+            // Image agrandie autour du centre du cadre, coupée à ses bords (comme `object-fit: cover`
+            // puis `scale` dans la page) ; la vue garde la taille du cadre : ARKit la remplit pareil.
+            let bounds = CGRect(origin: .zero, size: frame.size)
+            if view.bounds != bounds || view.transform != CGAffineTransform(scaleX: zoom, y: zoom) {
+                view.transform = .identity
+                view.bounds = bounds
+                view.center = CGPoint(x: bounds.midX, y: bounds.midY)
+                view.transform = CGAffineTransform(scaleX: zoom, y: zoom)
+            }
+            self.zoom = zoom
             if self.savedBackground == nil {
                 self.savedBackground = (webView.isOpaque, webView.backgroundColor, webView.scrollView.backgroundColor)
             }
@@ -94,6 +137,7 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
             webView.backgroundColor = .clear
             webView.scrollView.backgroundColor = .clear
             view.isHidden = false
+            holder.isHidden = false
             call.resolve()
         }
     }
@@ -106,8 +150,10 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
     }
 
     /// Photo : l'image de l'objectif à sa meilleure résolution (iOS 16+), enregistrée en JPEG dans un
-    /// fichier temporaire, avec la pose et la focale de cette image.
+    /// fichier temporaire, avec la pose et la focale de cette image ; `zoom` > 1 : seul le centre est
+    /// gardé (dimensions de la partie gardée, même focale en pixels).
     @objc func capture(_ call: CAPPluginCall) {
+        let zoom = max(1, min(call.getDouble("zoom") ?? 1, 10))
         DispatchQueue.main.async {
             guard self.running, let session = self.arView?.session else {
                 call.reject("Suivi visuel arrêté", "NOT_RUNNING")
@@ -119,7 +165,7 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
                     return
                 }
                 DispatchQueue.global(qos: .userInitiated).async {
-                    self.encode(frame, call)
+                    self.encode(frame, zoom: zoom, call)
                 }
             }
             if #available(iOS 16.0, *) {
@@ -190,6 +236,18 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
 
     // MARK: - Session
 
+    private func holder() -> UIView {
+        if let frameView { return frameView }
+        let view = UIView(frame: .zero)
+        view.clipsToBounds = true
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
+        view.backgroundColor = .black
+        view.isHidden = true
+        frameView = view
+        return view
+    }
+
     private func view() -> ARSCNView {
         if let arView { return arView }
         let view = ARSCNView(frame: .zero)
@@ -221,6 +279,7 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
 
     private func hideView() {
         arView?.isHidden = true
+        frameView?.isHidden = true
         guard let webView = bridge?.webView, let saved = savedBackground else { return }
         webView.backgroundColor = saved.view
         webView.scrollView.backgroundColor = saved.scroll
@@ -307,8 +366,21 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
 
     // MARK: - Photo
 
-    private func encode(_ frame: ARFrame, _ call: CAPPluginCall) {
-        let image = CIImage(cvPixelBuffer: frame.capturedImage).oriented(.right)
+    private func encode(_ frame: ARFrame, zoom: Double, _ call: CAPPluginCall) {
+        let full = CIImage(cvPixelBuffer: frame.capturedImage).oriented(.right)
+        // Zoom : le centre de l'image (portrait), aux mêmes proportions, ramené à l'origine.
+        let extent = full.extent
+        let width = (extent.width / CGFloat(zoom)).rounded()
+        let height = (extent.height / CGFloat(zoom)).rounded()
+        let crop = CGRect(
+            x: extent.minX + ((extent.width - width) / 2).rounded(),
+            y: extent.minY + ((extent.height - height) / 2).rounded(),
+            width: width,
+            height: height
+        )
+        let image = zoom > 1
+            ? full.cropped(to: crop).transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
+            : full
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let data = imageContext.jpegRepresentation(
                 of: image,
@@ -329,11 +401,10 @@ public class ArTrackingPlugin: CAPPlugin, CAPBridgedPlugin, ARSessionDelegate {
             // Une seule photo en attente à la fois : la précédente a été lue par le JS.
             if let previous = self.lastCapture { try? FileManager.default.removeItem(at: previous) }
             self.lastCapture = url
-            let resolution = frame.camera.imageResolution
             call.resolve([
                 "path": url.path,
-                "width": Double(resolution.height),
-                "height": Double(resolution.width),
+                "width": Double(image.extent.width),
+                "height": Double(image.extent.height),
                 "focal": Double(frame.camera.intrinsics[0][0]),
                 "pose": self.poseObject(frame)
             ])

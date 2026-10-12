@@ -158,6 +158,13 @@ gauche fait arriver son profil par la droite, en suivant le doigt ; on le lâche
 de l'écran (ou d'un geste vif) pour l'ouvrir. Le déclencheur, la frise et les piles de photos gardent
 leurs propres gestes ; pas pendant « Reproduire ».
 
+**Zoom et grand angle** (0.22.1, partout) : boutons « 0,5 · 1× · 2 · 5 » au-dessus du déclencheur,
+comme sur l'iPhone, et pincer à deux doigts pour zoomer. Les photos du décor restent à leur place à tous
+les grossissements, et une photo prise au grand angle garde son vrai champ de vision. Sur iPhone, le 0,5
+est le vrai ultra grand-angle ; dans l'app, le suivi visuel (ARKit, objectif principal seulement) s'arrête
+le temps du 0,5, et au-delà de 1 l'image d'ARKit est agrandie (photo recadrée). « Reproduire » part du
+cadrage de l'originale. Pas en selfie.
+
 Limite connue : sur Android, « Enregistrer » une photo ne fait rien (la WebView Android n'a ni
 feuille de partage ni téléchargement) ; il faudra un plugin (`@capacitor/filesystem` +
 `@capacitor/share`).

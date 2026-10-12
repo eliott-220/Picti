@@ -688,6 +688,53 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   droit rouvrirait le dernier écran quitté au lieu du profil ; l'accueil n'a jamais d'écran avant lui
   (on y revient toujours en remplaçant l'entrée). **Android** : glisser depuis le tout bord droit reste
   le retour du système.
+- **Zoom et grand angle** (0.22.1, demande d'Eliott : « rajoute la possibilité de faire des photos grand
+  angle et de zoomer » ; partout, viseur de l'accueil et « Reproduire ») : boutons d'objectif au-dessus du
+  déclencheur comme sur l'iPhone (`ZoomLenses` : « 0,5 · 1× · 2 · 5 », celui qui porte le zoom actuel
+  l'affiche, « 1,4× » ; vrais boutons Liquid Glass dans l'app iOS 26+) et **pincer à deux doigts**
+  (`usePinchZoom`, phase de capture sur le `<main>` du viseur ; relâché à moins de 4 % d'un repère, il s'y
+  range ; pas depuis le déclencheur, la frise, les feuilles ni les boutons du zoom ; le glissement vers le
+  profil et les piles cèdent au second doigt : `useSwipeOpen`, `useCardSwipe` ; l'appui qui suit est
+  avalé). Pas en selfie, ni pendant une feuille ou une prise figée ; boutons masqués pendant le
+  carrousel des modes (`:has(.shutter.picking)`), frise remontée au-dessus d'eux. Retour à 1× à chaque
+  ouverture du viseur ; chasse et recalage restent à 1×.
+  - **Le zoom multiplie la focale équivalente** de l'image affichée et de la photo prise : les photos du
+    décor restent calées à tous les grossissements (banc : à 2×, chaque photo s'écarte deux fois plus du
+    centre et grandit deux fois, ARKit et caméra web), et une photo prise au 0,5 a sa vraie focale (≈ 13 mm)
+    — elle est affichée dans le décor avec son vrai champ de vision, comme toute photo.
+  - Règles pures : `src/geo/zoom.ts` (testé) — `zoomPlan` choisit la caméra et la façon de zoomer :
+    **caméra web qui sait zoomer** (contrainte `zoom`, `getCapabilities().zoom` : Safari 17+ sur iPhone —
+    caméras « virtuelles » triple / double grand-angle, WebKit ramène le zoom à 1 = objectif principal,
+    0,5 = vrai ultra grand-angle, jusqu'à 10 avec le vrai téléobjectif ; vérifié dans
+    `AVVideoCaptureSource.mm` de WebKit) → flux déjà zoomé ; **sinon zoom numérique** (au-delà de 1 seulement,
+    jusqu'à `ZOOM.digitalMax` = 5) : vidéo agrandie en CSS (`zoom.videoScale`), photo recadrée au centre
+    (`cropRect`, `grabVideoFrame(video, zoom)`) ; **caméra d'ARKit** (app iOS) : ARKit ne filme qu'avec
+    l'objectif principal (pas d'ultra grand-angle en suivi du monde) → de 1 à 5, image d'ARKit agrandie par
+    le plugin et photo haute résolution recadrée (2× : 1512 × 2016, 5× : 605 × 806) ; **0,5 : la caméra web
+    prend le relais** (zoom matériel 0,5), le suivi visuel s'arrête le temps du grand angle comme pour un
+    selfie (position et orientation : GPS et boussole ; au retour à 1×, nouvelle session, calage repris de
+    zéro). Pendant un pincement, la caméra ne change pas (`lock`) : avec ARKit, arrêté à 1, un pincement
+    poussé sous 0,8 passe au 0,5 au relâcher ; depuis le 0,5, relâché au-dessus de 1 → ARKit.
+  - Caméra web (`useCamera(enabled, facing, zoom)`) : zoom appliqué avant d'afficher l'image (pas d'éclair
+    au mauvais cadrage), puis au fil de l'eau (`applyConstraints({ advanced: [{ zoom }] })`) ; le flux
+    partagé reprend le zoom de chaque écran ; plage gardée par caméra (`useCameraZoomRange`) pour choisir
+    avant même de rouvrir le flux. Le viseur complète en CSS tant que la caméra n'a pas rejoint le zoom
+    demandé (cadrage toujours juste).
+  - **Focale par objectif** (`cameraFocal.ts`) : principale (`picti.focale`) et ultra grand-angle
+    (`picti.focale.ultra-grand-angle`), mesurées en tournant (`useFocalCalibration(…, lens)`) seulement à 1
+    ou à 0,5 exactement ; ailleurs `focalAtZoom` (principale × zoom ; sous 1, ultra grand-angle mesurée,
+    sinon moitié de la principale, × zoom / 0,5 : les caméras virtuelles de l'iPhone agrandissent d'un
+    objectif à l'autre sans saut de cadrage).
+  - Plugin `ArTracking` : `isAvailable` renvoie aussi `zoom: true`, `ultraWide` (ultra grand-angle
+    arrière) et `telephoto` (facteur du téléobjectif d'après `virtualDeviceSwitchOverVideoZoomFactors`,
+    pour le dernier bouton) ; `show({ …, zoom })` agrandit l'`ARSCNView` autour du centre dans un cadre
+    qui coupe à ses bords ; `capture({ zoom })` recadre au centre (dimensions de la partie gardée, même
+    focale en pixels). Plugin plus ancien que la page : ni zoom ni grand angle (un seul repère, pas de
+    boutons). État : `ArState.lenses`.
+  - **Reproduire** part du cadrage de l'originale (`reproduceZoom` : focale de l'originale / focale à 1 de
+    cette caméra, 1 à moins de 10 % près) : une photo prise au grand angle se reproduit au 0,5.
+  - Pas encore vu sur l'iPhone ni sur Android (WebView Android : sans zoom matériel exposé, zoom numérique
+    de 1 à 5, pas de 0,5). Note de session : `claude/picti/2026-10-12-grand-angle-et-zoom.md`.
 - **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
   `APP_URL`, ancre `#/…` seulement) → `location.hash`. Modèles
   `public/.well-known/apple-app-site-association` (`TEAM_ID_APPLE.app.picti`, composant

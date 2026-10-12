@@ -234,7 +234,8 @@ img {
 .round-btn.glass-native,
 .icon-btn.glass-native,
 .chip.glass-native,
-.segmented.glass-native {
+.segmented.glass-native,
+.zoom-lens.glass-native {
   opacity: 0;
   box-shadow: none;
 }
@@ -500,6 +501,66 @@ html.picti-ar .camera-video {
   border-radius: 50%;
   background: #e87600;
   color: #fff;
+}
+
+/* Zoom et grand angle (0.22.1) : boutons d'objectif au-dessus du déclencheur, comme dans l'appareil
+   photo de l'iPhone. Masqués pendant le carrousel des modes (le nom du mode s'affiche à cet endroit). */
+.zoom-lenses {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 114px);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.28);
+}
+
+.viewfinder:has(.shutter.picking) .zoom-lenses {
+  visibility: hidden;
+}
+
+.zoom-lens {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 999px;
+  background: rgb(20 20 20 / 0.55);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+}
+
+.zoom-lens.active {
+  background: var(--red);
+  font-size: 13px;
+}
+
+.zoom-lens:active {
+  transform: scale(0.94);
+}
+
+/* Boutons natifs (verre) : chacun est sa propre bulle, sans capsule autour. */
+.zoom-lenses:has(> .zoom-lens.glass-native) {
+  background: none;
+}
+
+/* La frise des photos du lieu remonte au-dessus des boutons du zoom. */
+.viewfinder:has(.zoom-lenses) .home-timeline {
+  bottom: calc(var(--safe-bottom) + 164px);
+}
+
+/* Reproduire : entre le curseur d'opacité et le déclencheur. */
+.reproduce-viewfinder .zoom-lenses {
+  bottom: calc(var(--safe-bottom) + 116px);
 }
 
 /* Image figée au déclenchement, le temps de choisir (feuille). */
@@ -2836,9 +2897,9 @@ button.avatar-item {
   backdrop-filter: blur(8px);
 }
 
-/* Les notifications du viseur passent au-dessus du nom du mode. */
+/* Les notifications du viseur passent au-dessus du nom du mode et des boutons du zoom. */
 #root:has(.viewfinder) .toast {
-  bottom: calc(var(--safe-bottom) + 156px);
+  bottom: calc(var(--safe-bottom) + 168px);
 }
 
 .import-visibility {

@@ -166,14 +166,20 @@ export interface NativeArShot {
 }
 
 interface ArTrackingPlugin {
-  isAvailable(): Promise<{ available: boolean }>
+  /**
+   * ARKit disponible ; depuis 0.22.1 : `zoom` (le plugin agrandit l'image et recadre la photo),
+   * `ultraWide` (l'appareil a un ultra grand-angle), `telephoto` (facteur du téléobjectif, null sans).
+   * Un plugin plus ancien ne renvoie que `available`.
+   */
+  isAvailable(): Promise<{ available: boolean; zoom?: boolean; ultraWide?: boolean; telephoto?: number | null }>
   /** Démarre une session (nouveau repère) ; la caméra n'est affichée qu'avec `show`. */
   start(): Promise<{ session: number }>
   stop(): Promise<void>
-  /** Affiche la caméra derrière la page, dans ce cadre (points de la page). */
-  show(frame: { x: number; y: number; width: number; height: number }): Promise<void>
+  /** Affiche la caméra derrière la page, dans ce cadre (points de la page), agrandie `zoom` fois (≥ 1). */
+  show(frame: { x: number; y: number; width: number; height: number; zoom?: number }): Promise<void>
   hide(): Promise<void>
-  capture(): Promise<NativeArShot>
+  /** Photo ; `zoom` > 1 : seul le centre de l'image est gardé (dimensions de la partie gardée, même focale). */
+  capture(options?: { zoom?: number }): Promise<NativeArShot>
   /** Localisation visuelle d'Apple disponible en ces points (Look Around). */
   geoTrackingAvailability(options: { points: { lat: number; lon: number }[] }): Promise<{
     supported: boolean

@@ -1,5 +1,7 @@
 // Préparation des images : capture d'une trame vidéo, vignettes.
 
+import { cropRect } from '../geo/zoom'
+
 export interface EncodedImage {
   blob: Blob
   width: number
@@ -20,11 +22,19 @@ function draw(source: CanvasImageSource, width: number, height: number): HTMLCan
   return canvas
 }
 
-/** Fige l'image courante du flux caméra, en pleine résolution. */
-export async function grabVideoFrame(video: HTMLVideoElement): Promise<EncodedImage> {
-  const { videoWidth: width, videoHeight: height } = video
-  if (!width || !height) throw new Error('Caméra pas encore prête')
-  return { blob: await canvasToBlob(draw(video, width, height), 0.92), width, height }
+/**
+ * Fige l'image courante du flux caméra, en pleine résolution ; `zoom` > 1 (zoom numérique) : seul le
+ * centre est gardé, comme à l'écran.
+ */
+export async function grabVideoFrame(video: HTMLVideoElement, zoom = 1): Promise<EncodedImage> {
+  const { videoWidth, videoHeight } = video
+  if (!videoWidth || !videoHeight) throw new Error('Caméra pas encore prête')
+  const crop = cropRect(videoWidth, videoHeight, zoom)
+  const canvas = document.createElement('canvas')
+  canvas.width = crop.width
+  canvas.height = crop.height
+  canvas.getContext('2d')!.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height)
+  return { blob: await canvasToBlob(canvas, 0.92), width: crop.width, height: crop.height }
 }
 
 /** Décode une image en respectant son orientation EXIF. */

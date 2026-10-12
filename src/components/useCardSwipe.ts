@@ -34,6 +34,13 @@ export function useCardSwipe(onSwipe: (step: 1 | -1) => void) {
 
   const handlers = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      // Un second doigt (pincement pour zoomer dans le viseur) : la carte revient à sa place.
+      if (!e.isPrimary) {
+        if (!start.current) return
+        start.current = null
+        if (moved.current) settle()
+        return
+      }
       if (state.phase === 'leave') return
       e.stopPropagation()
       start.current = { x: e.clientX, y: e.clientY, t: e.timeStamp }
@@ -41,7 +48,7 @@ export function useCardSwipe(onSwipe: (step: 1 | -1) => void) {
     },
     onPointerMove: (e: PointerEvent<HTMLElement>) => {
       const s = start.current
-      if (!s) return
+      if (!s || !e.isPrimary) return
       const dx = e.clientX - s.x
       const dy = e.clientY - s.y
       if (!moved.current) {
@@ -57,6 +64,7 @@ export function useCardSwipe(onSwipe: (step: 1 | -1) => void) {
       setState({ dx, phase: 'drag' })
     },
     onPointerUp: (e: PointerEvent<HTMLElement>) => {
+      if (!e.isPrimary) return
       const s = start.current
       start.current = null
       if (!s || !moved.current) return
