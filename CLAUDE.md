@@ -74,7 +74,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - **Choix à la prise** (0.17.0, à la demande d'Eliott) : plus de pastille au-dessus du
     déclencheur. Le déclencheur (`src/components/Shutter.tsx`) montre le symbole du mode (globe /
     amis / cadenas, `VISIBILITY_ICON`) ; appui court = photo ; **appui long (300 ms) ou glissement
-    horizontal (> 12 px)** = le bouton lui-même devient un **carrousel** (0.17.1) : il grossit
+    horizontal (> 12 px)** = le bouton lui-même devient un **carrousel** (0.17.1 ; **vertical depuis
+    0.23.0**, voir « Navigation » plus bas : les deux autres modes en colonne au-dessus du bouton, glisser
+    vers le haut, `columnLift` / `visibilityAtLift`) : il grossit
     (×1,12), les symboles des autres modes apparaissent à gauche et à droite, flous et pâles ; ils
     **suivent le doigt** (glisser à gauche fait entrer celui de droite ; ordre Public · Amis · Privé,
     un symbole tous les 72 px, résistance au-delà des bouts : `stripOffset`), celui qui entre dans le
@@ -86,7 +88,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     Mode : **Public à la première ouverture**, puis le dernier choix est gardé d'une ouverture à
     l'autre sur l'appareil (`localStorage` `picti.visibilite`, `useShotVisibility` /
     `setShotVisibility` / `getShotVisibility`, `src/data/shotVisibility.ts`). Le même mode est
-    affiché et modifiable dans Moi (« Mes nouvelles photos sont visibles par… ») et dans
+    affiché et modifiable dans Paramètres › Prise de vue (avant 0.23.0 : Moi ; « Mes nouvelles photos sont visibles par… ») et dans
     `ImportSheet` (pastille `VisibilityPill`, tout le lot) : le changer là le change au déclencheur.
     Les 3 premières photos, tant que le mode n'a jamais été changé, le toast ajoute « — restez
     appuyé sur le déclencheur pour changer » (`takeVisibilityHint`, `picti.astuce.visibilite`).
@@ -178,7 +180,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   `#/photo/<id>/fil` = directement sur « Au fil du temps ») : la photo **en grand** occupe tout
   l'écran à l'ouverture (`.detail-photo.full`, pile du lieu glissable, couleurs / N&B inchangés,
   dégradé), poignée `.detail-handle` (bouton) qui fait défiler jusqu'à la fiche. De haut en bas :
-  actions (Capturer / Revoir in situ ou Géocadrer sur place, Reproduire si capturée, Enregistrer) ;
+  actions — depuis 0.23.0 : `[ Retrouver ] [ Reproduire ] (⇪)` (« Retrouver » = ex-« Revoir in situ », ou
+  « Capturer » / « Géocadrer sur place » ; « Reproduire » si capturée ; bouton rond Partager, voir
+  « Navigation » plus bas ; « ⋯ » en haut à droite sur une capture : « Retirer de mes captures ») ;
   **auteur** (`AuthorBlock` : ligne entière → `#/personne/<owner>`, ville lue par
   `usePublicProfile`, `FriendButton` ; ma photo : « Vous ») ; **prise de vue** (`shotDateText` :
   « Prise le mardi 6 octobre 2026 à 14 h 32 », heure locale, espaces insécables ; importée et prise
@@ -214,8 +218,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     appui sur une photo → sa fiche (`onOpen`) ; à moins de 5 m, la photo d'un autre pas encore
     capturée se **capture** (même déroulé que « Capturer ») ; le bouton « Chasser » de la frise
     ouvre la chasse (`onHunt`). Après une prise de vue (accueil, hors « Reproduire ») : pas
-    d'ouverture automatique, **miniature** `.last-shot` 5 s à la place du « + » (appui = fiche) ;
-    le toast garde son texte, sans bouton.
+    d'ouverture automatique ; depuis 0.23.0 (le bas du viseur n'a plus que la barre), le toast porte
+    « Voir » (→ fiche) au lieu de la miniature `.last-shot` de 0.16.0.
   - Collision corrigée : `.captured` (ancienne célébration de la chasse) s'appliquait aussi à
     `.capture-card` dans son état `captured` (z-index 30 par-dessus le message) → la célébration
     a sa classe `.capture-celebration` ; `.capture-card.captured` (z-index 6, sans fond ni marge)
@@ -375,7 +379,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   régulière (même vitesse sur deux demi-fenêtres de 250 ms : insensible au retard de la vidéo) ;
   médiane de 15 mesures de 15°, biais de perspective corrigé ; gardée dans `localStorage`
   `picti.focale`, utilisée par l'écran (accueil, chasse, recalage) et les nouvelles photos ;
-  affichée dans le menu (« Caméra 24 mm (mesurée) »). Sans elle (26 mm supposés), sur iPhone
+  affichée dans Paramètres › À propos (« Caméra 24 mm (mesurée) » ; dans le menu avant 0.23.0). Sans elle (26 mm supposés), sur iPhone
   Pro (24 mm) la photo défilait moins vite que le décor et restait décalée (2,7° à 30°).
 - **Taille de loin** (depuis 0.010.1, `displayScale` dans `src/geo/projection.ts`) : le plan-photo
   est réduit par `farScale` (1 au point de vue, ~⅓ à 20 m) avec une hauteur apparente minimale
@@ -390,7 +394,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   pull request = mettre en ligne. **Production actuelle : 0.19.0** (coque Capacitor 0.18.0 et boutons Liquid Glass de l'app iOS, fusionnées dans `main` sans PR à la demande d'Eliott le 08/10/2026 ; sur le site : symbole du mode sur les vignettes de « Mes photos », piles glissables dans « Mes photos » et le profil public, profondeur du « Retour » notée dans l'historique). Retour arrière possible : 0.17.1 (`dpl_E2NMXm5BS56e6TrdJRUQ2KABXZQ5`, commit `cffcf64`, carrousel du déclencheur), 0.17.0 (`dpl_5CfVmxd6os34dkQv95dJYpcfsyJw`, commit `07332a3`, réglette au-dessus du déclencheur), 0.16.3 (`dpl_G7fnhSXBHjSX6NSaGGCVd5wnGGRB`, commit `f6cdf16`, bouton « Capturer »), 0.16.2 (`dpl_13wcm3U9SPUyYY1s3u7Cx5oQkULg`, commit `f01558f`, avec le correctif A des amitiés rangé dans `supabase/migrations/`), 0.16.1 (`dpl_GtqYsDEv8LpnQtV2NDMYAt44Tkc9`, https://picti-ld6vsgbd7-dash-board4.vercel.app, commit `56f8cee`), 0.16.0 (`dpl_HsoBgetSVvNHJWvKF1DkwFbrdN6N`, https://picti-k4jvsgj4q-dash-board4.vercel.app, commit `197fb70`), 0.15.2 (`dpl_CzAQHyjkdtHaYc5XbwPDpfhKXFzg`, https://picti-av1c6j733-dash-board4.vercel.app, commit `923f46f`), 0.15.1 (`dpl_8MGLiue2e55LXVHuLAT93BhHxHSX`, commit `5a19ea7`), 0.15.0 (`dpl_5H8MFymL5FSrDjK4hHJxNJNCs7R6`, https://picti-hhcuypawj-dash-board4.vercel.app, étiquette git `v0.15.0`), 0.14.0 (`dpl_9TDSTZYJRyjE5TxMLy1h63DJWS7r`, https://picti-qid7yv1w0-dash-board4.vercel.app, étiquette git `v0.14.0`), 0.13.1 (`dpl_CWEBYDsasj4uGqN4HCQu4UEUSVuZ`, https://picti-1w0uak6yx-dash-board4.vercel.app, étiquette git `v0.13.1`), 0.013.1 d'origine (`dpl_DU2oCKyDmdFyg2RHWqe5EPzrwBXg`), 0.011.3 (`dpl_6tcTuitbuUf7TXN4AoPAxwhLDMS9`), 0.011.2 (`dpl_4PtSLtuydm9DTrwmnGfytBNsJ3NE`), 0.011.1 (`dpl_2wRsESgFE6868PMCUVwA13LGwZLr`), 0.010.1 (`dpl_3n1rUFb8urWWDRK7VuR57eqYfEBZ`), 0.009.2 (`dpl_GTeorpPpLWapoMQyyV7tcW8sMFaB`), 0.009.1 (`dpl_CH3VQP2FGb3572UpwuMzskCNv7yp`) ou 0.009.0 (`dpl_EPnnkgHnE3p8ENQJr7WHPTKcco4h`). **`main` est la branche de référence** (depuis le 29/09/2026, tout le travail des branches `claude/*` y a été rassemblé) : chaque nouvelle session part de `main`. 
 - Mises à jour : le build publie `version.json` (commit Vercel + numéro) ; `UpdateBanner`
   affiche « Nouvelle version de PICTI disponible : 0.009.0 » (vérif. au retour dans l'app et
-  toutes les 5 min, comparaison sur le commit) ; bouton « Recharger » + numéro dans le menu.
+  toutes les 5 min, comparaison sur le commit) ; numéro et « Recharger » (site seulement depuis 0.23.0)
+  dans Paramètres › À propos ; « PICTI 0.023.0 » en pied du menu Explorer.
 - **Numéro de version** au format **x.xxx.x** (`src/data/versionNumber.ts`), tiré du champ
   `version` de `package.json` (écrit en semver : `0.8.1` → affiché `0.008.1`). Premier chiffre =
   grande version (1 = sortie officielle), trois du milieu = nouvelle fonctionnalité, dernier =
@@ -442,7 +447,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   dans l'app, `App` attend la lecture — écran de démarrage — avant de choisir). Un utilisateur déjà
   connecté sur l'appareil ne le voit pas et le drapeau est posé (pas de tutoriel après une
   déconnexion) ; pas de tutoriel par-dessus un lien d'e-mail expiré (`authLinkError`). On le revoit
-  à tout moment : menu › « Revoir le tutoriel » (route `#/tutoriel` ; à la fin, retour là où l'on
+  à tout moment : Paramètres › Aide › « Revoir le tutoriel » depuis 0.23.0 (avant : le menu ; route `#/tutoriel` ; à la fin, retour là où l'on
   était, `goBack`) et, sans compte, lien « Revoir le tutoriel » sous le formulaire de connexion
   (`Auth onTutorial`). Fin du tutoriel sans compte : `Auth initialMode` = inscription (ou connexion
   pour « J'ai déjà un compte »).
@@ -492,6 +497,90 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - **Retours haptiques** : `haptic(kind)` (`src/native.ts`) — `@capacitor/haptics` dans l'app (chargé à
     la demande), `navigator.vibrate` dans un navigateur Android, rien dans Safari sur iPhone.
     `loadPreference` / `savePreference` : `@capacitor/preferences` dans l'app.
+
+- **Navigation (0.23.0, prompt `PROMPT-0.023.0.md` du dossier d'Eliott ; conception
+  `PICTI-ERGONOMIE-MENU.md`)** — le viseur ne garde que l'action ; le reste passe par une barre flottante
+  et deux glissés, **pareil sur le site, Android et l'app iOS** (barre en CSS, gestes dans la page) :
+  - **Trois écrans côte à côte : [ Carte ] ← [ Viseur ] → [ Mon profil ]**, tous rendus par `Home`
+    (`src/screens/Home.tsx`, prop `pane`) : les routes `#/`, `#/carte` et `#/profil` (`/profil/amis`)
+    renvoient le même élément `<Home>` (`App.tsx`), qui reste monté de l'un à l'autre. La carte
+    (`WorldMap`, chargée à la demande) et le profil sont des panneaux `.shell-pane` (z-index 25)
+    préparés cachés (profil après `PREPARE_MS` 1,5 s, carte après 2,5 s) puis gardés : la carte n'est pas
+    rechargée à chaque ouverture (et revient à sa dernière vue après un détour par un autre écran :
+    `lastCamera`). Viseur recouvert → `useViewfinder({ active: false })` : caméra web rendue (gardée
+    15 s par `useCamera`), caméra d'ARKit cachée et session gardée `AR_TRACKING.pauseKeepAlive` (15 s,
+    `useArTracking(wanted, active)` : pause ≠ selfie, qui l'arrête net) — revenu avant, image et calage
+    intacts ; sinon redémarrage avec les protections de la 0.21.0 (`arLeavesCamera`, `stopWebCamera`).
+    `ArSpotsLayer` n'est pas rendu quand le viseur est recouvert.
+  - **Glissés** (`src/components/usePanes.ts`, règles pures `swipeOpen.ts`, testées) : sur le viseur,
+    vers la gauche le profil arrive par la droite, vers la droite la carte par la gauche, sous le doigt ;
+    lâché au-delà de 35 % (`OPEN_RATIO`) ou d'un geste vif, il finit sa course puis change d'adresse,
+    sinon il repart. Sur la carte, le doigt la déplace ; seul un glissé vers la gauche **partant de la
+    bande du bord droit** (`EDGE_BAND` 24 px, `.map-edge`, `inRightEdge`) la referme. Mêmes départs
+    qu'en 0.21.1 (`OWN_GESTURES` + `.bottom-nav`). Pendant le geste rien n'est redessiné par React :
+    styles posés sur les panneaux, et `--away` (0 viseur → 1 ailleurs) posé sur la barre. `goTo(pane)`
+    fait la même animation sans le doigt (bouton rouge réduit, menu, bouton Profil). Historique : ouvert
+    depuis le viseur = nouvelle entrée marquée `pictiHomeBelow` (`navigate(…, { mark })`, `historyMark`) ;
+    carte ↔ profil = remplacement ; retour au viseur = `goBack` si l'entrée est marquée, sinon
+    `navigate('/', { replace })`. Une adresse changée par l'historique (`navigationKind() === 'pop'` :
+    geste retour d'iOS, bouton du navigateur) s'affiche sans animation. **App iOS** : gestes retour /
+    avant de WebKit coupés sur le viseur **et la carte** (`PictiViewController.pageOwnsSwipes`) ; actifs
+    sur le profil (retour au viseur comme avant) — vérifié au simulateur le 12/10.
+  - **Barre du bas** (`src/components/BottomBar.tsx`, `.bottom-nav`) : pilule à 16 px des côtés, 12 px
+    au-dessus de `--safe-bottom`, 64 px (`--bar-h` ; `--bar-space` = place à laisser dessous), z-index 30.
+    Gauche **Menu** (4 carrés → feuille Explorer), centre **bouton rouge** (`Shutter` : 76 px sur le
+    viseur, déborde de 20 px au-dessus, appui = photo, appui long = mode ; ailleurs — carte, profil, menu
+    ouvert — réduit à 44 px, `reduced` : un appui ramène au viseur, ni photo ni choix ; passage animé par
+    `@property --away`, léger ressort, ou suivi du doigt), droite **avatar** (initiale, anneau rouge sur
+    Mon profil). Retours haptiques (`haptic('tick')`). Cachée en Reproduire (qui garde ✕ · déclencheur ·
+    caméra avant), chasse, tutoriel, Paramètres, fiche après capture, choix d'une prise figée, feuille
+    d'import, saisie au clavier (`useTyping`). Web : verre CSS (blanc 72 %, `backdrop-filter`). **App iOS
+    26+** : vrai Liquid Glass — `GlassButtons` reçoit deux nouveaux types : `bar` (pilule `UIGlassEffect`,
+    Menu et avatar dessinés dans son contenu, `items`) et `shutter` (cercle rouge, symbole SF du mode
+    `globe` / `person.2.fill` / `lock.fill`, pastille ⚠) ; la pilule est envoyée en premier et posée sous
+    le reste ; les éléments web deviennent transparents (`.glass-native`) mais restent ceux qu'on touche ;
+    la colonne des modes reste web (au-dessus de la pilule).
+  - **Choix du mode vertical** (`shutterModes.ts`) : appui long (300 ms) ou glissé vers le haut (12 px) ;
+    le mode actuel dans le cercle, les deux autres **en colonne au-dessus** (ordre Public · Amis · Privé,
+    `columnOrder`), rien en dessous ; glisser vers le haut fait descendre dans le cercle le mode du dessus
+    (`MODE_STEP` 68 px, résistance aux bouts), un symbole qui passe sous le cercle s'efface ; nom du mode
+    à côté du cercle (en haut à droite, au-dessus de la pilule). Relâcher : pas de photo. Clavier :
+    flèches haut / bas (et gauche / droite).
+  - **Double appui sur l'image du viseur = caméra arrière ↔ avant** (`doubleTap.ts`, testé : deux appuis
+    de moins de 250 ms, à moins de 300 ms et 30 px l'un de l'autre) ; court fondu (`.camera-flip`) ;
+    jamais de photo ; rien depuis les boutons, la barre, le rail, les pastilles, la frise, une photo du
+    décor (`.overlay-photo.clickable` : son appui reste prioritaire) ni les feuilles (`NO_DOUBLE_TAP`). Un
+    appui simple sur l'image nue n'a pas de rôle : rien à retarder. Même passage ARKit ↔ caméra web que
+    l'ancien bouton selfie (supprimé). Marche aussi en Reproduire.
+  - **Viseur allégé** : rail = notifications + « à chasser » (drapeau, pastille = photos à proximité →
+    `#/proximite`) ; plus de selfie, filtre, recherche ni « + ». **« + » sur la carte** (en bas à droite,
+    au-dessus de la barre) → `ImportSheet` ; une photo **sans aucune position** peut être « Placée ici »
+    (au centre de la carte : `hintPosition`, position approchée comme une photo GPS sans direction, à
+    géocadrer ensuite sur place) ou gardée sans position (fermer la feuille = sans position).
+  - **Menu Explorer** (`MenuSheet.tsx`, feuille `.sheet-layer.explorer` sous la barre) : grille 2 × 2 À
+    proximité · Rechercher · Mes chasses · Amis (pastille des demandes → `#/profil/amis`), « Carte du
+    monde » (même écran que le glissé), pied « PICTI 0.023.0 ». Les feuilles (`Sheet`) sont rendues à la
+    racine (`createPortal` dans `#root`, z-index 35) : une feuille ouverte depuis la carte ou le profil
+    passe au-dessus d'eux.
+  - **Mon profil** (`Profile.tsx`) : avatar, pseudo, « n photos · n captures · n amis », onglets Mes
+    photos (piles glissables) / Mes captures (`CaptureGrid`) / Mes amis (amis, invitations, demandes,
+    chasseurs) ; ⚙️ en haut à droite → **Paramètres** (`Settings.tsx`, `#/parametres`) : Prise de vue
+    (mode par défaut), Compte (pseudo, e-mail, `PremiumCard`, Se déconnecter), Aide (Revoir le
+    tutoriel), À propos (version, focale, Recharger sur le site), **Avancé** (suivi visuel) après 7 appuis
+    sur la version (`picti.avance` sur l'appareil ; pas de notion de testeur dans l'app). Rien de factice :
+    le reste de la liste de `PICTI-ERGONOMIE-MENU.md` viendra plus tard.
+  - **Fiche** : `[ Retrouver ] [ Reproduire ] (⇪)` ; **Partager** (`src/data/sharePhoto.ts`) = feuille
+    du système avec le **fichier** (pleine résolution) et « Trouvée sur PICTI https://picti.vercel.app »
+    (jamais la position) — app : `Filesystem.writeFile` (cache, effacé après) + `Share.share({ files })` ;
+    navigateur : `navigator.share({ files })` si `canShare`, sinon téléchargement ; annulation silencieuse
+    (`isShareCancel`) ; mêmes droits que l'ancien « Enregistrer » (ma photo, sinon Premium) ; pas de
+    bouton sur une photo pas encore capturée. **Retirer une capture** (photo d'un autre) : « ⋯ » de la
+    fiche ou appui long (500 ms, `useLongPress`) dans Mes captures / Mes chasses → « Retirer cette
+    capture ? » → `removeCapture` (ma ligne de `captures` seulement, policy existante « Supprimer ses
+    captures ») : la photo redevient à chasser (N&B), le like sur place devient un like ordinaire dans
+    le store. Migration **`20261012220000_retirer_une_capture.sql`, pas appliquée** (déclencheur
+    `captures_unlike` : efface la notification « capture » — le chasseur n'a pas le droit — et passe le
+    like à `on_site = false`), vérifiée sur la vraie base dans une transaction annulée le 12/10.
 
 ## App native (Capacitor)
 
@@ -668,8 +757,8 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
     (`acrossJump`) et continuent d'être replacées. `useArCamera(stage, visible)` : cadre de la caméra native = rectangle de
     l'élément (ResizeObserver), classe **`picti-ar`** sur `<html>` (fonds transparents, vidéo web
     cachée, `styles.css`), masquage différé de 150 ms (relais d'un écran à l'autre). Réglage
-    **« Suivi visuel : activé / coupé »** dans le menu (`setArSetting`, `localStorage`
-    `picti.suivi-visuel`), seulement quand l'appareil a ARKit.
+    **« Suivi visuel : activé / coupé »** dans Paramètres › Avancé depuis 0.23.0 (avant : le menu ;
+    `setArSetting`, `localStorage` `picti.suivi-visuel`), seulement quand l'appareil a ARKit.
   - **`src/sensors/useViewfinder.ts`** : point d'entrée unique des capteurs des écrans caméra (accueil,
     chasse, recalage) — caméra (`capture` ARKit, avec focale et pose), géolocalisation, orientation
     (celle du suivi dès que son cap est calé, sinon les capteurs), position (suivi calé, sinon
@@ -745,7 +834,9 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   vérifié : signalé à chaque ancre, `replaceState`, retour et avance) : sinon, après un retour, le bord
   droit rouvrirait le dernier écran quitté au lieu du profil ; l'accueil n'a jamais d'écran avant lui
   (on y revient toujours en remplaçant l'entrée). **Android** : glisser depuis le tout bord droit reste
-  le retour du système.
+  le retour du système. **Depuis 0.23.0** : généralisé à la carte (à gauche du viseur) — `usePanes`
+  remplace `useSwipeOpen`, voir « Navigation » (section Technique) ; le profil n'est plus un aperçu
+  inerte mais le vrai écran, gardé monté.
 - **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
   `APP_URL`, ancre `#/…` seulement) → `location.hash`. Modèles
   `public/.well-known/apple-app-site-association` (`TEAM_ID_APPLE.app.picti`, composant
@@ -757,9 +848,9 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   passe oublié ») ouvriraient l'app : à régler avant. Déconnecté, un lien reçu dans l'app ne
   passe pas par `rememberInvite` (l'écran de connexion est déjà affiché) ; après connexion, la
   route `ami` est toujours dans l'adresse et ouvre l'invitation.
-- **Limites connues** : Android — « Enregistrer » ne fait rien (`navigator.share` absent de la
-  WebView, pas de gestion des téléchargements) ; il faudra `@capacitor/filesystem` +
-  `@capacitor/share`. À vérifier sur appareil : MapLibre (processus de fond servi par
+- **Limites connues** : ~~Android — « Enregistrer » ne fait rien~~ réglé en 0.23.0 : le bouton
+  Partager passe par `@capacitor/filesystem` (fichier dans le cache) + `@capacitor/share` dans l'app
+  (`res/xml/file_paths.xml` a déjà `cache-path`). À vérifier sur appareil : MapLibre (processus de fond servi par
   `capacitor://`), position dans la WebView iOS, import de photos (`<input type="file">`).
 - **Avant l'App Store** : suppression du compte dans l'app (règle 5.1.1), politique de
   confidentialité et fiche confidentialité, icônes / écran de démarrage (`npx @capacitor/assets
@@ -790,7 +881,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   comptage des pas, position tenue à l'arrêt, photo réduite de loin (à 20 m : 12 % de l'écran).
 - 0.011.0 : carte orientable (deux doigts) avec bouton boussole pour remettre le nord en haut.
 - 0.011.1 : focale de la caméra mesurée automatiquement (iPhone Pro : la photo ne reste plus
-  décalée après avoir tourné) ; affichée dans le menu.
+  décalée après avoir tourné) ; affichée dans le menu (Paramètres › À propos depuis 0.23.0).
 - 0.011.2 : défauts d'affichage de la revue ergonomique du 30/09 : bouton retour qui chevauchait
   les titres et crayon « Renommer » invisible (`:where(.round-btn)` sans poids, pour que
   `.back-btn` / `.detail-edit` gardent leur position absolue), recherche qui débordait à droite
@@ -844,6 +935,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.23.0 : barre flottante en bas (Menu · bouton rouge · avatar, vrai Liquid Glass dans l'app iOS 26+) ; carte à gauche du viseur en glissant (retour depuis le bord droit ou par le bouton rouge réduit), profil à droite, les trois gardés montés ; choix du mode en colonne au-dessus du bouton rouge ; double appui = caméra avant / arrière (plus de bouton selfie) ; « + » d'import sur la carte (photo sans position posée au centre de la carte) ; menu Explorer 2 × 2 ; Mon profil à onglets + page Paramètres (mode par défaut, compte, Premium, tutoriel, version, suivi visuel caché) ; fiche : « Retrouver » · « Reproduire » · Partager (feuille du système avec le fichier, remplace « Enregistrer ») ; retirer une capture. Plugins Capacitor Share et Filesystem. Migration de nettoyage des notifications proposée, pas appliquée.
 - 0.22.0 : tutoriel du premier lancement, avant la création du compte : photo d'essai prise avec sa caméra et posée devant soi, à retrouver en se tournant (flèche, netteté, vibrations), capture en couleur, puis « la photo la plus proche est à 240 m au nord-est » (fonction `nearest_public_photo`, sans compte) ; orientation relative seulement (ARKit ou gyroscope), ni GPS ni boussole ; « Revoir le tutoriel » dans le menu. Plugins Capacitor Haptics et Preferences. Numéro libéré par l'abandon de la croix de visée (09/10, jamais en ligne).
 - 0.18.0 : coque native Capacitor 8 (iOS + Android), web embarqué ; liens des e-mails vers l'app en ligne, pas de bandeau de mise à jour, « · app iOS » dans le menu ; liens d'invitation préparés (pas actifs). Site web inchangé.
 - Test terrain du 30/09 (iPhone, 0.011.2) : selfie beaucoup trop grand ; en avançant et en reculant,
@@ -899,3 +991,4 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - [2026-10-08 — Vrais boutons Liquid Glass dans l'app iOS (0.19.0)](claude/picti/2026-10-08-boutons-liquid-glass.md)
 - [2026-10-12 — Glisser vers la gauche sur le viseur ouvre le profil (0.21.1)](claude/picti/2026-10-12-profil-en-glissant.md)
 - [2026-10-12 — Tutoriel du premier lancement : photo d'essai, puis la vraie photo la plus proche (0.22.0)](claude/picti/2026-10-12-photo-essai.md)
+- [2026-10-12 — Barre du bas, carte en glissé, double appui, Paramètres, partager, retirer une capture (0.23.0)](claude/picti/2026-10-12-barre-du-bas.md)

@@ -19,26 +19,27 @@ iOS / Android (coque Capacitor, voir « App native ») :
 
 | Service | Écran | Détail |
 | --- | --- | --- |
-| **Tutoriel du premier lancement** (0.22.0) | Avant la création du compte ; Menu › Revoir le tutoriel | En 30 s, sans marcher : on prend une **photo d'essai** avec sa caméra, elle reste posée devant l'endroit visé (en noir et blanc) ; on se tourne jusqu'à ce qu'elle sorte de l'écran, on la **retrouve** (flèche ; elle devient nette, ça vibre de plus en plus vite), on la **capture** : elle repasse en couleur et se fond dans le décor. Puis « La photo la plus proche est à 240 m au nord-est » (photo publique à moins de 5 km) → « Créer mon compte pour la chasser ». Orientation relative seulement (ARKit, sinon gyroscope), jamais le GPS ni la boussole ; la photo d'essai n'est ni envoyée ni gardée. |
+| **Tutoriel du premier lancement** (0.22.0) | Avant la création du compte ; Mon profil › ⚙️ Paramètres › Revoir le tutoriel | En 30 s, sans marcher : on prend une **photo d'essai** avec sa caméra, elle reste posée devant l'endroit visé (en noir et blanc) ; on se tourne jusqu'à ce qu'elle sorte de l'écran, on la **retrouve** (flèche ; elle devient nette, ça vibre de plus en plus vite), on la **capture** : elle repasse en couleur et se fond dans le décor. Puis « La photo la plus proche est à 240 m au nord-est » (photo publique à moins de 5 km) → « Créer mon compte pour la chasser ». Orientation relative seulement (ARKit, sinon gyroscope), jamais le GPS ni la boussole ; la photo d'essai n'est ni envoyée ni gardée. |
+| **Navigation** (0.23.0) | Partout (site, Android, app iOS) | **Barre flottante en bas** : Menu (4 carrés → Explorer : À proximité, Rechercher, Mes chasses, Amis, Carte du monde) · **bouton rouge** (photo sur le viseur ; réduit ailleurs, il ramène au viseur) · avatar (Mon profil). **Glisser** sur le viseur : vers la droite la **carte** arrive par la gauche (on revient en glissant vers la gauche depuis son bord droit), vers la gauche **Mon profil** par la droite. Vrai Liquid Glass dans l'app iOS 26+. |
 | **Géocadrage en direct** | Accueil (viseur) | Le déclencheur rouge fige l'image de la caméra et enregistre position GPS (lissée ; immobile, moyenne des relevés depuis l'arrêt), sa précision, cap, inclinaison et roulis. Pastille GPS orange au-delà de ±12 m ; déclencher alors fige l'image et demande « Attendre » (la photo se prend seule dès que le GPS repasse sous 12 m) ou « Prendre quand même ». |
-| **Selfie géocadré** | Accueil → bouton caméra | Caméra avant : on géocadre l'objectif avant (cap retourné). Le selfie se retrouve comme toute photo, en visant depuis la place du téléphone l'endroit où posait son auteur. |
-| **Géocadrage en différé (EXIF)** | « + » → Importer | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement, avec la précision notée par l'appareil (`GPSHPositioningError`) quand elle existe. |
+| **Selfie géocadré** | Viseur → **double appui** sur l'image (0.23.0) | Caméra avant : on géocadre l'objectif avant (cap retourné). Le selfie se retrouve comme toute photo, en visant depuis la place du téléphone l'endroit où posait son auteur. |
+| **Géocadrage en différé (EXIF)** | Carte → « + » → Importer (une photo sans position peut être posée au centre de la carte) | Une photo de smartphone contenant position **et** direction (`GPSImgDirection`) est géocadrée automatiquement, avec la précision notée par l'appareil (`GPSHPositioningError`) quand elle existe. |
 | **Géocadrage en différé (sur place)** | Recaler | Pour les photos sans direction ou sans GPS : sur le lieu, on superpose le cliché (transparence + cadrage/focale) au décor réel, puis « Géocadrer ici ». |
 | **Chasse in situ** | Chasser | Guidage vers le point de vue (distance, direction), photo projetée en perspective dans la vue caméra (une carte, jamais plein écran), jauges cap/inclinaison ; à moins de 5 m du point de vue, « Capturer » (ou l'alignement tenu) : on ne bouge plus, la photo s'agrandit en 2 s jusqu'à couvrir l'écran en prenant ses couleurs ⇒ **capturée** à 100 % (marcher ou tourner le téléphone annule). |
-| Profil, Mes chasses | Menu | Photos géocadrées, captures, photos à recaler. |
-| À proximité, Recherche | Rail de droite | Photos triées par distance avec flèche de direction ; filtres par type. |
+| Mon profil | Avatar de la barre, ou glisser vers la gauche | « n photos · n captures · n amis », onglets Mes photos / Mes captures (appui long : retirer une capture) / Mes amis ; ⚙️ **Paramètres** (mode par défaut, compte, Premium, déconnexion, tutoriel, version ; « Avancé » après 7 appuis sur la version). |
+| Mes chasses, À proximité, Recherche | Menu Explorer (« à chasser » aussi dans le rail) | Captures, photos à retrouver ; photos triées par distance avec flèche de direction ; filtres par type. |
 
-| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place, comme des **cartes** (cadre blanc, taille plafonnée), et **y restent quand on se déplace** ; pour un même lieu (5 m, jusqu'à 10 m selon le GPS, et même direction), **la plus aimée est devant** (une photo de moins de 24 h passe en tête) ; la frise et le glissement font défiler la pile, les points ouvrent la **galerie du lieu**. Appui sur une photo : sa **fiche** (à moins de 5 m, la photo d'un autre se **capture**, puis sa fiche monte en feuille) ; après une prise de vue, **miniature** 5 s dans le coin (appui = sa fiche). |
-| **Carte du monde** | Bouton repère / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus aimée, compteur), **position exacte** en zoomant ; fiche du groupe des plus aimées aux moins aimées, avec cœurs ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut ; filtre **Monde / Amis** (toutes les photos visibles, ou seulement les miennes et celles de mes amis). |
-| **Visibilité** | Accueil, Import, Moi, Détail | Mode **Public** à la première ouverture ; **appui long sur le déclencheur puis glisser** à gauche / droite pour choisir Public / Amis / Privé (le symbole du bouton suit) ; le dernier mode choisi est gardé, aussi réglable dans Moi et pour un lot importé ; modifiable après coup dans le détail. |
+| **Viseur augmenté** | Accueil | Les photos géocadrées autour de soi (150 m) flottent à leur place, comme des **cartes** (cadre blanc, taille plafonnée), et **y restent quand on se déplace** ; pour un même lieu (5 m, jusqu'à 10 m selon le GPS, et même direction), **la plus aimée est devant** (une photo de moins de 24 h passe en tête) ; la frise et le glissement font défiler la pile, les points ouvrent la **galerie du lieu**. Appui sur une photo : sa **fiche** (à moins de 5 m, la photo d'un autre se **capture**, puis sa fiche monte en feuille) ; après une prise de vue, le message porte « Voir » (sa fiche). |
+| **Carte du monde** | Glisser vers la droite sur le viseur / Menu | Carte type Google Maps (MapLibre + OpenFreeMap) : photos **regroupées** de loin (vignette = la plus aimée, compteur), **position exacte** en zoomant ; fiche du groupe des plus aimées aux moins aimées, avec cœurs ; carte **orientable** (deux doigts), bouton boussole pour remettre le nord en haut ; filtre **Monde / Amis** (toutes les photos visibles, ou seulement les miennes et celles de mes amis). |
+| **Visibilité** | Accueil, Import, Paramètres, Détail | Mode **Public** à la première ouverture ; **appui long sur le bouton rouge puis glisser vers le haut** (les deux autres modes sont en colonne au-dessus, 0.23.0) pour choisir Public / Amis / Privé ; le dernier mode choisi est gardé, aussi réglable dans Paramètres et pour un lot importé ; modifiable après coup dans le détail. |
 | **Likes** | Fiche, viseur, carte | Cœur et nombre de likes ; **capturer une photo = l'aimer sur place** (cœur épinglé) ; l'auteur voit qui l'a aimée. |
 | **Notifications** | Cloche (accueil) | « Paul a capturé votre photo », « Paul et 4 autres aiment votre photo » (likes regroupés), en temps réel. |
-| **Fiche d'une photo** | Appui sur une photo, partout | La photo **en grand** (plein écran, pile du lieu glissable), puis en descendant : Capturer / Revoir in situ, Reproduire, Enregistrer ; **l'auteur** (→ son profil public, bouton d'amitié) ; **« Prise le mardi 6 octobre 2026 à 14 h 32 »** (et la date d'ajout pour une photo importée) ; les **photos liées** : « **Au fil du temps** » (l'originale puis ses reproductions par date de prise, avant / après) ou « **D'après la photo de …** » (l'originale d'une reproduction) ; mes réglages ; détails techniques repliés. Juste après une capture, elle monte **en feuille** par-dessus la caméra (on la redescend pour contempler la photo in situ). |
+| **Fiche d'une photo** | Appui sur une photo, partout | La photo **en grand** (plein écran, pile du lieu glissable), puis en descendant : **[ Retrouver ] [ Reproduire ] (⇪ Partager)** (« Capturer » si pas encore capturée ; « ⋯ » → Retirer de mes captures) ; **l'auteur** (→ son profil public, bouton d'amitié) ; **« Prise le mardi 6 octobre 2026 à 14 h 32 »** (et la date d'ajout pour une photo importée) ; les **photos liées** : « **Au fil du temps** » (l'originale puis ses reproductions par date de prise, avant / après) ou « **D'après la photo de …** » (l'originale d'une reproduction) ; mes réglages ; détails techniques repliés. Juste après une capture, elle monte **en feuille** par-dessus la caméra (on la redescend pour contempler la photo in situ). |
 | **Profil public** | Auteur d'une photo, noms | Nom, ville, « Sur PICTI depuis … », **bouton d'amitié** (Ajouter / Demande envoyée / Accepter / Amis ✓) et ses photos que j'ai le droit de voir — jamais son code ami ni son offre. |
-| **Reproductions** | Après une capture, Fiche | **Reproduire cette photo** : la caméra avec l'originale en calque et deux petites croix à superposer pour retrouver son orientation (0.016.1). Distance et alertes GPS restent distinctes. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
+| **Reproductions** | Après une capture, Fiche | **Reproduire** : la caméra avec l'originale en calque et deux petites croix à superposer pour retrouver son orientation (0.016.1). Distance et alertes GPS restent distinctes. Toute photo prise dans la même vue (même lieu, même direction) en devient une **version** (↻) : sa fiche montre l'originale et un curseur **avant / après**. |
 | **Galerie d'un lieu** | Points d'une pile | Toutes les photos du lieu, triées par likes, date d'ajout ou date de prise. |
-| **Amis** | Moi › Mes amis | **Lien d'invitation** (`#/ami/<code>`, à partager ou en **QR code**), ajout par code ou **par nom** ; demandes à accepter (pastille sur le menu), retrait. |
-| Enregistrer une photo | Fiche | Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
+| **Amis** | Mon profil › Mes amis, Menu › Amis | **Lien d'invitation** (`#/ami/<code>`, à partager ou en **QR code**), ajout par code ou **par nom** ; demandes à accepter (pastille sur le menu), retrait. |
+| Partager une photo | Fiche › ⇪ | Feuille de partage du système avec le **fichier** (WhatsApp, Messages, AirDrop… et « Enregistrer l'image ») ; sans partage dans le navigateur, téléchargement. Gratuit pour ses propres photos, **PICTI Premium** pour celles des autres. |
 
 Sur ordinateur (sans boussole), la chasse passe en **mode démo** : on se place au point de
 vue et on regarde autour de soi en faisant glisser l'image.
@@ -148,20 +149,24 @@ iOS derrière la page) et les photos sont placées d'après le **mouvement réel
 centimètre par la caméra et les capteurs : elles ne flottent plus et ne suivent plus les écarts du GPS.
 La position absolue vient de tous les relevés GPS de la session, ramenés au même point (elle s'affine
 en marchant) ; le cap, de la boussole (et du trajet). Une photo prise pendant la session est replacée
-quand ce calage s'affine. Menu › « Suivi visuel : activé / coupé » pour comparer avec le GPS et la
-boussole seuls. Selfie, site et Android : comme avant.
+quand ce calage s'affine. Paramètres › Avancé › « Suivi visuel : activé / coupé » (7 appuis sur la
+version pour l'afficher, depuis 0.23.0) pour comparer avec le GPS et la boussole seuls. Selfie, site et Android : comme avant.
 
 **Retour en arrière** (0.19.0, app iOS) : glisser le doigt depuis le bord gauche de l'écran, comme
-dans les autres apps de l'iPhone (l'écran précédent apparaît dessous).
+dans les autres apps de l'iPhone (l'écran précédent apparaît dessous) — sauf sur le viseur et la carte
+(0.23.0), qui ont leurs propres glissés.
 
 **Profil en glissant** (0.21.1, partout) : sur l'accueil (viseur), glisser le doigt de droite à
 gauche fait arriver son profil par la droite, en suivant le doigt ; on le lâche plus loin qu'un tiers
 de l'écran (ou d'un geste vif) pour l'ouvrir. Le déclencheur, la frise et les piles de photos gardent
-leurs propres gestes ; pas pendant « Reproduire ».
+leurs propres gestes ; pas pendant « Reproduire ». Depuis 0.23.0, même chose vers la droite pour la
+**carte** (à gauche du viseur) ; sur la carte, le doigt la déplace, et glisser vers la gauche depuis
+son bord droit (ou le bouton rouge réduit) ramène au viseur. Double appui sur l'image du viseur :
+caméra avant / arrière.
 
-Limite connue : sur Android, « Enregistrer » une photo ne fait rien (la WebView Android n'a ni
-feuille de partage ni téléchargement) ; il faudra un plugin (`@capacitor/filesystem` +
-`@capacitor/share`).
+Partager une photo (0.23.0) : dans l'app, le fichier est écrit dans le cache (`@capacitor/filesystem`)
+puis donné à la feuille de partage du système (`@capacitor/share`) — réglé aussi sur Android, où
+l'ancien « Enregistrer » ne faisait rien.
 
 ### Liens d'invitation dans l'app (préparé, pas encore actif)
 
