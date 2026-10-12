@@ -46,16 +46,19 @@ export interface Viewfinder {
  * Capteurs d'un écran caméra (accueil, chasse, recalage). Dans l'app iOS, caméra arrière : le suivi
  * visuel d'ARKit (caméra affichée derrière `stage`, position et orientation calées sur la Terre) ;
  * ailleurs, ou s'il manque, la caméra web, le GPS filtré et la boussole, comme avant.
- * `calibrateFocal` : mesurer la focale de la caméra web en tournant (accueil, chasse).
+ * `calibrateFocal` : mesurer la focale de la caméra web en tournant (accueil, chasse) ; `locate` :
+ * suivre la position (faux pour le tutoriel, qui ne la demande qu'à la fin).
  */
 export function useViewfinder({
   stage,
   facing = 'environment',
   calibrateFocal = false,
+  locate = true,
 }: {
   stage: RefObject<HTMLElement | null>
   facing?: CameraFacing
   calibrateFocal?: boolean
+  locate?: boolean
 }): Viewfinder {
   const wanted = facing === 'environment'
   const { state: arState, view } = useArTracking(wanted)
@@ -65,7 +68,7 @@ export function useViewfinder({
   // ARKit sans image (caméra arrière noire, selfie normal).
   const arPending = wanted && !arActive && !arLeavesCamera(arState.status)
   const web = useCamera(!arActive && !arPending, facing)
-  const geo = useGeolocation()
+  const geo = useGeolocation(locate)
   const sensors = useOrientation()
   const webPosition = useLivePosition(geo.track, sensors.absolute ? sensors.basis : null)
   const { focal35: webFocal35 } = useCameraFocal()

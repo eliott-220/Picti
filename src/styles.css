@@ -3916,3 +3916,216 @@ button.tile-author {
   }
   .cross-message { bottom: 24px; font-size: 13px; }
 }
+
+/* ---------- Tutoriel du premier lancement (0.22.0) ---------- */
+
+/* Viseur du tutoriel : mêmes fonds que le viseur (transparent derrière la caméra d'ARKit). */
+html.picti-ar .tutorial {
+  background: transparent;
+}
+
+.tutorial-top {
+  position: absolute;
+  top: calc(var(--safe-top) + 16px);
+  left: 16px;
+  right: 16px;
+  z-index: 8;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Consigne de l'étape : sur deux lignes au besoin (pas de texte coupé). */
+.tutorial .guide span {
+  white-space: normal;
+}
+
+.tutorial-skip {
+  flex-shrink: 0;
+  margin-left: auto;
+  min-height: 48px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 24px;
+  background: var(--glass);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+}
+
+.tutorial-bottom {
+  justify-content: center;
+}
+
+.tutorial-bottom .capture-btn {
+  margin-bottom: 0;
+}
+
+/* Capturée : la plaque, en couleur et plein écran, se fond dans le décor réel. */
+.tutorial-melt {
+  animation: tutorial-melt 1.2s ease-in 0.7s forwards;
+}
+
+@keyframes tutorial-melt {
+  to {
+    opacity: 0;
+  }
+}
+
+.tutorial-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: var(--pad);
+  pointer-events: none;
+}
+
+.tutorial-reveal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 340px;
+  padding: 28px 28px 24px;
+  border-radius: 40px;
+  background: var(--red);
+  color: #fff;
+  text-align: center;
+  pointer-events: auto;
+  animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) 1.7s both;
+}
+
+.tutorial-reveal-card strong {
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.tutorial-reveal-card .btn {
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-melt {
+    animation-duration: 0.01s;
+  }
+  .tutorial-reveal-card {
+    animation: none;
+  }
+}
+
+/* Caméra refusée, et écran final : cartes claires. */
+.tutorial-denied,
+.tutorial-final {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.tutorial-denied {
+  justify-content: center;
+  padding: var(--pad);
+}
+
+.tutorial-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.tutorial-card svg {
+  color: var(--red);
+}
+
+.tutorial-card h1,
+.tutorial-final h1 {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.tutorial-card p,
+.tutorial-final p {
+  max-width: 320px;
+  color: var(--ink-2);
+  font-size: 16px;
+}
+
+.tutorial-final-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: calc(var(--safe-top) + 32px) var(--pad) 16px;
+  text-align: center;
+}
+
+.tutorial-final h1 strong {
+  color: var(--red);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tutorial-final-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 var(--pad) calc(var(--safe-bottom) + 28px);
+}
+
+/* Vignette de la photo la plus proche : en noir et blanc et floutée — à capturer sur place. */
+.nearest-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 200px;
+  overflow: hidden;
+  border: 4px solid #fff;
+  border-radius: 20px;
+  background: linear-gradient(160deg, #cfd3d6, #8d9296);
+  box-shadow: var(--shadow);
+  color: #fff;
+}
+
+.nearest-thumb::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  background: var(--thumb, none) center / cover;
+  filter: grayscale(1) blur(8px);
+}
+
+.nearest-thumb > * {
+  position: relative;
+}
+
+.nearest-thumb.empty {
+  background: var(--paper-2);
+  color: var(--red);
+}
+
+.nearest-thumb.pending {
+  animation: nearest-pending 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes nearest-pending {
+  to {
+    opacity: 0.55;
+  }
+}
+
+/* Connexion : « Revoir le tutoriel », sous le formulaire. */
+.welcome-tutorial {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto calc(var(--safe-bottom) + 24px);
+}

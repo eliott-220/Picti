@@ -66,6 +66,19 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
+      <ul className="menu">
+        <li>
+          <button type="button" onClick={() => navigate('/tutoriel')}>
+            <span className="menu-icon">
+              <Icon name="scan" />
+            </span>
+            <span className="menu-text">
+              <strong>Revoir le tutoriel</strong>
+              <span>Prendre une photo d’essai et la retrouver, en 30 secondes</span>
+            </span>
+          </button>
+        </li>
+      </ul>
       {arToggle && (
         <ul className="menu">
           <li>

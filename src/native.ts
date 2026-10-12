@@ -239,6 +239,66 @@ export function appLinkHash(url: string, app = APP_URL): string | null {
 }
 
 /**
+ * Retours haptiques : `tick` (léger, en s'alignant), `strong` (dessus), `clac` (déclencheur),
+ * `success` (capture).
+ */
+export type HapticKind = 'tick' | 'strong' | 'clac' | 'success'
+
+/** Vibrations du navigateur (Android) pour chaque retour (ms). */
+export const WEB_VIBRATION: Record<HapticKind, number | number[]> = {
+  tick: 12,
+  strong: 24,
+  clac: 30,
+  success: [60, 40, 120],
+}
+
+let hapticsPlugin: Promise<typeof import('@capacitor/haptics')> | null = null
+
+/**
+ * Retour haptique : moteur du téléphone par Capacitor Haptics dans l'app (iOS, Android) ;
+ * `navigator.vibrate` dans un navigateur Android ; rien dans Safari sur iPhone (il ne vibre pas).
+ * `@capacitor/haptics` n'est chargé que dans la coque.
+ */
+export function haptic(kind: HapticKind, native = isNative()): void {
+  if (!native) {
+    navigator.vibrate?.(WEB_VIBRATION[kind])
+    return
+  }
+  hapticsPlugin ??= import('@capacitor/haptics')
+  void hapticsPlugin
+    .then(({ Haptics, ImpactStyle, NotificationType }) =>
+      kind === 'success'
+        ? Haptics.notification({ type: NotificationType.Success })
+        : Haptics.impact({ style: kind === 'tick' ? ImpactStyle.Light : kind === 'strong' ? ImpactStyle.Medium : ImpactStyle.Heavy }),
+    )
+    .catch(() => undefined)
+}
+
+/**
+ * Réglage gardé par l'app (Capacitor Preferences : survit au ménage d'iOS dans les données de la
+ * WebView) ; null dans le navigateur ou en cas d'échec.
+ */
+export async function loadPreference(key: string): Promise<string | null> {
+  if (!isNative()) return null
+  try {
+    const { Preferences } = await import('@capacitor/preferences')
+    return (await Preferences.get({ key })).value
+  } catch {
+    return null
+  }
+}
+
+export async function savePreference(key: string, value: string): Promise<void> {
+  if (!isNative()) return
+  try {
+    const { Preferences } = await import('@capacitor/preferences')
+    await Preferences.set({ key, value })
+  } catch {
+    // Sans le plugin (page plus récente que l'app) : `localStorage` suffit.
+  }
+}
+
+/**
  * Liens d'invitation ouverts dans l'app (préparé, pas encore actif : il manque les fichiers
  * `public/.well-known/` remplis et les réglages natifs, voir README.md › « Liens d'invitation
  * dans l'app »). `@capacitor/app` n'est chargé que dans la coque.

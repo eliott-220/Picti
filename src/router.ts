@@ -24,6 +24,8 @@ export type Route =
   | { name: 'reproduire'; id: string }
   /** Profil public d'un utilisateur. */
   | { name: 'personne'; id: string }
+  /** Tutoriel du premier lancement, revu depuis le menu. */
+  | { name: 'tutoriel' }
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -51,6 +53,8 @@ export function parseHash(hash: string): Route {
       return id ? { name: head, id } : { name: 'accueil' }
     case 'notifications':
       return { name: 'notifications' }
+    case 'tutoriel':
+      return { name: 'tutoriel' }
     case 'ami':
       return id ? { name: 'ami', code: id } : { name: 'accueil' }
     default:

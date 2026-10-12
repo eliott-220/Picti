@@ -25,7 +25,8 @@ const STEPS = [
   },
 ] as const
 
-type Mode = 'inscription' | 'connexion' | 'oubli'
+export type AuthMode = 'inscription' | 'connexion'
+type Mode = AuthMode | 'oubli'
 
 /** Lien d'invitation ouvert sans être connecté : le code est gardé pour après la connexion. */
 function invitationInLink(): boolean {
@@ -35,11 +36,14 @@ function invitationInLink(): boolean {
   return true
 }
 
-/** Première connexion : présentation du géocadrage, création de compte ou connexion. */
-export function Auth() {
+/**
+ * Première connexion : présentation du géocadrage, création de compte ou connexion. `initialMode` :
+ * choix fait à la fin du tutoriel ; `onTutorial` : le revoir.
+ */
+export function Auth({ initialMode = 'inscription', onTutorial }: { initialMode?: AuthMode; onTutorial?: () => void }) {
   useDarkStatusBar()
   // Lien de l'e-mail expiré : on revient directement sur la demande d'un nouveau lien.
-  const [mode, setMode] = useState<Mode>(authLinkError ? 'oubli' : 'inscription')
+  const [mode, setMode] = useState<Mode>(authLinkError ? 'oubli' : initialMode)
   const [invited] = useState(invitationInLink)
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
@@ -194,6 +198,11 @@ export function Auth() {
         )}
         {signup && <p className="fine">Vos photos sont réservées à vos amis par défaut ; vous pouvez les rendre publiques ou les garder privées.</p>}
       </form>
+      {onTutorial && (
+        <button type="button" className="text-link welcome-tutorial" onClick={onTutorial}>
+          <Icon name="scan" size={18} /> Revoir le tutoriel
+        </button>
+      )}
     </main>
   )
 }

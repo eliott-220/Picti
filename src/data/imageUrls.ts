@@ -45,6 +45,23 @@ export function primeImage(path: string, blob: Blob) {
   resolved.set(path, url)
 }
 
+/**
+ * Image qui n'existe que dans cette page (photo d'essai du tutoriel) : affichée par les composants
+ * habituels (`useImageUrl(id)`), sans réseau. Renvoie de quoi l'effacer de la mémoire.
+ */
+export function registerLocalImage(id: string, blob: Blob): () => void {
+  const path = `local:${id}`
+  primeImage(path, blob)
+  paths.set(id, { full: path, thumb: path })
+  listeners.forEach((l) => l())
+  return () => {
+    const url = resolved.get(path)
+    paths.delete(id)
+    forgetImage(path)
+    if (url) URL.revokeObjectURL(url)
+  }
+}
+
 function knownUrl(path: string): string | null {
   const hit = cache.get(path)
   return hit && hit.expires > Date.now() ? (resolved.get(path) ?? null) : null

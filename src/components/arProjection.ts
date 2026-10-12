@@ -2,7 +2,7 @@
 
 import { viewerEye } from '../geo/alignment'
 import { distanceMeters, type GeoFix } from '../geo/geodesy'
-import type { Vec3 } from '../geo/math'
+import { add, dot, scale, sub, type Vec3 } from '../geo/math'
 import { coverViewport, DEFAULT_PHONE_FOCAL35, focalPx, type ViewportCamera } from '../geo/optics'
 import { basisFromAngles, type CameraBasis } from '../geo/orientation'
 import {
@@ -136,4 +136,16 @@ export function coverTransform(photo: GeoPhoto, cam: { width: number; height: nu
 export function overlayScale(ar: ArProjection): number {
   const [tl, tr] = ar.projection.corners
   return Math.hypot(tr.x - tl.x, tr.y - tl.y) / OVERLAY_W
+}
+
+/**
+ * Flèche de bord d'écran (chasse, tutoriel) : direction de la photo quand elle est hors champ, en
+ * degrés dans le plan de l'écran (0 = vers le haut, sens horaire) ; null si elle est à l'écran,
+ * vue de dos ou sans orientation.
+ */
+export function edgeArrowDeg(ar: ArProjection | null, basis: CameraBasis | null): number | null {
+  if (!basis || !ar || !ar.facing || ar.projection.onScreen) return null
+  const center: Vec3 = scale(add(ar.corners[0], ar.corners[2]), 0.5)
+  const d = sub(center, ar.eye)
+  return (Math.atan2(dot(d, basis.r), dot(d, basis.u)) * 180) / Math.PI
 }

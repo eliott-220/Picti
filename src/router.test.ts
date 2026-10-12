@@ -42,6 +42,10 @@ describe('parseHash', () => {
     expect(parseHash('#/reproduire')).toEqual({ name: 'accueil' })
   })
 
+  it('revoit le tutoriel', () => {
+    expect(parseHash('#/tutoriel')).toEqual({ name: 'tutoriel' })
+  })
+
   it('ouvre la fiche d’une photo sur « Au fil du temps »', () => {
     expect(parseHash('#/photo/abc/fil')).toEqual({ name: 'photo', id: 'abc', section: 'fil' })
     expect(parseHash('#/photo/abc/autre')).toEqual({ name: 'photo', id: 'abc' })

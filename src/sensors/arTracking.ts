@@ -20,6 +20,7 @@ import {
   arPosition,
   compassTheta,
   focal35Of,
+  localBasis,
   localPoint,
   localView,
   poseAt,
@@ -635,6 +636,31 @@ export function currentView(): ArView {
   if (!state.align.ok) return { fix, basis: null, angles: null, at }
   const basis = arBasis(lastPose, shown.theta)
   return { fix, basis, angles: anglesFromBasis(basis), at }
+}
+
+// --- Orientation relative (tutoriel du premier lancement) ----------------------------------
+//
+// Le tutoriel ne se sert que des rotations depuis la prise de sa photo d'essai : la pose brute
+// d'ARKit suffit (repère de la session, cap arbitraire), sans calage — ni GPS ni boussole.
+
+/** Base de la caméra dans le repère de la session (cap arbitraire) ; null sans image. */
+export function localCameraBasis(): CameraBasis | null {
+  return state.status === 'running' && lastPose ? localBasis(lastPose) : null
+}
+
+/** Base de la caméra au moment d'une image (pose envoyée avec la photo), dans le repère de sa session. */
+export const nativePoseBasis = (pose: NativeArPose): CameraBasis =>
+  localBasis({ t: pose.t, position: pose.p, right: pose.r, up: pose.u, back: pose.b })
+
+/** Numéro de la session en cours (un nouveau repère après une interruption). */
+export const arSession = (): number => session
+
+/** Prévient à chaque image du suivi ; renvoie de quoi se désabonner. */
+export function onArPose(listener: () => void): () => void {
+  poseListeners.add(listener)
+  return () => {
+    poseListeners.delete(listener)
+  }
 }
 
 /**

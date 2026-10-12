@@ -1,13 +1,15 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Logo } from './components/Icon'
 import { usePasswordRecovery, useSession } from './data/auth'
 import { takePendingInvite } from './data/invite'
+import { loadOnboardingDone, markOnboardingDone, onboardingDoneNow } from './data/onboarding'
 import { ArShotRefiner } from './components/ArShotRefiner'
 import { StoreProvider } from './data/store'
 import { useStore } from './data/storeContext'
-import { supabase } from './data/supabase'
-import { navigate, useRoute } from './router'
-import { Auth } from './screens/Auth'
+import { authLinkError, supabase } from './data/supabase'
+import { isNative } from './native'
+import { goBack, navigate, useRoute } from './router'
+import { Auth, type AuthMode } from './screens/Auth'
 import { Gallery } from './screens/Gallery'
 import { Home } from './screens/Home'
 import { Hunt } from './screens/Hunt'
@@ -22,16 +24,57 @@ import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
 import { Reproduce } from './screens/Reproduce'
 import { Search } from './screens/Search'
+import { Tutorial } from './screens/Tutorial'
 
 // La carte (MapLibre) est lourde : chargée seulement à l'ouverture.
 const WorldMap = lazy(() => import('./screens/WorldMap'))
 
+/**
+ * Tutoriel du premier lancement (0.22.0) : `pending` tant que le drapeau de l'app n'est pas lu.
+ * Pas de tutoriel par-dessus un lien de l'e-mail expiré : on est déjà en pleine inscription.
+ */
+function initialTutorial(): 'pending' | 'show' | 'done' {
+  if (onboardingDoneNow() || authLinkError) return 'done'
+  return isNative() ? 'pending' : 'show'
+}
+
 export default function App() {
   const session = useSession()
   const [recovery, endRecovery] = usePasswordRecovery()
+  const [tutorial, setTutorial] = useState(initialTutorial)
+  const [authMode, setAuthMode] = useState<AuthMode>('inscription')
+  useEffect(() => {
+    if (tutorial !== 'pending') return
+    let alive = true
+    void loadOnboardingDone().then((done) => alive && setTutorial(done ? 'done' : 'show'))
+    return () => {
+      alive = false
+    }
+  }, [tutorial])
+  // Déjà connecté sur cet appareil (utilisateur d'avant la 0.22.0) : pas de tutoriel s'il se déconnecte.
+  if (session && tutorial !== 'done') setTutorial('done')
+  useEffect(() => {
+    if (session && !onboardingDoneNow()) markOnboardingDone()
+  }, [session])
+
   if (session === undefined) return <Splash />
-  // Un compte est obligatoire pour utiliser PICTI.
-  if (!session) return <Auth />
+  // Un compte est obligatoire pour utiliser PICTI ; le tutoriel vient avant (une seule fois).
+  if (!session) {
+    if (tutorial === 'pending') return <Splash />
+    if (tutorial === 'show') {
+      return (
+        <Tutorial
+          account={false}
+          onExit={(exit) => {
+            markOnboardingDone()
+            setAuthMode(exit.to === 'connexion' ? 'connexion' : 'inscription')
+            setTutorial('done')
+          }}
+        />
+      )
+    }
+    return <Auth key={authMode} initialMode={authMode} onTutorial={() => setTutorial('show')} />
+  }
   // Arrivée par le lien « mot de passe oublié » : nouveau mot de passe d'abord.
   if (recovery) return <NewPassword onDone={endRecovery} />
   return (
@@ -107,6 +150,14 @@ function Screens() {
       return <Reproduce key={route.id} id={route.id} />
     case 'personne':
       return <Person key={route.id} id={route.id} />
+    case 'tutoriel':
+      // Revu depuis le menu : on revient là où on était (ou à la chasse de la photo la plus proche).
+      return (
+        <Tutorial
+          account
+          onExit={(exit) => (exit.to === 'chasse' ? navigate(`/chasse/${exit.id}`, { replace: true }) : goBack())}
+        />
+      )
     default:
       return <Home />
   }

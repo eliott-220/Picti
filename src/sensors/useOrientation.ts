@@ -58,8 +58,11 @@ let permissionGranted = false
 let pendingRequest: Promise<boolean> | null = null
 const grantListeners = new Set<() => void>()
 
+/** iOS (navigateur) : l'accès aux capteurs de mouvement doit être demandé sur un geste. */
+export const orientationNeedsPermission = (): boolean => needsPermission() && !permissionGranted
+
 /** Demande (unique à la fois) l'accès à la boussole ; mémorise la réponse. */
-function requestCompass(): Promise<boolean> {
+export function requestCompass(): Promise<boolean> {
   const api = permissionApi()
   if (!api?.requestPermission) return Promise.resolve(true)
   if (pendingRequest) return pendingRequest

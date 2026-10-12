@@ -12,7 +12,7 @@ import { OVERLAY_W, overlayHeight, photoTime } from './arProjection'
 import { Dots } from './Dots'
 import { Icon } from './Icon'
 import { LikeButton } from './LikeButton'
-import { PhotoTile } from './ui'
+import { DirectionArrow, PhotoTile } from './ui'
 import type { CaptureState } from './useCapture'
 import { useSwipe } from './useSwipe'
 
@@ -185,6 +185,21 @@ export function CaptureCard({
       {tinted && (
         <img className="overlay-photo overlay-reveal" src={url} alt="" {...size} style={cardVars(scale)} draggable={false} />
       )}
+    </div>
+  )
+}
+
+/** Flèche au bord de l'écran vers une photo hors champ (`edgeArrowDeg`). */
+export function EdgeArrow({ deg }: { deg: number }) {
+  return (
+    <div
+      className="edge-arrow"
+      style={{
+        left: `calc(50% + ${Math.sin((deg * Math.PI) / 180) * 38}%)`,
+        top: `calc(50% - ${Math.cos((deg * Math.PI) / 180) * 38}%)`,
+      }}
+    >
+      <DirectionArrow deg={deg} size={28} />
     </div>
   )
 }

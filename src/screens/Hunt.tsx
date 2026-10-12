@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
-import { AlignGauges, ArPhoto, CaptureCard, SpotTimeline } from '../components/ar'
+import { AlignGauges, ArPhoto, CaptureCard, EdgeArrow, SpotTimeline } from '../components/ar'
 import {
   coverTransform,
+  edgeArrowDeg,
   overlayScale,
   photoTime,
   projectGeoPhoto,
@@ -20,7 +21,7 @@ import { usePhoto } from '../data/usePhoto'
 import { formatDateTime, isGeoframed, photoTitleAndDate } from '../data/types'
 import { CAPTURE_RADIUS, computeAlignment, guidance, viewerEye } from '../geo/alignment'
 import type { GeoFix } from '../geo/geodesy'
-import { add, angleDiffDeg, clamp, dot, scale, sub, type Vec3 } from '../geo/math'
+import { angleDiffDeg, clamp } from '../geo/math'
 import { basisFromAngles, type CameraAngles } from '../geo/orientation'
 import { sameSpot } from '../geo/spots'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
@@ -137,12 +138,7 @@ function HuntView({
   const transform = ar?.transform ?? null
 
   // Flèche de bord d'écran : où se trouve la photo quand elle est hors champ.
-  let edgeArrow: number | null = null
-  if (viewerBasis && ar && ar.facing && !ar.projection.onScreen) {
-    const center: Vec3 = scale(add(ar.corners[0], ar.corners[2]), 0.5)
-    const d = sub(center, ar.eye)
-    edgeArrow = (Math.atan2(dot(d, viewerBasis.r), dot(d, viewerBasis.u)) * 180) / Math.PI
-  }
+  const edgeArrow = edgeArrowDeg(ar, viewerBasis)
 
   // Capture : d'un appui sur « Capturer », ou alignement tenu AUTO_CAPTURE_MS. La photo
   // s'agrandit jusqu'à couvrir l'écran ; elle n'est capturée qu'à 100 % (immobile jusque-là).
@@ -238,17 +234,7 @@ function HuntView({
         />
       )}
 
-      {edgeArrow != null && (
-        <div
-          className="edge-arrow"
-          style={{
-            left: `calc(50% + ${Math.sin((edgeArrow * Math.PI) / 180) * 38}%)`,
-            top: `calc(50% - ${Math.cos((edgeArrow * Math.PI) / 180) * 38}%)`,
-          }}
-        >
-          <DirectionArrow deg={edgeArrow} size={28} />
-        </div>
-      )}
+      {edgeArrow != null && <EdgeArrow deg={edgeArrow} />}
 
       <header className="hunt-top">
         <RoundButton icon="close" label="Quitter la chasse" onClick={goBack} />
