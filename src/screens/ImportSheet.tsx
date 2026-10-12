@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { EmptyState, IconButton, PhotoTile, Sheet } from '../components/ui'
-import { importPhotoFile } from '../data/pipeline'
+import { importPhotoFile, type ImportResult } from '../data/pipeline'
 import { PremiumCard } from '../components/PremiumCard'
 import { VisibilityPill } from '../components/VisibilityPill'
 import { canUseDiffere } from '../data/premium'
 import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
 import { isGeoframed, VISIBLE_BY } from '../data/types'
-import { distanceMeters, formatDistance, type GeoFix } from '../geo/geodesy'
+import { distanceMeters, formatDistance, type GeoFix, type GeoPoint } from '../geo/geodesy'
 import { navigate } from '../router'
 
 interface Summary {
@@ -22,11 +22,12 @@ function plural(n: number, word: string) {
 }
 
 /**
- * Géocadrage en différé : import de photos existantes. Celles qui portent
- * position et direction (smartphone) sont géocadrées aussitôt ; les autres
- * attendent d'être recalées sur le lieu de la prise de vue.
+ * Géocadrage en différé : import de photos existantes (« + » de la carte depuis 0.23.0). Celles qui
+ * portent position et direction (smartphone) sont géocadrées aussitôt ; les autres attendent d'être
+ * recalées sur le lieu de la prise de vue. `placeAt` (centre de la carte) : celles qui n'ont pas de
+ * position du tout peuvent y être posées (position approchée, comme une photo GPS sans direction).
  */
-export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix | null }) {
+export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => void; fix: GeoFix | null; placeAt?: GeoPoint | null }) {
   const { myPhotos, addPhoto, profile } = useStore()
   const allowed = canUseDiffere(profile)
   // Même mode que le déclencheur du viseur, appliqué à tout le lot importé (et gardé s'il change ici).
@@ -34,14 +35,21 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState<Summary | null>(null)
+  // Photos lues sans aucune position : en attente de la réponse « les placer au centre de la carte ? ».
+  const [unplaced, setUnplaced] = useState<ImportResult[]>([])
 
   async function onFiles(files: FileList | null) {
     if (!files?.length) return
     setBusy(true)
     const s: Summary = { auto: 0, pending: 0, failed: 0 }
+    const waiting: ImportResult[] = []
     for (const file of Array.from(files)) {
       try {
         const r = await importPhotoFile(file)
+        if (placeAt && !r.photo.hintPosition && !r.photo.geoframe) {
+          waiting.push(r)
+          continue
+        }
         await addPhoto(r.photo, r.images, { visibility })
         if (r.completeness === 'complet') s.auto++
         else s.pending++
@@ -50,8 +58,35 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
       }
     }
     setSummary(s)
+    setUnplaced(waiting)
     setBusy(false)
     if (input.current) input.current.value = ''
+  }
+
+  /** Photos sans position : posées au centre de la carte (`at`), ou gardées sans position (à recaler). */
+  async function keepUnplaced(at: GeoPoint | null) {
+    const list = unplaced
+    setUnplaced([])
+    setBusy(true)
+    let pending = 0
+    let failed = 0
+    for (const r of list) {
+      try {
+        const photo = at ? { ...r.photo, hintPosition: { lat: at.lat, lon: at.lon, alt: null } } : r.photo
+        await addPhoto(photo, r.images, { visibility })
+        pending++
+      } catch {
+        failed++
+      }
+    }
+    setSummary((was) => ({ auto: was?.auto ?? 0, pending: (was?.pending ?? 0) + pending, failed: (was?.failed ?? 0) + failed }))
+    setBusy(false)
+  }
+
+  // Fermée sans répondre : les photos sans position sont gardées sans position (rien n'est perdu).
+  const close = () => {
+    if (unplaced.length) void keepUnplaced(null)
+    onClose()
   }
 
   const pending = myPhotos.filter((p) => !isGeoframed(p))
@@ -62,14 +97,14 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
   const others = pending.filter((p) => !p.hintPosition)
 
   return (
-    <Sheet onClose={onClose} label="Géocadrer en différé">
+    <Sheet onClose={close} label="Géocadrer en différé">
       {!allowed && <PremiumCard reason="Géocadrage en différé : PICTI Premium" />}
       <div className="sheet-head">
         <button type="button" className="import-btn" onClick={() => input.current?.click()} disabled={busy || !allowed}>
           <Icon name={busy ? 'image' : 'plus'} />
           {busy ? 'Analyse des photos…' : 'Importer des photos'}
         </button>
-        <IconButton icon="close" label="Fermer" onClick={onClose} />
+        <IconButton icon="close" label="Fermer" onClick={close} />
         <input
           ref={input}
           type="file"
@@ -86,6 +121,23 @@ export function ImportSheet({ onClose, fix }: { onClose: () => void; fix: GeoFix
             Photos importées visibles par <strong>{VISIBLE_BY[visibility]}</strong>
           </span>
           <VisibilityPill value={visibility} onChange={setShotVisibility} what="les photos importées" />
+        </div>
+      )}
+
+      {unplaced.length > 0 && placeAt && (
+        <div className="import-place" role="group" aria-label="Photos sans position">
+          <p>
+            <strong>{plural(unplaced.length, 'photo')} sans position.</strong> La{unplaced.length > 1 ? 's' : ''} placer au centre de la
+            carte ? Tu la{unplaced.length > 1 ? 's' : ''} géocadreras ensuite sur place.
+          </p>
+          <div className="import-place-actions">
+            <button type="button" className="btn small" onClick={() => void keepUnplaced(placeAt)} disabled={busy}>
+              <Icon name="pin" size={18} /> Placer ici
+            </button>
+            <button type="button" className="btn small ghost" onClick={() => void keepUnplaced(null)} disabled={busy}>
+              Sans position
+            </button>
+          </div>
         </div>
       )}
 

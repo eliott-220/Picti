@@ -27,10 +27,32 @@ export function platformLabel(p: Platform = platform()): string | null {
 }
 
 /** Bouton Liquid Glass tel qu'envoyé au plugin natif (cadre en points, ceux de la page). */
+/** Élément de la barre du bas dessiné dans sa pilule de verre (Menu, avatar du profil), cadre relatif à la pilule. */
+export interface GlassBarItemSpec {
+  x: number
+  y: number
+  width: number
+  height: number
+  /** Symbole SF (Menu), null pour l'avatar. */
+  symbol: string | null
+  /** Initiale de l'avatar (profil), null pour un symbole. */
+  initial: string | null
+  badge: string | null
+  /** Écran affiché (anneau autour de l'avatar). */
+  active: boolean
+}
+
 export interface GlassButtonSpec {
   id: string
-  /** `button` : bouton rond ou pastille ; `segmented` : sélecteur segmenté (« Monde / Amis »). */
-  kind: 'button' | 'segmented'
+  /**
+   * `button` : bouton rond ou pastille ; `segmented` : sélecteur segmenté (« Monde / Amis ») ;
+   * `bar` : pilule de la barre du bas (0.23.0), avec ses éléments (`items`) ; `shutter` : bouton rouge.
+   */
+  kind: 'button' | 'segmented' | 'bar' | 'shutter'
+  /** Barre du bas : Menu et avatar, dessinés dans la pilule. Null sinon. */
+  items: GlassBarItemSpec[] | null
+  /** Bouton rouge : pastille ⚠ (Reproduire, hors de la vue de l'originale). */
+  warn: boolean
   /** Nom du symbole SF (ex. « bell »), null pour une pastille à texte. */
   symbol: string | null
   /** Texte d'une pastille (« Tout le monde »). */
@@ -208,11 +230,12 @@ export function setStatusBarText(color: 'light' | 'dark'): void {
 }
 
 /** Écran clair en haut (connexion, recherche, carte) : texte foncé tant qu'il est affiché. */
-export function useDarkStatusBar(): void {
+export function useDarkStatusBar(enabled = true): void {
   useEffect(() => {
+    if (!enabled) return
     setStatusBarText('dark')
     return () => setStatusBarText('light')
-  }, [])
+  }, [enabled])
 }
 
 /**

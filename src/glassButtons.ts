@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import type { IconName } from './components/Icon'
-import { GlassButtons, platform, type GlassButtonSpec } from './native'
+import { GlassButtons, platform, type GlassBarItemSpec, type GlassButtonSpec } from './native'
 
 /** Symbole SF de chaque icône proposée en verre (les autres restent des boutons web). */
 const SYMBOLS: Partial<Record<IconName, string>> = {
@@ -26,6 +26,15 @@ const SYMBOLS: Partial<Record<IconName, string>> = {
   /** Nord de la carte (tourné avec elle). */
   arrow: 'location.north.fill',
   qr: 'qrcode',
+  /** Modes du bouton rouge (Public · Amis · Privé). */
+  globe: 'globe',
+  friends: 'person.2.fill',
+  lock: 'lock.fill',
+  /** « À chasser » du viseur. */
+  flag: 'flag',
+  settings: 'gearshape',
+  more: 'ellipsis',
+  share: 'square.and.arrow.up',
 }
 
 export function glassSymbol(icon: IconName): string | null {
@@ -38,8 +47,18 @@ export function badgeText(count?: number): string | null {
   return count > 99 ? '99+' : String(count)
 }
 
+/** Élément de la barre du bas (Menu, avatar) : dessiné par le natif dans la pilule de verre. */
+export interface GlassBarItem {
+  ref: RefObject<HTMLElement | null>
+  icon?: IconName
+  /** Avatar : initiale du prénom. */
+  initial?: string
+  badge?: number
+  active?: boolean
+}
+
 export interface GlassOptions {
-  /** Bouton rond : son icône (traduite en symbole SF). */
+  /** Bouton rond : son icône (traduite en symbole SF) ; bouton rouge : le symbole du mode. */
   icon?: IconName
   /** Pastille : son texte. */
   title?: string
@@ -54,9 +73,16 @@ export interface GlassOptions {
   disabled?: boolean
   rotation?: number
   color?: string
+  /** Barre du bas (0.23.0) : pilule de verre et ses éléments. */
+  bar?: { items: GlassBarItem[] }
+  /** Bouton rouge (0.23.0) : cercle rouge et symbole du mode ; `warn` : pastille ⚠. */
+  shutter?: { warn?: boolean }
 }
 
 type Rect = { x: number; y: number; width: number; height: number }
+
+/** Élément de barre et son cadre à l'écran (null : pas encore affiché). */
+export type MeasuredBarItem = Omit<GlassBarItem, 'ref'> & { rect: Rect | null }
 
 /** Zone qui défile autour d'un bouton : sa clé, sa partie visible à l'écran et son défilement. */
 export interface ScrollerPort {
@@ -68,7 +94,29 @@ export interface ScrollerPort {
 
 /** Ce bouton a-t-il un équivalent natif (icône connue, texte ou choix) ? */
 export function glassable(options: GlassOptions): boolean {
+  if (options.bar) return true
   return !!options.segments?.length || !!options.title || (!!options.icon && !!glassSymbol(options.icon))
+}
+
+/** Éléments de la barre, cadres relatifs à la pilule (au demi-point) ; ceux sans cadre sont omis. */
+export function barItemSpecs(bar: Rect, items: readonly MeasuredBarItem[]): GlassBarItemSpec[] {
+  const half = (v: number) => Math.round(v * 2) / 2
+  return items.flatMap((it) =>
+    it.rect && it.rect.width > 0 && it.rect.height > 0
+      ? [
+          {
+            x: half(it.rect.x - bar.x),
+            y: half(it.rect.y - bar.y),
+            width: half(it.rect.width),
+            height: half(it.rect.height),
+            symbol: it.icon ? glassSymbol(it.icon) : null,
+            initial: it.icon ? null : (it.initial ?? '?'),
+            badge: badgeText(it.badge),
+            active: !!it.active,
+          },
+        ]
+      : [],
+  )
 }
 
 /**
@@ -81,13 +129,17 @@ export function toSpec(
   options: GlassOptions,
   onTop: boolean,
   scroller: ScrollerPort | null = null,
+  items: readonly MeasuredBarItem[] = [],
 ): GlassButtonSpec | null {
   if (!glassable(options)) return null
   const half = (v: number) => Math.round(v * 2) / 2
   const segments = options.segments?.length ? options.segments : null
+  const kind = options.bar ? 'bar' : options.shutter ? 'shutter' : segments ? 'segmented' : 'button'
   return {
     id,
-    kind: segments ? 'segmented' : 'button',
+    kind,
+    items: options.bar ? barItemSpecs(rect, items) : null,
+    warn: !!options.shutter?.warn,
     symbol: !segments && options.icon ? glassSymbol(options.icon) : null,
     title: !segments ? (options.title ?? null) : null,
     segments,
@@ -216,9 +268,15 @@ function tick() {
     const current = options()
     if (!current) continue
     const rect = el.getBoundingClientRect()
-    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect), activeScroller(parents))
+    const items = (current.bar?.items ?? []).map(({ ref, ...item }) => ({
+      ...item,
+      rect: ref.current?.getBoundingClientRect() ?? null,
+    }))
+    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect), activeScroller(parents), items)
     if (spec) specs.push(spec)
   }
+  // La pilule de la barre sous ses boutons : le natif empile dans l'ordre reçu.
+  specs.sort((a, b) => Number(b.kind === 'bar') - Number(a.kind === 'bar'))
   const json = JSON.stringify(specs)
   if (json !== sent) {
     sent = json

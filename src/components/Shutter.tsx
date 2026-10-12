@@ -1,44 +1,50 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { VISIBILITIES, VISIBILITY_SHORT, VISIBLE_BY, type Visibility } from '../data/types'
+import { VISIBILITY_SHORT, VISIBLE_BY, type Visibility } from '../data/types'
+import { useGlassButton } from '../glassButtons'
+import { haptic } from '../native'
 import { Icon } from './Icon'
 import {
+  columnLift,
+  columnOrder,
+  columnPosition,
   labelOpacity,
+  liftFor,
   LONG_PRESS_MS,
   MODE_STEP,
   modeLook,
-  modePosition,
   neighborVisibility,
-  offsetFor,
   SLIDE_START_PX,
-  stripOffset,
-  visibilityAtOffset,
+  visibilityAtLift,
 } from './shutterModes'
 import { VISIBILITY_ICON } from './visibilityIcon'
 
-/** Retour du carrousel en place au relâchement (ms), aligné sur la transition CSS. */
+/** Retour de la colonne en place au relâchement (ms), aligné sur la transition CSS. */
 const SNAP_MS = 180
 
 interface Press {
   pointer: number
-  x: number
+  y: number
   from: Visibility
-  /** Carrousel ouvert (appui long ou glissement) : relâcher ne prend pas de photo. */
+  /** Choix du mode ouvert (appui long ou glissement vers le haut) : relâcher ne prend pas de photo. */
   open: boolean
   timer: ReturnType<typeof setTimeout> | undefined
 }
 
-/** Carrousel affiché : mode de départ, décalage suivi (px), retour en place après le relâchement. */
+/** Colonne affichée : mode de départ, montée suivie (px), retour en place après le relâchement. */
 interface Pick {
   from: Visibility
-  offset: number
+  lift: number
   closing: boolean
 }
 
 /**
- * Déclencheur rouge du viseur. Un appui prend la photo. Un appui long (ou un glissement) fait du
- * bouton un carrousel : il grossit, les symboles des autres modes apparaissent, flous, à gauche et à
- * droite ; ils suivent le doigt et celui qui entre dans le cercle devient net, son nom (Public,
- * Amis, Privé) au-dessus. Relâcher garde ce mode sans prendre de photo. Au clavier : flèches.
+ * Bouton rouge de la barre du bas. Sur le viseur, un appui prend la photo ; un appui long (ou un
+ * glissement vers le haut) fait grossir le bouton et montre, flous, les deux autres modes en colonne
+ * au-dessus de lui : glisser vers le haut fait descendre dans le cercle le mode du dessus, redescendre le
+ * fait repartir, son nom (Public, Amis, Privé) à côté du cercle. Relâcher garde ce mode sans prendre de
+ * photo. Au clavier : flèches. `reduced` (carte, profil, menu ouvert) : réduit à la taille des icônes
+ * voisines, un appui ramène au viseur (`onHome`), sans photo ni choix du mode. Dans l'app iOS 26+, un
+ * vrai bouton natif l'affiche (le bouton web, transparent, reste celui qu'on touche).
  */
 export function Shutter({
   visibility,
@@ -47,6 +53,8 @@ export function Shutter({
   disabled,
   warn,
   label,
+  reduced = false,
+  onHome,
 }: {
   visibility: Visibility
   /** Mode choisi, une fois le doigt relâché (seulement s'il a changé). */
@@ -56,7 +64,10 @@ export function Shutter({
   /** Reproduire, hors de la vue de l'originale. */
   warn: boolean
   label: string
+  reduced?: boolean
+  onHome?: () => void
 }) {
+  const ref = useRef<HTMLButtonElement>(null)
   const press = useRef<Press | null>(null)
   const [pick, setPick] = useState<Pick | null>(null)
   const pickRef = useRef<Pick | null>(null)
@@ -76,28 +87,39 @@ export function Shutter({
     },
     [],
   )
-  // Bouton désactivé en plein appui (prise de vue en cours) : il ne reçoit plus le relâchement.
+  // Bouton désactivé ou réduit en plein appui (prise de vue en cours, carte qui s'ouvre) : il ne
+  // reçoit plus le relâchement.
+  const idle = disabled || reduced
   useEffect(() => {
-    if (!disabled || !press.current) return
+    if (!idle || !press.current) return
     clearTimeout(press.current.timer)
     press.current = null
     pickRef.current = null
     setPick(null)
-  }, [disabled])
+  }, [idle])
 
-  function open(p: Press, offset = 0) {
+  const centered = pick ? visibilityAtLift(pick.from, pick.lift) : visibility
+  const fullLabel = reduced ? 'Revenir au viseur' : `${label} · visible par ${VISIBLE_BY[centered]}`
+  const native = useGlassButton(ref, {
+    icon: VISIBILITY_ICON[centered],
+    label: fullLabel,
+    disabled,
+    shutter: { warn: warn && !reduced },
+  })
+
+  function open(p: Press, lift = 0) {
     if (p.open || press.current !== p) return
     p.open = true
     clearTimeout(p.timer)
     swallowClick.current = true
-    update({ from: p.from, offset: stripOffset(p.from, offset), closing: false })
-    navigator.vibrate?.(10)
+    update({ from: p.from, lift, closing: false })
+    haptic('tick')
   }
 
   function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
     swallowClick.current = false
-    if (disabled || e.button !== 0 || press.current) return
-    // Un carrousel qui finissait de se refermer laisse la place au nouvel appui.
+    if (idle || e.button !== 0 || press.current) return
+    // Une colonne qui finissait de se refermer laisse la place au nouvel appui.
     clearTimeout(snapTimer.current)
     if (pickRef.current) update(null)
     try {
@@ -105,7 +127,7 @@ export function Shutter({
     } catch {
       // Pointeur déjà relâché : le glissement ne sera pas suivi hors du bouton.
     }
-    const p: Press = { pointer: e.pointerId, x: e.clientX, from: visibility, open: false, timer: undefined }
+    const p: Press = { pointer: e.pointerId, y: e.clientY, from: visibility, open: false, timer: undefined }
     p.timer = setTimeout(() => open(p), LONG_PRESS_MS)
     press.current = p
   }
@@ -113,16 +135,16 @@ export function Shutter({
   function onPointerMove(e: PointerEvent<HTMLButtonElement>) {
     const p = press.current
     if (!p || e.pointerId !== p.pointer) return
-    const dx = e.clientX - p.x
+    const dy = e.clientY - p.y
     if (!p.open) {
-      if (Math.abs(dx) >= SLIDE_START_PX) open(p, dx)
+      if (-dy >= SLIDE_START_PX) open(p, columnLift(dy))
       return
     }
     const current = pickRef.current
     if (!current) return
-    const offset = stripOffset(p.from, dx)
-    if (visibilityAtOffset(p.from, offset) !== visibilityAtOffset(p.from, current.offset)) navigator.vibrate?.(10)
-    update({ ...current, offset })
+    const lift = columnLift(dy)
+    if (visibilityAtLift(p.from, lift) !== visibilityAtLift(p.from, current.lift)) haptic('tick')
+    update({ ...current, lift })
   }
 
   function end(e: PointerEvent<HTMLButtonElement>) {
@@ -133,32 +155,35 @@ export function Shutter({
     const current = pickRef.current
     if (!p.open || !current) return
     // Le symbole le plus proche du centre s'y range, les autres s'effacent, le nom disparaît.
-    const chosen = visibilityAtOffset(p.from, current.offset)
-    update({ ...current, offset: offsetFor(chosen, p.from), closing: true })
+    const chosen = visibilityAtLift(p.from, current.lift)
+    update({ ...current, lift: liftFor(chosen, p.from), closing: true })
     snapTimer.current = setTimeout(() => update(null), SNAP_MS)
     if (chosen !== visibility) onVisibility(chosen)
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
     swallowClick.current = false
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    if (reduced) return
+    const dir = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? -1 : 0
+    if (!dir) return
     e.preventDefault()
-    const v = neighborVisibility(visibility, e.key === 'ArrowRight' ? 1 : -1)
+    const v = neighborVisibility(visibility, dir)
     if (v !== visibility) onVisibility(v)
   }
 
-  const centered = pick ? visibilityAtOffset(pick.from, pick.offset) : visibility
   return (
     <div className="shutter-group">
       <button
+        ref={ref}
         type="button"
-        className={`shutter ${warn ? 'warn' : ''} ${pick && !pick.closing ? 'picking' : ''}`}
+        className={`shutter ${warn && !reduced ? 'warn' : ''} ${pick && !pick.closing ? 'picking' : ''}${native ? ' glass-native' : ''}`}
         onClick={() => {
           if (swallowClick.current) {
             swallowClick.current = false
             return
           }
-          onShoot()
+          if (reduced) onHome?.()
+          else onShoot()
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -166,13 +191,15 @@ export function Shutter({
         onPointerCancel={end}
         onKeyDown={onKeyDown}
         onContextMenu={(e) => e.preventDefault()}
-        disabled={disabled}
-        aria-label={`${label} · visible par ${VISIBLE_BY[centered]}`}
-        aria-description="Restez appuyé puis glissez à gauche ou à droite (ou flèches du clavier) pour choisir Public, Amis ou Privé"
+        disabled={disabled && !reduced}
+        aria-label={fullLabel}
+        aria-description={
+          reduced ? undefined : 'Restez appuyé puis glissez vers le haut (ou flèches du clavier) pour choisir Public, Amis ou Privé'
+        }
       >
-        {/* Pendant le choix, le symbole du cercle est celui du carrousel. */}
+        {/* Pendant le choix, le symbole du cercle est celui de la colonne. */}
         {!pick && <Icon name={VISIBILITY_ICON[visibility]} size={36} />}
-        {warn && (
+        {warn && !reduced && (
           <span className="shutter-warn" aria-hidden="true">
             <Icon name="warning" size={16} />
           </span>
@@ -180,15 +207,15 @@ export function Shutter({
       </button>
       {pick && (
         <div className={`shutter-strip ${pick.closing ? 'closing' : ''}`} aria-hidden="true">
-          {VISIBILITIES.map((v) => {
-            const distance = modePosition(v, pick.from, pick.offset) / MODE_STEP
+          {columnOrder(pick.from).map((v) => {
+            const distance = columnPosition(v, pick.from, pick.lift) / MODE_STEP
             const look = modeLook(distance)
             return (
               <span
                 key={v}
                 className={`shutter-strip-item ${v === centered ? 'centered' : ''}`}
                 style={{
-                  transform: `translate(-50%, -50%) translateX(${distance * MODE_STEP}px) scale(${look.scale})`,
+                  transform: `translate(-50%, -50%) translateY(${distance * MODE_STEP}px) scale(${look.scale})`,
                   opacity: pick.closing && v !== centered ? 0 : look.opacity,
                   filter: `blur(${look.blur}px) drop-shadow(0 1px 4px rgb(0 0 0 / 0.7))`,
                 }}
@@ -200,7 +227,7 @@ export function Shutter({
           {!pick.closing && (
             <span
               className="shutter-label"
-              style={{ opacity: labelOpacity(modePosition(centered, pick.from, pick.offset) / MODE_STEP) }}
+              style={{ opacity: labelOpacity(columnPosition(centered, pick.from, pick.lift) / MODE_STEP) }}
             >
               {VISIBILITY_SHORT[centered]}
             </span>

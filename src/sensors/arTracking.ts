@@ -10,7 +10,7 @@
 // Ailleurs (navigateur, Android, iPhone sans ARKit, réglage « Suivi visuel » coupé), rien ne change :
 // les écrans gardent la caméra web, le GPS filtré et la boussole.
 
-import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import type { EncodedImage } from '../data/images'
 import { ALIGN, GeoAligner, localToGeo, transformOf, type AlignState, type AlignTransform, type LocalPoint } from '../geo/arAlign'
 import {
@@ -79,6 +79,11 @@ export const AR_TRACKING = {
   compassEvery: 100,
   /** Écran caméra quitté : la session continue ce temps (ms), le temps d'ouvrir l'écran suivant. */
   keepAlive: 1500,
+  /**
+   * Viseur recouvert par la carte ou le profil (0.23.0) : la session continue ce temps (ms), caméra
+   * cachée ; revenu avant, le calage est intact (les photos restent à leur place).
+   */
+  pauseKeepAlive: 15_000,
   /** Caméra web coupée juste avant : iOS la rend en ce temps (ms) avant qu'ARKit ne la prenne. */
   handover: 300,
   /** Session en marche mais sans image depuis … ms, page affichée : relancée une fois, puis caméra web. */
@@ -484,13 +489,16 @@ function acquire() {
   if (state.status === 'off' || state.status === 'disabled') void startSession()
 }
 
-/** `now` : l'écran garde la caméra mais passe au selfie : arrêt immédiat, la caméra web en a besoin. */
-function release(now: boolean) {
+/**
+ * `now` : l'écran garde la caméra mais passe au selfie : arrêt immédiat, la caméra web en a besoin.
+ * Sinon la session continue `keepAlive` ms (un autre écran caméra, ou le retour au viseur, la reprend).
+ */
+function release(now: boolean, keepAlive = AR_TRACKING.keepAlive) {
   users = Math.max(0, users - 1)
   if (users > 0) return
   clearTimeout(stopTimer)
   if (now) stopSession()
-  else stopTimer = setTimeout(stopSession, AR_TRACKING.keepAlive)
+  else stopTimer = setTimeout(stopSession, keepAlive)
 }
 
 /** Coupe ou rétablit le suivi visuel (menu) ; les écrans passent aussitôt à l'autre caméra. */
@@ -665,12 +673,19 @@ export function onArPose(listener: () => void): () => void {
 
 /**
  * Suivi visuel pour un écran caméra : `wanted` (caméra arrière) démarre la session partagée. Renvoie
- * l'état (statut, image, calage) et la vue de la caméra, recalculée à chaque image.
+ * l'état (statut, image, calage) et la vue de la caméra, recalculée à chaque image. `active` faux : le
+ * viseur est recouvert (carte, profil) — la session est rendue mais continue `pauseKeepAlive` ms.
  */
-export function useArTracking(wanted: boolean): { state: ArState; view: ArView } {
+export function useArTracking(wanted: boolean, active = true): { state: ArState; view: ArView } {
   const current = useSyncExternalStore(subscribe, () => state)
   const [view, setView] = useState<ArView>(NO_VIEW)
-  const running = wanted && current.status === 'running'
+  const running = wanted && active && current.status === 'running'
+  // Ce que veut l'écran après ce rendu : lu par le nettoyage de l'effet plus bas (les effets de mise
+  // en page passent avant), pour savoir s'il s'agit d'une pause, d'un selfie ou d'un départ.
+  const intent = useRef({ wanted, active })
+  useLayoutEffect(() => {
+    intent.current = { wanted, active }
+  })
 
   // Écran quitté : la session continue un instant (l'écran caméra suivant la reprend) ; caméra
   // arrière abandonnée sur place (selfie) : arrêt immédiat, la caméra avant en a besoin. Cet effet,
@@ -684,10 +699,15 @@ export function useArTracking(wanted: boolean): { state: ArState; view: ArView }
   }, [])
 
   useEffect(() => {
-    if (!wanted) return
+    if (!wanted || !active) return
     acquire()
-    return () => release(mounted.current)
-  }, [wanted])
+    return () => {
+      const next = intent.current
+      if (!mounted.current) release(false)
+      else if (next.wanted && !next.active) release(false, AR_TRACKING.pauseKeepAlive)
+      else release(true)
+    }
+  }, [wanted, active])
 
   useEffect(() => {
     if (!running) return

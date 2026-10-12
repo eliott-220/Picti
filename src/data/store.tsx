@@ -383,6 +383,23 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     [photoMap, likes, userId, adjustLikeCount],
   )
 
+  const removeCapture = useCallback(
+    async (photoId: string) => {
+      const photo = photoMap.get(photoId)
+      if (photo && photo.owner === userId) throw new Error('Tes propres photos ne sont pas des captures')
+      // Ma ligne seulement (la règle de la base le garantit aussi : `hunter = auth.uid()`).
+      const { error: e } = await supabase.from('captures').delete().eq('photo_id', photoId).eq('hunter', userId)
+      fail(e, 'Retirer la capture')
+      setCaptures((prev) => prev.filter((c) => c.photoId !== photoId))
+      // Le like de la capture reste, mais n'est plus « sur place » : il se retire comme les autres.
+      setLikes((prev) => {
+        if (!prev.get(photoId)?.onSite) return prev
+        return new Map(prev).set(photoId, { onSite: false })
+      })
+    },
+    [photoMap, userId],
+  )
+
   const saveProfile = useCallback(
     async (changes: ProfileChanges) => {
       const { error: e } = await supabase.from('profiles').update(profileChangesToRow(changes)).eq('id', userId)
@@ -704,6 +721,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       updatePhoto,
       removePhoto,
       addCapture,
+      removeCapture,
       saveProfile,
       addFriend,
       requestFriend: befriend,
@@ -743,6 +761,7 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       updatePhoto,
       removePhoto,
       addCapture,
+      removeCapture,
       saveProfile,
       addFriend,
       befriend,

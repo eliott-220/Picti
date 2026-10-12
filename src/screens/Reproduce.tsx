@@ -4,7 +4,7 @@ import { isGeoframed } from '../data/types'
 import { goBack } from '../router'
 import { Home } from './Home'
 
-/** « Reproduire cette photo » : le viseur, avec l'originale en calque pour retrouver son cadrage. */
+/** « Reproduire » : le viseur, avec l'originale en calque pour retrouver son cadrage. */
 export function Reproduce({ id }: { id: string }) {
   const { photo, loading } = usePhoto(id)
   if (!photo || !isGeoframed(photo)) {

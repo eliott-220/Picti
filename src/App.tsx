@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Logo } from './components/Icon'
 import { usePasswordRecovery, useSession } from './data/auth'
 import { takePendingInvite } from './data/invite'
@@ -20,14 +20,11 @@ import { NewPassword } from './screens/NewPassword'
 import { Notifications } from './screens/Notifications'
 import { Person } from './screens/Person'
 import { PhotoDetail } from './screens/PhotoDetail'
-import { Profile } from './screens/Profile'
 import { Recaler } from './screens/Recaler'
 import { Reproduce } from './screens/Reproduce'
 import { Search } from './screens/Search'
+import { Settings } from './screens/Settings'
 import { Tutorial } from './screens/Tutorial'
-
-// La carte (MapLibre) est lourde : chargée seulement à l'ouverture.
-const WorldMap = lazy(() => import('./screens/WorldMap'))
 
 /**
  * Tutoriel du premier lancement (0.22.0) : `pending` tant que le drapeau de l'app n'est pas lu.
@@ -119,21 +116,21 @@ function Screens() {
     )
   }
 
+  // Viseur, carte (à sa gauche) et Mon profil (à sa droite) : un seul écran `Home` qui reste monté de l'un
+  // à l'autre (même élément, même place) — la carte n'est pas rechargée, la barre du bas reste en place.
   switch (route.name) {
     case 'profil':
-      return <Profile section={route.section} />
+      return <Home pane="profil" profileSection={route.section} />
+    case 'carte':
+      return <Home pane="carte" />
+    case 'parametres':
+      return <Settings />
     case 'ami':
       return <Invite key={route.code} code={route.code} />
     case 'chasses':
       return <Hunts />
     case 'proximite':
       return <Nearby />
-    case 'carte':
-      return (
-        <Suspense fallback={<Splash message="Chargement de la carte…" />}>
-          <WorldMap />
-        </Suspense>
-      )
     case 'recherche':
       return <Search filters={route.filters} />
     case 'photo':
@@ -159,6 +156,6 @@ function Screens() {
         />
       )
     default:
-      return <Home />
+      return <Home pane="viseur" />
   }
 }

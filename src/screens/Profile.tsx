@@ -1,58 +1,55 @@
-import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { photoTime } from '../components/arProjection'
+import { CaptureGrid } from '../components/CaptureGrid'
 import { Icon } from '../components/Icon'
-import { PremiumCard } from '../components/PremiumCard'
-import { AvatarRow, Chip, EmptyState, IconButton, PersonLink, PhotoTile, PhotoTilePile, RoundButton } from '../components/ui'
+import { Avatar, AvatarRow, Chip, EmptyState, IconButton, PersonLink, PhotoTile, PhotoTilePile, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { inviteLink } from '../data/invite'
-import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
-import {
-  isGeoframed,
-  VISIBILITIES,
-  VISIBILITY_AUDIENCE,
-  visibilityHelp,
-  type PersonResult,
-  type Visibility,
-} from '../data/types'
+import { isGeoframed, type PersonResult } from '../data/types'
 import { groupBySpot } from '../geo/spots'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { goBack, navigate } from '../router'
 
-/** « Moi » : profil, chasseurs, amis et photos géocadrées. */
-export function Profile({ section }: { section?: 'amis' }) {
-  const { profile, myPhotos, hunters, saveProfile } = useStore()
+type ProfileTab = 'photos' | 'captures' | 'amis'
+const TABS: { value: ProfileTab; label: string }[] = [
+  { value: 'photos', label: 'Mes photos' },
+  { value: 'captures', label: 'Mes captures' },
+  { value: 'amis', label: 'Mes amis' },
+]
+
+/**
+ * Mon profil (bouton Profil de la barre, ou glisser vers la gauche sur le viseur) : avatar, pseudo,
+ * « 12 photos · 5 captures · 8 amis », puis trois onglets — Mes photos (piles glissables), Mes captures
+ * (appui long : retirer une capture), Mes amis (chasseurs, invitations, demandes). ⚙️ en haut à droite :
+ * Paramètres (mode par défaut, Premium, déconnexion, tutoriel, version…). Réunit les anciens « Moi »,
+ * « Mon profil » et « Mes photos ».
+ */
+export function Profile({ section, onBack }: { section?: 'amis'; onBack?: () => void }) {
+  const { profile, myPhotos, captures, photos, friends, saveProfile } = useStore()
   const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(profile?.name ?? '')
   const [city, setCity] = useState(profile?.city ?? '')
-  const friendsRef = useRef<HTMLDivElement>(null)
-  // Même mode que le déclencheur du viseur : le changer ici le change là-bas, et inversement.
-  const defaultVisibility = useShotVisibility()
-
-  // Arrivée par « Mes amis » (menu, carte) : directement sur la liste d'amis.
-  useEffect(() => {
-    if (section === 'amis') friendsRef.current?.scrollIntoView({ block: 'start' })
-  }, [section])
+  // Arrivée par « Mes amis » (menu, carte) : directement sur l'onglet.
+  const [tab, setTab] = useState<ProfileTab>(section === 'amis' ? 'amis' : 'photos')
+  const [shownSection, setShownSection] = useState(section)
+  if (section !== shownSection) {
+    setShownSection(section)
+    if (section === 'amis') setTab('amis')
+  }
 
   const geoframed = myPhotos.filter(isGeoframed)
-  // Photos prises au même endroit : une seule vignette, empilée (on les fait défiler dans le détail).
-  const spots = groupBySpot(geoframed, spotPointOf, photoTime, photoPileOrder())
-  const pending = myPhotos.filter((p) => !isGeoframed(p))
   const heroUrl = useImageUrl(geoframed[0]?.id ?? myPhotos[0]?.id, 'full')
-
-  // Mes chasseurs : ceux qui ont capturé au moins une de mes photos.
-  const byHunter = new Map<string, { id: string; name: string; count: number }>()
-  for (const c of hunters) {
-    const h = byHunter.get(c.hunter) ?? { id: c.hunter, name: c.hunterName, count: 0 }
-    h.count++
-    byHunter.set(c.hunter, h)
-  }
-  const chasseurs = [...byHunter.values()].map((h) => ({
-    ...h,
-    detail: `${h.count} capture${h.count > 1 ? 's' : ''}`,
-  }))
+  const byId = new Map(photos.map((p) => [p.id, p]))
+  const myCaptures = captures.flatMap((c) => {
+    const photo = byId.get(c.photoId)
+    return photo ? [{ capture: c, photo }] : []
+  })
+  const friendCount = friends.filter((f) => f.status === 'accepted').length
+  const requests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
+  const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -65,17 +62,14 @@ export function Profile({ section }: { section?: 'amis' }) {
     }
   }
 
-  function chooseDefault(v: Visibility) {
-    if (v !== defaultVisibility) setShotVisibility(v)
-  }
-
   return (
-    <main className="screen page">
+    <main className="screen page profile-screen">
       <div className="hero" style={heroUrl ? { backgroundImage: `url(${heroUrl})` } : undefined}>
-        <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
+        <RoundButton icon="back" label="Retour" onClick={onBack ?? goBack} className="back-btn" />
+        <RoundButton icon="settings" label="Paramètres" onClick={() => navigate('/parametres')} className="settings-btn" />
       </div>
 
-      <section className="card red">
+      <section className="card red profile-head">
         {editing ? (
           <form className="profile-form" onSubmit={submit}>
             <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Prénom" required autoFocus />
@@ -86,83 +80,112 @@ export function Profile({ section }: { section?: 'amis' }) {
           </form>
         ) : (
           <div className="card-title-row">
-            <div>
+            <Avatar name={profile?.name ?? ''} size={64} />
+            <div className="profile-id">
               <h1 className="display">{profile?.name || 'Moi'}</h1>
               {profile?.city && <p className="subtitle">{profile.city}</p>}
+              <p className="profile-stats">
+                {plural(myPhotos.length, 'photo')} · {plural(myCaptures.length, 'capture')} · {plural(friendCount, 'ami')}
+              </p>
             </div>
             <RoundButton icon="pencil" label="Modifier le profil" onClick={() => setEditing(true)} />
           </div>
         )}
       </section>
 
-      <section className="card salmon">
-        <h2 className="section-title">
-          Mes chasseurs ({chasseurs.length})
-        </h2>
-        {chasseurs.length ? (
-          <AvatarRow people={chasseurs} onOpen={(id) => navigate(`/personne/${id}`)} />
-        ) : (
-          <EmptyState icon="user">
-            Quand quelqu’un retrouvera l’une de vos photos sur place, il apparaîtra ici.
-          </EmptyState>
-        )}
-        <Friends ref={friendsRef} />
-      </section>
-
-      <section className="card white">
-        <PremiumCard />
-        <div className="visibility default-visibility">
-          Mes nouvelles photos sont visibles par :
-          <div className="chips" role="radiogroup" aria-label="Visibilité par défaut de mes nouvelles photos">
-            {VISIBILITIES.map((v) => (
-              <Chip
-                key={v}
-                label={VISIBILITY_AUDIENCE[v]}
-                selected={defaultVisibility === v}
-                onClick={() => chooseDefault(v)}
-              />
-            ))}
-          </div>
-          <small>
-            {visibilityHelp(defaultVisibility, { plural: true })} Vous pouvez changer avant chaque photo (restez appuyé
-            sur le déclencheur et glissez) ou après coup, dans le détail de la photo.
-          </small>
+      <section className="card white profile-body">
+        <div className="chips profile-tabs" role="tablist" aria-label="Mon profil">
+          {TABS.map((t) => (
+            <Chip
+              key={t.value}
+              role="tab"
+              label={t.value === 'amis' && requests ? `${t.label} (${requests})` : t.label}
+              selected={tab === t.value}
+              onClick={() => setTab(t.value)}
+            />
+          ))}
         </div>
-        <h2 className="section-title">
-          Mes photos géocadrées ({geoframed.length})
-        </h2>
-        {geoframed.length ? (
-          <div className="grid">
-            {spots.map(({ items }) => (
-              <PhotoTilePile
-                key={items[0].id}
-                photos={items}
-                showVisibility
-                onOpen={(p) => navigate(`/photo/${p.id}`)}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState icon="scan">Prenez une photo depuis l’accueil pour la géocadrer en direct.</EmptyState>
-        )}
-
-        {pending.length > 0 && (
-          <>
-            <h2 className="section-title">À géocadrer sur place ({pending.length})</h2>
-            <div className="grid">
-              {pending.map((p) => (
-                <PhotoTile key={p.id} id={p.id} badge="À recaler" onClick={() => navigate(`/photo/${p.id}`)} />
-              ))}
-            </div>
-          </>
-        )}
+        {tab === 'photos' && <MyPhotos />}
+        {tab === 'captures' &&
+          (myCaptures.length ? (
+            <>
+              <p className="tab-help">Reste appuyé sur une capture pour la retirer.</p>
+              <CaptureGrid captures={myCaptures} />
+            </>
+          ) : (
+            <EmptyState icon="flag">
+              Rends-toi sur le lieu d’une photo géocadrée et aligne-toi sur son point de vue pour la capturer.
+            </EmptyState>
+          ))}
+        {tab === 'amis' && <MyFriends />}
       </section>
     </main>
   )
 }
 
+/** Onglet « Mes photos » : une pile glissable par lieu, puis celles à géocadrer sur place. */
+function MyPhotos() {
+  const { myPhotos } = useStore()
+  const geoframed = myPhotos.filter(isGeoframed)
+  // Photos prises au même endroit : une seule vignette, empilée (on les fait défiler dans le détail).
+  const spots = groupBySpot(geoframed, spotPointOf, photoTime, photoPileOrder())
+  const pending = myPhotos.filter((p) => !isGeoframed(p))
+  return (
+    <>
+      <h2 className="section-title">Mes photos géocadrées ({geoframed.length})</h2>
+      {geoframed.length ? (
+        <div className="grid">
+          {spots.map(({ items }) => (
+            <PhotoTilePile key={items[0].id} photos={items} showVisibility onOpen={(p) => navigate(`/photo/${p.id}`)} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState icon="scan">Prends une photo avec le bouton rouge pour la géocadrer en direct.</EmptyState>
+      )}
+
+      {pending.length > 0 && (
+        <>
+          <h2 className="section-title">À géocadrer sur place ({pending.length})</h2>
+          <div className="grid">
+            {pending.map((p) => (
+              <PhotoTile key={p.id} id={p.id} badge="À recaler" onClick={() => navigate(`/photo/${p.id}`)} />
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+/** Onglet « Mes amis » : mes chasseurs, puis amis, invitations et demandes. */
+function MyFriends() {
+  const { hunters } = useStore()
+  // Mes chasseurs : ceux qui ont capturé au moins une de mes photos.
+  const byHunter = new Map<string, { id: string; name: string; count: number }>()
+  for (const c of hunters) {
+    const h = byHunter.get(c.hunter) ?? { id: c.hunter, name: c.hunterName, count: 0 }
+    h.count++
+    byHunter.set(c.hunter, h)
+  }
+  const chasseurs = [...byHunter.values()].map((h) => ({
+    ...h,
+    detail: `${h.count} capture${h.count > 1 ? 's' : ''}`,
+  }))
+  return (
+    <>
+      <Friends />
+      <h2 className="section-title">Mes chasseurs ({chasseurs.length})</h2>
+      {chasseurs.length ? (
+        <AvatarRow people={chasseurs} onOpen={(id) => navigate(`/personne/${id}`)} />
+      ) : (
+        <EmptyState icon="user">Quand quelqu’un retrouvera l’une de tes photos sur place, il apparaîtra ici.</EmptyState>
+      )}
+    </>
+  )
+}
+
 /** Mes amis : invitation (lien, QR code), ajout par code ou par nom, demandes reçues. */
-function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
+function Friends() {
   const { profile, friends, addFriend, acceptFriend, removeFriend } = useStore()
   const toast = useToast()
   const [code, setCode] = useState('')
@@ -206,7 +229,7 @@ function Friends({ ref }: { ref?: Ref<HTMLDivElement> }) {
   }
 
   return (
-    <div className="friends" ref={ref}>
+    <div className="friends">
       <h2 className="section-title">
         Mes amis ({accepted.length})
       </h2>

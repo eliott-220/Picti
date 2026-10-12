@@ -1,6 +1,7 @@
+import { CaptureGrid } from '../components/CaptureGrid'
 import { AvatarRow, EmptyState, PhotoTile, RoundButton } from '../components/ui'
 import { useStore } from '../data/storeContext'
-import { formatDateTime, isGeoframed, ofName } from '../data/types'
+import { isGeoframed } from '../data/types'
 import { goBack, navigate } from '../router'
 
 /** « Mes chasses » : mes proies (auteurs des photos retrouvées) et mes captures. */
@@ -55,29 +56,8 @@ export function Hunts() {
           Mes captures ({captured.length})
         </h2>
         {captured.length ? (
-          <div className="grid">
-            {captured.map((c) => {
-              const p = byId.get(c.photoId)!
-              return (
-                <div className="grid-item" key={c.id}>
-                  <PhotoTile
-                    id={c.photoId}
-                    caption={formatDateTime(c.capturedAt, { short: true })}
-                    label={`Capture ${isMine(p) ? 'de ma photo' : `de la photo ${ofName(p.ownerName || 'quelqu’un')}`} : voir sa fiche`}
-                    onClick={() => navigate(`/photo/${c.photoId}`)}
-                  />
-                  {/* L'auteur, à part : appui = son profil public. */}
-                  {isMine(p) ? (
-                    <span className="tile-author">Ma photo</span>
-                  ) : (
-                    <button type="button" className="tile-author name-link" onClick={() => navigate(`/personne/${p.owner}`)}>
-                      {p.ownerName || 'Quelqu’un'}
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          // Appui long sur la photo d'un autre : « Retirer de mes captures » (0.23.0).
+          <CaptureGrid captures={captured.map((c) => ({ capture: c, photo: byId.get(c.photoId)! }))} />
         ) : (
           <EmptyState icon="flag">
             Rendez-vous sur le lieu d’une photo géocadrée et alignez-vous sur son point de vue pour la capturer.

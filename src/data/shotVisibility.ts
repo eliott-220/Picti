@@ -7,7 +7,7 @@ import { VISIBILITIES, type Visibility } from './types'
 export const FIRST_VISIBILITY: Visibility = 'public'
 
 const KEY = 'picti.visibilite'
-// Astuce « restez appuyé sur le déclencheur » : quelques fois, tant qu'on n'a jamais changé de mode.
+// Astuce « reste appuyé sur le bouton rouge » : quelques fois, tant qu'on n'a jamais changé de mode.
 const HINT_KEY = 'picti.astuce.visibilite'
 const HINT_TIMES = 3
 

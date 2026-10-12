@@ -47,27 +47,31 @@ export interface Viewfinder {
  * visuel d'ARKit (caméra affichée derrière `stage`, position et orientation calées sur la Terre) ;
  * ailleurs, ou s'il manque, la caméra web, le GPS filtré et la boussole, comme avant.
  * `calibrateFocal` : mesurer la focale de la caméra web en tournant (accueil, chasse) ; `locate` :
- * suivre la position (faux pour le tutoriel, qui ne la demande qu'à la fin).
+ * suivre la position (faux pour le tutoriel, qui ne la demande qu'à la fin) ; `active` faux : viseur
+ * recouvert par la carte ou le profil (0.23.0) — caméra web rendue (gardée 15 s), caméra d'ARKit
+ * cachée et session gardée 15 s : revenu avant, l'image et le calage reviennent aussitôt.
  */
 export function useViewfinder({
   stage,
   facing = 'environment',
   calibrateFocal = false,
   locate = true,
+  active = true,
 }: {
   stage: RefObject<HTMLElement | null>
   facing?: CameraFacing
   calibrateFocal?: boolean
   locate?: boolean
+  active?: boolean
 }): Viewfinder {
   const wanted = facing === 'environment'
-  const { state: arState, view } = useArTracking(wanted)
+  const { state: arState, view } = useArTracking(wanted, active)
   const arActive = wanted && arState.status === 'running'
   // En route, ou sur le point de l'être (premier affichage) : la caméra web attend que le suivi ait
   // renoncé. Les deux ne peuvent pas tenir l'objectif en même temps : ouverte un instant, elle laissait
   // ARKit sans image (caméra arrière noire, selfie normal).
   const arPending = wanted && !arActive && !arLeavesCamera(arState.status)
-  const web = useCamera(!arActive && !arPending, facing)
+  const web = useCamera(active && !arActive && !arPending, facing)
   const geo = useGeolocation(locate)
   const sensors = useOrientation()
   const webPosition = useLivePosition(geo.track, sensors.absolute ? sensors.basis : null)
@@ -75,10 +79,10 @@ export function useViewfinder({
   useFocalCalibration(
     web.videoRef,
     sensors.angles,
-    calibrateFocal && wanted && !arActive && web.status === 'ready' && sensors.absolute,
+    active && calibrateFocal && wanted && !arActive && web.status === 'ready' && sensors.absolute,
   )
   const arCamera = arActive ? arState.camera : null
-  useArCamera(stage, arCamera != null)
+  useArCamera(stage, active && arCamera != null)
 
   const orientation = useMemo<OrientationState>(
     () =>

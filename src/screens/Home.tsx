@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { BottomBar } from '../components/BottomBar'
+import { doubleTapAllowed, isDoubleTap, isTap, type TapPoint } from '../components/doubleTap'
 import { ReproduceCrosshairs } from '../components/ReproduceCrosshairs'
 import { viewportCamera, type GeoframedPhoto } from '../components/arProjection'
 import { ArSpotsLayer } from '../components/ArSpotsLayer'
@@ -8,8 +10,10 @@ import { SensorStatus } from '../components/SensorStatus'
 import { Shutter } from '../components/Shutter'
 import { useElementSize } from '../components/useElementSize'
 import { useReproduceStatus } from '../components/useReproduceStatus'
-import { useSwipeOpen } from '../components/useSwipeOpen'
-import { DirectionArrow, RoundButton, Sheet, Thumb } from '../components/ui'
+import { PREPARE_MS } from '../components/swipeOpen'
+import { usePanes, type Pane } from '../components/usePanes'
+import { useTyping } from '../components/useTyping'
+import { DirectionArrow, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { CELEBRATION_MS } from '../components/useCapture'
 import { useImageUrl } from '../data/imageUrls'
@@ -28,15 +32,24 @@ import { anglesFromBasis, frontCameraBasis, type CameraAngles } from '../geo/ori
 import { reproduceStatus, type ReproduceState } from '../geo/reproduce'
 import { GPS_GOOD_ACCURACY } from '../geo/tracking'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
-import { goBack, navigate } from '../router'
+import { goBack, historyMark, navigate } from '../router'
 import type { CameraFacing } from '../sensors/useCamera'
 import { trackArShot } from '../sensors/arTracking'
 import { useViewfinder } from '../sensors/useViewfinder'
-import type { NativeArPose } from '../native'
-import { ImportSheet } from './ImportSheet'
+import { haptic, type NativeArPose } from '../native'
 import { MenuSheet } from './MenuSheet'
 import { PhotoSheet } from './PhotoDetail'
 import { Profile } from './Profile'
+
+// La carte (MapLibre) est lourde : chargée à la première ouverture (ou préparée peu après le viseur).
+const WorldMap = lazy(() => import('./WorldMap'))
+
+/** Délai (ms) avant de préparer la carte, cachée à gauche du viseur : après la caméra, comme le profil. */
+const MAP_PREPARE_MS = 2500
+/** Drapeau de l'entrée d'historique : la carte ou le profil a été ouvert depuis le viseur (retour = `goBack`). */
+const HOME_BELOW = 'pictiHomeBelow'
+/** Fondu de l'image pendant le passage caméra arrière ↔ avant (ms). */
+const FLIP_MS = 600
 
 /**
  * Prise de vue suspendue à un choix (feuille) : l'image est figée à l'écran dès le déclenchement.
@@ -54,16 +67,27 @@ interface HeldShot {
   pose?: NativeArPose
 }
 
-/** Miniature de la photo qu'on vient de prendre, dans le coin bas-gauche (ms). */
-const LAST_SHOT_MS = 5000
-
 /**
- * Accueil : le viseur, point de départ du géocadrage en direct. Avec `reproduce` (bouton
- * « Reproduire cette photo ») : la photo d'origine en calque semi-transparent et les deux croix
+ * Accueil : le viseur, point de départ du géocadrage en direct, avec ses deux voisins (0.23.0, comme
+ * Snap) : la carte à gauche, Mon profil à droite, ouverts en glissant le doigt ou depuis la barre du
+ * bas. Les trois restent montés (`pane` : celui que montre l'adresse) : la carte n'est pas rechargée
+ * à chaque ouverture, la caméra se met en pause quand le viseur est recouvert. Avec `reproduce` (bouton
+ * « Reproduire ») : le viseur seul, la photo d'origine en calque semi-transparent et les deux croix
  * d'orientation ; le rattachement reste décidé par les règles existantes.
  */
-export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
-  const [sheet, setSheet] = useState<'import' | 'menu' | null>(null)
+export function Home({
+  reproduce,
+  pane: route = 'viseur',
+  profileSection,
+}: {
+  reproduce?: GeoframedPhoto
+  pane?: Pane
+  profileSection?: 'amis'
+}) {
+  // Carte et profil autour du viseur, barre du bas : pas en « Reproduire ».
+  const shell = !reproduce
+  const pane: Pane = shell ? route : 'viseur'
+  const [sheet, setSheet] = useState<'menu' | null>(null)
   const [flash, setFlash] = useState(false)
   const [busy, setBusy] = useState(false)
   const [reproduceOpacity, setReproduceOpacity] = useState(0.5)
@@ -71,26 +95,47 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   const [facing, setFacing] = useState<CameraFacing>(reproduce?.selfie ? 'user' : 'environment')
   const selfie = facing === 'user'
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
+  // Écrans voisins (carte, profil) et barre du bas, déplacés pendant les glissés.
+  const mapRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLElement>(null)
+  // Prise de vue suspendue à un choix, attente d'un GPS précis (plus bas) : pas de glissé pendant ce temps.
+  const [frozen, setFrozen] = useState<string | null>(null)
+  const [held, setHeld] = useState<HeldShot | null>(null)
+  const [waitGps, setWaitGps] = useState(false)
+  // Photo capturée depuis le viseur : sa fiche monte en feuille après la célébration ; « Fiche » la rouvre.
+  const [captureSheet, setCaptureSheet] = useState<{ id: string; open: boolean } | null>(null)
+  // Feuille ouverte sur la carte (import) : la barre se cache.
+  const [mapSheet, setMapSheet] = useState(false)
+  const typing = useTyping()
+  // Profil ouvert sur « Mes amis » (menu) : l'adresse le dira une fois l'écran arrivé.
+  const nextSection = useRef<'amis' | undefined>(undefined)
+  const panes = usePanes({
+    pane,
+    enabled: shell && !sheet && !captureSheet?.open && !frozen && !held && !waitGps && !busy,
+    onCommit: commitPane,
+    map: mapRef,
+    profile: profileRef,
+    bar: barRef,
+  })
+  // Le viseur est visible (affiché, ou découvert par un glissé) : sinon la caméra se met en pause.
+  const onViewfinder = pane === 'viseur' || panes.move != null
   // Caméra, position et orientation : suivi visuel d'ARKit dans l'app iPhone (les photos restent à
   // leur place au centimètre près) ; sinon caméra web, position suivie image par image (et pas à pas)
   // et boussole, avec la focale de la caméra principale mesurée en tournant le téléphone.
-  const { camera, geo, orientation, position, focal35, ar } = useViewfinder({ stage: stageRef, facing, calibrateFocal: true })
+  const { camera, geo, orientation, position, focal35, ar } = useViewfinder({
+    stage: stageRef,
+    facing,
+    calibrateFocal: true,
+    active: onViewfinder,
+  })
   const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = camera
-  const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications } = useStore()
+  const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications, profile } = useStore()
   const unread = unreadCount(notifications)
   const toast = useToast()
   // Mode des prochaines photos (Public · Amis · Privé) : appui long sur le déclencheur, puis glisser.
   const visibility = useShotVisibility()
-  // Photo capturée depuis le viseur : sa fiche monte en feuille après la célébration ; « Fiche » la rouvre.
-  const [captureSheet, setCaptureSheet] = useState<{ id: string; open: boolean } | null>(null)
   const sheetPhoto = captureSheet ? photos.find((p) => p.id === captureSheet.id) : undefined
-  // Photo que je viens de prendre : miniature (comme l'appareil photo de l'iPhone), appui = sa fiche.
-  const [lastShot, setLastShot] = useState<string | null>(null)
-  useEffect(() => {
-    if (!lastShot) return
-    const t = setTimeout(() => setLastShot(null), LAST_SHOT_MS)
-    return () => clearTimeout(t)
-  }, [lastShot])
   // Demandes d'ami reçues : pastille sur le bouton du menu.
   const friendRequests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
   useNearbyRefresh(geo.fix)
@@ -107,9 +152,6 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
   const [lostSeen, setLostSeen] = useState(false)
   if (lostSeen && status?.view !== 'lost') setLostSeen(false)
   // Image figée et choix en attente ; attente d'un GPS précis (« Attendre »).
-  const [frozen, setFrozen] = useState<string | null>(null)
-  const [held, setHeld] = useState<HeldShot | null>(null)
-  const [waitGps, setWaitGps] = useState(false)
   useEffect(() => () => {
     if (frozen) URL.revokeObjectURL(frozen)
   }, [frozen])
@@ -129,15 +171,102 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
     void shootRef.current({ skipGps: true })
   }, [waitGps, busy, held, liveAccuracy])
 
-  // Glisser le doigt de droite à gauche sur le viseur : le profil arrive par la droite (pendant du
-  // retour par le bord gauche). Pas en « Reproduire », ni avec une feuille ou une prise en cours.
-  const toProfile = useSwipeOpen(
-    () => navigate('/profil'),
-    !reproduce && !sheet && !captureSheet?.open && !frozen && !held && !waitGps && !busy,
+  /**
+   * Un écran voisin a fini d'arriver (glissé, barre, menu) : l'adresse suit. Ouvert depuis le viseur, il
+   * ajoute une entrée à l'historique (le retour d'iOS ou du navigateur ramène au viseur) ; entre la carte
+   * et le profil, il la remplace ; le retour au viseur la retire.
+   */
+  function commitPane(target: Pane) {
+    if (target === 'viseur') {
+      if (historyMark(HOME_BELOW)) goBack()
+      else navigate('/', { replace: true })
+      return
+    }
+    const path = target === 'carte' ? '/carte' : nextSection.current ? `/profil/${nextSection.current}` : '/profil'
+    nextSection.current = undefined
+    if (pane === 'viseur') navigate(path, { mark: { [HOME_BELOW]: true } })
+    else navigate(path, { replace: true, mark: { [HOME_BELOW]: historyMark(HOME_BELOW) === true } })
+  }
+
+  /** Mon profil, éventuellement sur « Mes amis » (menu Explorer, carte « Amis » sans ami). */
+  function openProfile(section?: 'amis') {
+    setSheet(null)
+    if (pane === 'profil') {
+      if (section !== profileSection) navigate(section ? `/profil/${section}` : '/profil', { replace: true, mark: { [HOME_BELOW]: historyMark(HOME_BELOW) === true } })
+      return
+    }
+    nextSection.current = section
+    panes.goTo('profil')
+  }
+
+  // Carte et profil préparés cachés peu après l'ouverture du viseur (leur premier affichage coûte, le
+  // doigt ne doit pas l'attendre), puis gardés montés.
+  const [prepared, setPrepared] = useState({ carte: pane === 'carte', profil: pane === 'profil' })
+  const want = (p: 'carte' | 'profil') => pane === p || panes.move?.pane === p
+  if ((want('carte') && !prepared.carte) || (want('profil') && !prepared.profil)) {
+    setPrepared({ carte: prepared.carte || want('carte'), profil: prepared.profil || want('profil') })
+  }
+  useEffect(() => {
+    if (!shell) return
+    const later = (p: 'carte' | 'profil', ms: number) => window.setTimeout(() => setPrepared((was) => ({ ...was, [p]: true })), ms)
+    const timers = [later('profil', PREPARE_MS), later('carte', MAP_PREPARE_MS)]
+    return () => timers.forEach(clearTimeout)
+  }, [shell])
+  // Les deux voisins ne sont pas redessinés à chaque image du viseur : leurs actions passent par une
+  // référence tenue à jour.
+  const actions = useRef({ openProfile, profileBack: () => {} })
+  useEffect(() => {
+    actions.current = {
+      openProfile,
+      profileBack: () => (historyMark(HOME_BELOW) ? panes.goTo('viseur') : goBack()),
+    }
+  })
+  const mapActive = pane === 'carte'
+  const mapPane = useMemo(
+    () => (
+      <Suspense fallback={<div className="map-loading">Chargement de la carte…</div>}>
+        <WorldMap active={mapActive} onFriends={() => actions.current.openProfile('amis')} onSheet={setMapSheet} />
+      </Suspense>
+    ),
+    [mapActive],
   )
-  // Le profil affiché pendant le glissement (préparé caché peu après l'ouverture du viseur) : même
-  // élément d'un rendu à l'autre, il n'est pas redessiné à chaque image du viseur.
-  const profilePeek = useMemo(() => <Profile />, [])
+  const profilePane = useMemo(
+    () => <Profile section={profileSection} onBack={() => actions.current.profileBack()} />,
+    [profileSection],
+  )
+
+  // Double appui sur l'image : caméra arrière ↔ avant (fondu de l'image), jamais de photo.
+  const tapDown = useRef<TapPoint | null>(null)
+  const lastTap = useRef<TapPoint | null>(null)
+  const [flip, setFlip] = useState(0)
+  useEffect(() => {
+    if (!flip) return
+    const t = setTimeout(() => setFlip(0), FLIP_MS)
+    return () => clearTimeout(t)
+  }, [flip])
+  const stageTaps = {
+    onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
+      tapDown.current = e.isPrimary && doubleTapAllowed(e.target) ? { x: e.clientX, y: e.clientY, t: e.timeStamp } : null
+    },
+    onPointerUp: (e: PointerEvent<HTMLDivElement>) => {
+      const down = tapDown.current
+      tapDown.current = null
+      const up = { x: e.clientX, y: e.clientY, t: e.timeStamp }
+      if (!down || !isTap(down, up) || !doubleTapAllowed(e.target)) {
+        lastTap.current = null
+        return
+      }
+      if (!isDoubleTap(lastTap.current, up)) {
+        lastTap.current = up
+        return
+      }
+      lastTap.current = null
+      if (busy || held || frozen || !onViewfinder) return
+      haptic('tick')
+      setFlip((n) => n + 1)
+      setFacing((f) => (f === 'user' ? 'environment' : 'user'))
+    },
+  }
 
   // Photos d'autres utilisateurs à chasser autour de soi.
   const captured = new Set(captures.map((c) => c.photoId))
@@ -247,8 +376,7 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         { label: 'Voir', to: `/photo/${saved.id}` },
       )
     } else if (photo.geoframe) {
-      // Miniature dans le coin (appui = sa fiche, où l'on change la visibilité) : pas de bouton au toast.
-      setLastShot(saved.id)
+      // Le bas du viseur n'a plus que la barre (0.23.0) : « Voir » ouvre la fiche (où l'on change la visibilité).
       const accuracy = photo.geoframe.accuracy
       // GPS imprécis (« Prendre quand même ») : la photo pourra paraître décalée.
       const vague = accuracy != null && accuracy > GPS_GOOD_ACCURACY
@@ -257,17 +385,14 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
       const sameView = parent ? ` · ↻ même vue que ${isMine(parent) ? 'votre photo' : `la photo ${ofName(parent.ownerName || 'quelqu’un')}`}` : ''
       const published = `${selfie ? 'Selfie géocadré' : 'Photo géocadrée'} · visible par ${VISIBLE_BY[saved.visibility]}${sameView}`
       // Les premières fois : comment changer de mode, puisque rien ne l'affiche à l'écran.
-      const hint = !vague && takeVisibilityHint() ? ' — restez appuyé sur le déclencheur pour changer' : ''
-      toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published + hint)
+      const hint = !vague && takeVisibilityHint() ? ' — reste appuyé sur le bouton rouge pour changer' : ''
+      toast(vague ? `${published} — GPS à ±${Math.round(accuracy!)} m : elle pourra paraître décalée` : published + hint, {
+        label: 'Voir',
+        to: `/photo/${saved.id}`,
+      })
     } else {
       const missing = !geo.fix ? 'position GPS' : 'boussole'
-      const text = `${kind} ${selfie ? 'gardé' : 'gardée'} sans ${missing} : à géocadrer sur place`
-      // En mode « Reproduire », le coin bas-gauche est le bouton ✕ : le toast garde « Voir ».
-      if (reproduce) toast(text, { label: 'Voir', to: `/photo/${saved.id}` })
-      else {
-        setLastShot(saved.id)
-        toast(text)
-      }
+      toast(`${kind} ${selfie ? 'gardé' : 'gardée'} sans ${missing} : à géocadrer sur place`, { label: 'Voir', to: `/photo/${saved.id}` })
     }
   }
 
@@ -304,9 +429,25 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           ? angleDiffDeg(looking, status.bearing)
           : null
 
+  // Barre du bas : cachée pendant une fiche, un choix de prise, une feuille de la carte, la saisie.
+  const barShown = shell && !captureSheet?.open && !held && !frozen && !mapSheet && !typing
+  const shutterLabel = selfie ? 'Prendre un selfie' : 'Prendre une photo'
+  const paneClass = (p: 'carte' | 'profil') => (pane === p ? ' shown' : panes.move?.pane === p ? ' moving' : '')
+
   return (
-    <main className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`} {...toProfile.handlers}>
-      <div className="camera-stage" ref={stageRef}>
+    <main
+      className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`}
+      {...(shell ? panes.handlers : {})}
+    >
+      <div
+        className="camera-stage"
+        ref={stageRef}
+        {...stageTaps}
+        role={shell ? 'region' : undefined}
+        aria-label={
+          shell ? 'Viseur — glisser vers la droite : carte ; vers la gauche : Mon profil ; double appui : caméra avant ou arrière' : undefined
+        }
+      >
         {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
             Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
         <video ref={videoRef} className={`camera-video ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
@@ -337,8 +478,9 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         )}
         {/* Image figée au déclenchement, le temps de choisir. */}
         {frozen && <img className={`frozen-shot ${selfie ? 'mirror' : ''}`} src={frozen} alt="" />}
-        {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie. */}
-        {!sheet && !selfie && !reproduce && (
+        {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie ; rien à
+            calculer quand le viseur est recouvert par la carte ou le profil. */}
+        {!sheet && !selfie && !reproduce && onViewfinder && (
           <ArSpotsLayer
             photos={arPhotos}
             fix={position}
@@ -357,6 +499,8 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
           />
         )}
         {flash && <div className="flash" />}
+        {/* Passage caméra arrière ↔ avant (double appui) : court fondu de l'image. */}
+        {!!flip && <div key={flip} className="camera-flip" aria-hidden="true" />}
       </div>
       {reproduce && status?.view !== 'lost' && (
         <label className="slider reproduce-opacity">
@@ -379,42 +523,35 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         <SensorStatus geo={geo} orientation={orientation} position={position} visual={ar.oriented} />
       )}
 
+      {/* Viseur allégé (0.23.0) : notifications et photos à chasser ; la caméra avant se prend d'un double
+          appui, la carte en glissant vers la droite, la recherche dans le menu. */}
       {!reproduce && (
-      <nav className="rail" aria-label="Explorer">
-        <RoundButton
-          icon="bell"
-          label={unread ? `Notifications (${unread} non lue${unread > 1 ? 's' : ''})` : 'Notifications'}
-          onClick={() => navigate('/notifications')}
-          dim={!!sheet}
-          badge={unread}
-        />
-        <RoundButton
-          icon="pin"
-          label="Carte des photos"
-          onClick={() => navigate('/carte')}
-          dim={!!sheet}
-          badge={toHunt}
-        />
-        <RoundButton icon="filter" label="Filtrer" onClick={() => navigate('/recherche?filtres')} dim={!!sheet} />
-        <RoundButton icon="search" label="Rechercher" onClick={() => navigate('/recherche')} dim={!!sheet} />
-        <RoundButton
-          icon="flipCamera"
-          label={selfie ? 'Revenir à la caméra principale' : 'Prendre un selfie (caméra avant)'}
-          onClick={() => setFacing(selfie ? 'environment' : 'user')}
-          dim={!!sheet}
-          className={selfie ? 'active' : ''}
-        />
-      </nav>
+        <nav className="rail" aria-label="Explorer">
+          <RoundButton
+            icon="bell"
+            label={unread ? `Notifications (${unread} non lue${unread > 1 ? 's' : ''})` : 'Notifications'}
+            onClick={() => navigate('/notifications')}
+            dim={!!sheet}
+            badge={unread}
+          />
+          <RoundButton
+            icon="flag"
+            label={toHunt ? `À chasser : ${toHunt} photo${toHunt > 1 ? 's' : ''} à proximité` : 'Photos à chasser à proximité'}
+            onClick={() => navigate('/proximite')}
+            dim={!!sheet}
+            badge={toHunt}
+          />
+        </nav>
       )}
 
       {selfie && !sheet && !reproduce && (
-        <p className="selfie-hint"><strong>Selfie</strong> · on le retrouvera en visant, depuis la place du téléphone, l’endroit où vous vous tenez</p>
+        <p className="selfie-hint"><strong>Selfie</strong> · on le retrouvera en visant, depuis la place du téléphone, l’endroit où tu te tiens · double appui pour revenir</p>
       )}
 
       {waitGps && (
         <div className="gps-wait" role="status">
           <span>
-            En attente d’une position précise{liveAccuracy != null && ` (±${Math.round(liveAccuracy)}\u00a0m)`} : la photo
+            En attente d’une position précise{liveAccuracy != null && ` (±${Math.round(liveAccuracy)} m)`} : la photo
             sera prise dès qu’elle passera sous {GPS_GOOD_ACCURACY}&nbsp;m
           </span>
           <button type="button" onClick={() => setWaitGps(false)}>
@@ -423,43 +560,26 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         </div>
       )}
 
-      <div className="bottom-bar">
-        {reproduce ? (
+      {reproduce && (
+        <div className="bottom-bar">
           <RoundButton icon="close" label="Arrêter de reproduire" onClick={goBack} />
-        ) : lastShot ? (
-          <button
-            type="button"
-            className="last-shot"
-            onClick={() => navigate(`/photo/${lastShot}`)}
-            aria-label="Voir la fiche de la photo que vous venez de prendre"
-          >
-            <Thumb id={lastShot} />
-          </button>
-        ) : (
-          <RoundButton icon="plus" label="Géocadrer en différé (importer)" onClick={() => setSheet('import')} />
-        )}
-        <Shutter
-          visibility={visibility}
-          onVisibility={setShotVisibility}
-          onShoot={() => void shoot()}
-          disabled={busy || !!held}
-          warn={away}
-          label={`${selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}${away ? ' — hors de la vue de la photo d’origine' : ''}`}
-        />
-        {reproduce ? (
+          <Shutter
+            visibility={visibility}
+            onVisibility={setShotVisibility}
+            onShoot={() => void shoot()}
+            disabled={busy || !!held}
+            warn={away}
+            label={`${selfie ? 'Géocadrer en direct (prendre un selfie)' : 'Géocadrer en direct (prendre une photo)'}${away ? ' — hors de la vue de la photo d’origine' : ''}`}
+          />
           <RoundButton
             icon="flipCamera"
             label={selfie ? 'Revenir à la caméra principale' : 'Caméra avant'}
             onClick={() => setFacing(selfie ? 'environment' : 'user')}
             className={selfie ? 'active' : ''}
           />
-        ) : (
-          <RoundButton icon="grid" label="Menu" onClick={() => setSheet('menu')} badge={friendRequests} />
-        )}
-      </div>
+        </div>
+      )}
 
-      {sheet === 'import' && <ImportSheet onClose={() => setSheet(null)} fix={geo.fix} />}
-      {sheet === 'menu' && <MenuSheet onClose={() => setSheet(null)} />}
       {captureSheet?.open && sheetPhoto && (
         <PhotoSheet
           photo={sheetPhoto}
@@ -523,17 +643,64 @@ export function Home({ reproduce }: { reproduce?: GeoframedPhoto }) {
         </Sheet>
       )}
 
-      <PreciseLocationNotice geo={geo} />
+      {onViewfinder && <PreciseLocationNotice geo={geo} />}
 
-      {toProfile.mounted && (
+      {/* Carte à gauche du viseur, Mon profil à droite : montés une fois préparés, cachés hors de l'écran
+          tant qu'on n'y va pas. */}
+      {shell && prepared.carte && (
         <div
-          className={`swipe-peek ${toProfile.phase === 'idle' ? 'idle' : ''}`}
-          ref={toProfile.panelRef}
-          style={toProfile.panelStyle}
-          aria-hidden="true"
+          ref={mapRef}
+          className={`shell-pane map-pane${paneClass('carte')}`}
+          inert={pane !== 'carte'}
+          aria-hidden={pane !== 'carte' && !panes.move}
         >
-          {profilePeek}
+          {mapPane}
         </div>
+      )}
+      {shell && pane === 'carte' && (
+        // Bande du bord droit : d'ici, glisser vers la gauche ramène au viseur ; ailleurs le doigt déplace la
+        // carte. Gardée pendant le geste (elle tient le doigt : `setPointerCapture`).
+        <div className="map-edge" {...panes.edgeHandlers} role="region" aria-label="Bord de la carte — glisser vers la gauche pour revenir au viseur" />
+      )}
+      {shell && prepared.profil && (
+        <div
+          ref={profileRef}
+          className={`shell-pane profile-pane${paneClass('profil')}`}
+          inert={pane !== 'profil'}
+          aria-hidden={pane !== 'profil' && !panes.move}
+        >
+          {profilePane}
+        </div>
+      )}
+
+      {shell && sheet === 'menu' && (
+        <MenuSheet
+          onClose={() => setSheet(null)}
+          onMap={() => {
+            setSheet(null)
+            panes.goTo('carte')
+          }}
+          onFriends={() => openProfile('amis')}
+        />
+      )}
+
+      {barShown && (
+        <BottomBar
+          ref={barRef}
+          away={pane !== 'viseur' || sheet === 'menu'}
+          visibility={visibility}
+          onVisibility={setShotVisibility}
+          onShoot={() => void shoot()}
+          shootDisabled={busy || !!held}
+          shutterLabel={shutterLabel}
+          onHome={() => (sheet ? setSheet(null) : panes.goTo('viseur'))}
+          onMenu={() => setSheet(sheet === 'menu' ? null : 'menu')}
+          menuOpen={sheet === 'menu'}
+          menuBadge={friendRequests}
+          onProfile={() => openProfile()}
+          profileActive={pane === 'profil'}
+          profileName={profile?.name ?? ''}
+        />
       )}
     </main>
   )

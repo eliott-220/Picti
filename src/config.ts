@@ -11,7 +11,7 @@ export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY ?? 'sb_publishable
  */
 export const DIFFERE_PREMIUM_REQUIRED = true
 
-/** Enregistrer sur son téléphone la photo d'un autre utilisateur : réservé à PICTI Premium. */
+/** Partager (et enregistrer sur son téléphone) la photo d'un autre utilisateur : réservé à PICTI Premium. */
 export const SAVE_OTHERS_PREMIUM_REQUIRED = true
 
 /** Adresse de l'application en ligne (liens d'invitation). */

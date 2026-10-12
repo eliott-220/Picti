@@ -26,6 +26,8 @@ export type Route =
   | { name: 'personne'; id: string }
   /** Tutoriel du premier lancement, revu depuis le menu. */
   | { name: 'tutoriel' }
+  /** Paramètres (depuis Mon profil › ⚙️). */
+  | { name: 'parametres' }
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -55,6 +57,8 @@ export function parseHash(hash: string): Route {
       return { name: 'notifications' }
     case 'tutoriel':
       return { name: 'tutoriel' }
+    case 'parametres':
+      return { name: 'parametres' }
     case 'ami':
       return id ? { name: 'ami', code: id } : { name: 'accueil' }
     default:
@@ -92,23 +96,41 @@ const depthOf = (state: unknown) => (state as { pictiDepth?: number } | null)?.p
 /** Vrai pendant `location.hash = …` : un `popstate` émis à ce moment ne dit rien de la profondeur. */
 let navigating = false
 
-/** Note la profondeur dans l'entrée courante de l'historique. */
-function markDepth() {
-  history.replaceState({ ...(history.state as object | null), pictiDepth: depth }, '')
+/** Comment on est arrivé sur l'écran affiché : `pop` = retour (bouton, geste d'iOS), sans animation à rejouer. */
+let lastNavigation: 'push' | 'replace' | 'pop' = 'push'
+
+export function navigationKind(): 'push' | 'replace' | 'pop' {
+  return lastNavigation
 }
 
-export function navigate(path: string, { replace = false } = {}) {
+/** Note la profondeur (et `mark`) dans l'entrée courante de l'historique. */
+function markDepth(mark?: Record<string, unknown>) {
+  history.replaceState({ ...(history.state as object | null), ...mark, pictiDepth: depth }, '')
+}
+
+/**
+ * Va à `path` (ancre). `replace` : remplace l'entrée courante au lieu d'en ajouter une ;
+ * `mark` : drapeaux gardés dans l'entrée de l'historique (relus par `historyMark`).
+ */
+export function navigate(path: string, { replace = false, mark }: { replace?: boolean; mark?: Record<string, unknown> } = {}) {
   const hash = `#${path}`
   if (replace) {
-    history.replaceState({ pictiDepth: depth }, '', hash)
+    lastNavigation = 'replace'
+    history.replaceState({ ...mark, pictiDepth: depth }, '', hash)
     window.dispatchEvent(new HashChangeEvent('hashchange'))
   } else {
+    lastNavigation = 'push'
     depth++
     navigating = true
     location.hash = hash
     navigating = false
-    markDepth()
+    markDepth(mark)
   }
+}
+
+/** Drapeau `key` posé par `navigate(…, { mark })` sur l'entrée courante de l'historique. */
+export function historyMark(key: string): unknown {
+  return (history.state as Record<string, unknown> | null)?.[key]
 }
 
 export function goBack() {
@@ -147,7 +169,10 @@ if (typeof window !== 'undefined') {
       overlays[i].close()
     }
     // Profondeur de l'entrée retrouvée, quel que soit le chemin du retour.
-    if (!navigating) depth = depthOf(history.state)
+    if (!navigating) {
+      depth = depthOf(history.state)
+      lastNavigation = 'pop'
+    }
   })
 }
 

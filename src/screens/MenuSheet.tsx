@@ -1,117 +1,77 @@
-import { Icon, Logo, type IconName } from '../components/Icon'
+import { Icon, type IconName } from '../components/Icon'
 import { IconButton, Sheet } from '../components/ui'
+import { APP_NUMBER } from '../data/appUpdate'
 import { useStore } from '../data/storeContext'
-import { setArSetting, useArState } from '../sensors/arTracking'
-import { useCameraFocal } from '../sensors/cameraFocal'
-import { hasArTracking } from '../native'
-import { formatVersion, reloadApp } from '../data/appUpdate'
-import { supabase } from '../data/supabase'
-import { isGeoframed } from '../data/types'
 import { navigate } from '../router'
 
-export function MenuSheet({ onClose }: { onClose: () => void }) {
-  const { myPhotos, captures, profile, friends } = useStore()
-  const { focal35, measured } = useCameraFocal()
-  const geoframed = myPhotos.filter(isGeoframed).length
-  const hunted = new Set(captures.map((c) => c.photoId)).size
+/**
+ * Menu (bouton 4 carrés de la barre, 0.23.0) : feuille Explorer. Grille 2 × 2 — À proximité, Rechercher,
+ * Mes chasses, Amis — puis « Carte du monde » (le même écran que le glissé vers la droite, pour qui ne
+ * connaît pas le geste). Mon profil a son bouton dans la barre ; compte, tutoriel, version et réglages
+ * sont dans Mon profil › Paramètres.
+ */
+export function MenuSheet({ onClose, onMap, onFriends }: { onClose: () => void; onMap: () => void; onFriends: () => void }) {
+  const { photos, nearby, captures, isMine, friends } = useStore()
+  const captured = new Set(captures.map((c) => c.photoId))
+  const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
   const requests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
-  // App iPhone : le suivi visuel (ARKit) se coupe ici, pour comparer avec le GPS et la boussole seuls.
-  const ar = useArState()
-  const arToggle = hasArTracking() && ar.status !== 'unavailable'
-  const arOn = ar.status !== 'disabled'
+  const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
-  const items: { icon: IconName; label: string; detail: string; to: string; badge?: number }[] = [
-    requests
-      ? {
-          icon: 'user',
-          label: 'Mon profil',
-          detail: `${requests} demande${requests > 1 ? 's' : ''} d’ami à accepter`,
-          to: '/profil/amis',
-          badge: requests,
-        }
-      : { icon: 'user', label: 'Mon profil', detail: `${geoframed} photo${geoframed > 1 ? 's' : ''} géocadrée${geoframed > 1 ? 's' : ''}`, to: '/profil' },
-    { icon: 'flag', label: 'Mes chasses', detail: `${hunted} capture${hunted > 1 ? 's' : ''}`, to: '/chasses' },
-    { icon: 'compass', label: 'Carte du monde', detail: 'Les photos géocadrées partout sur Terre', to: '/carte' },
-    { icon: 'pin', label: 'À proximité', detail: 'Photos à retrouver autour de moi', to: '/proximite' },
-    { icon: 'search', label: 'Rechercher', detail: 'Par titre ou par type', to: '/recherche' },
+  const tiles: { icon: IconName; label: string; detail: string; open: () => void; badge?: number }[] = [
+    {
+      icon: 'pin',
+      label: 'À proximité',
+      detail: toHunt ? `${plural(toHunt, 'photo')} à chasser autour de toi` : 'Photos à chasser autour de toi',
+      open: () => navigate('/proximite'),
+    },
+    { icon: 'search', label: 'Rechercher', detail: 'Titre, type, selfies, personnes', open: () => navigate('/recherche') },
+    {
+      icon: 'flag',
+      label: 'Mes chasses',
+      detail: captured.size ? `${plural(captured.size, 'capture')}` : 'En cours et capturées',
+      open: () => navigate('/chasses'),
+    },
+    {
+      icon: 'friends',
+      label: 'Amis',
+      detail: requests ? `${plural(requests, 'demande')} à accepter` : 'Inviter par lien ou QR code',
+      open: onFriends,
+      badge: requests,
+    },
   ]
 
   return (
-    <Sheet onClose={onClose} label="Menu">
-      <div className="menu-head">
-        <Logo size={40} />
-        <div>
-          <strong>PICTI</strong>
-          <span>{profile?.name}</span>
-        </div>
+    <Sheet onClose={onClose} label="Explorer" className="explorer">
+      <div className="explorer-head">
+        <h2>Explorer</h2>
         <IconButton icon="close" label="Fermer" onClick={onClose} />
       </div>
-      <ul className="menu">
-        {items.map((it) => (
-          <li key={it.to}>
-            <button type="button" onClick={() => navigate(it.to)}>
-              <span className="menu-icon">
-                <Icon name={it.icon} />
-                {!!it.badge && (
-                  <span className="round-badge" aria-label={`${it.badge} demande${it.badge > 1 ? 's' : ''} d’ami`}>
-                    {it.badge > 99 ? '99+' : it.badge}
+      <ul className="explorer-grid">
+        {tiles.map((t) => (
+          <li key={t.label}>
+            <button type="button" className="explorer-tile" onClick={t.open}>
+              <span className="explorer-icon">
+                <Icon name={t.icon} size={26} />
+                {!!t.badge && (
+                  <span className="round-badge" aria-label={plural(t.badge, 'demande') + ' d’ami'}>
+                    {t.badge > 99 ? '99+' : t.badge}
                   </span>
                 )}
               </span>
-              <span className="menu-text">
-                <strong>{it.label}</strong>
-                <span>{it.detail}</span>
-              </span>
+              <strong>{t.label}</strong>
+              <span>{t.detail}</span>
             </button>
           </li>
         ))}
       </ul>
-      <ul className="menu">
-        <li>
-          <button type="button" onClick={() => navigate('/tutoriel')}>
-            <span className="menu-icon">
-              <Icon name="scan" />
-            </span>
-            <span className="menu-text">
-              <strong>Revoir le tutoriel</strong>
-              <span>Prendre une photo d’essai et la retrouver, en 30 secondes</span>
-            </span>
-          </button>
-        </li>
-      </ul>
-      {arToggle && (
-        <ul className="menu">
-          <li>
-            <button type="button" aria-pressed={arOn} onClick={() => setArSetting(!arOn)}>
-              <span className="menu-icon">
-                <Icon name="eye" />
-              </span>
-              <span className="menu-text">
-                <strong>Suivi visuel : {arOn ? 'activé' : 'coupé'}</strong>
-                <span>
-                  {arOn
-                    ? 'Les photos restent à leur place quand vous bougez (caméra et capteurs de l’iPhone)'
-                    : 'Position par le GPS et la boussole seuls, comme sur le site'}
-                </span>
-              </span>
-            </button>
-          </li>
-        </ul>
-      )}
-      <button type="button" className="btn ghost signout" onClick={() => void supabase.auth.signOut()}>
-        Se déconnecter
-      </button>
-      <div className="menu-footer">
+      <button type="button" className="explorer-row" onClick={onMap}>
+        <Icon name="compass" />
         <span>
-          {formatVersion()}
-          <small>
-            Caméra {focal35.toFixed(0)} mm{measured ? ' (mesurée)' : ''}
-          </small>
+          <strong>Carte du monde</strong>
+          <small>Ou glisse vers la droite sur le viseur</small>
         </span>
-        <button type="button" className="btn small ghost" onClick={reloadApp}>
-          <Icon name="reload" size={18} /> Recharger
-        </button>
-      </div>
+      </button>
+      <p className="explorer-footer">PICTI {APP_NUMBER}</p>
     </Sheet>
   )
 }

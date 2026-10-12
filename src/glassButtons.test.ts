@@ -8,7 +8,7 @@ vi.mock('@capacitor/core', () => ({
   SystemBarType: {},
 }))
 
-const { badgeText, glassable, glassSymbol, toSpec } = await import('./glassButtons')
+const { badgeText, barItemSpecs, glassable, glassSymbol, toSpec } = await import('./glassButtons')
 
 const rect = { x: 309.26, y: 79.74, width: 48, height: 48 }
 
@@ -33,6 +33,8 @@ describe('boutons Liquid Glass', () => {
     expect(toSpec('glass-1', rect, { icon: 'bell', label: 'Notifications', badge: 2 }, true)).toEqual({
       id: 'glass-1',
       kind: 'button',
+      items: null,
+      warn: false,
       symbol: 'bell',
       title: null,
       segments: null,
@@ -97,5 +99,32 @@ describe('boutons Liquid Glass', () => {
 
   it('ignorent une icône sans symbole', () => {
     expect(toSpec('a', rect, { icon: 'heart', label: 'Aimer' }, true)).toBeNull()
+  })
+
+  it('dessinent la pilule de la barre du bas, avec Menu et l’avatar dedans (0.23.0)', () => {
+    const bar = { x: 16.2, y: 760, width: 358, height: 64 }
+    const ref = { current: null }
+    const spec = toSpec('b', bar, { label: 'Navigation', bar: { items: [{ ref, icon: 'grid', badge: 2 }, { ref, initial: 'E', active: true }] } }, true, null, [
+      { icon: 'grid', badge: 2, rect: { x: 50.3, y: 770, width: 44, height: 44 } },
+      { initial: 'E', active: true, rect: { x: 296, y: 772, width: 40, height: 40 } },
+    ])
+    expect(spec).toMatchObject({ kind: 'bar', symbol: null, title: null, x: 16, width: 358, warn: false })
+    expect(spec?.items).toEqual([
+      { x: 34, y: 10, width: 44, height: 44, symbol: 'square.grid.2x2', initial: null, badge: '2', active: false },
+      { x: 280, y: 12, width: 40, height: 40, symbol: null, initial: 'E', badge: null, active: true },
+    ])
+    // Un élément pas encore affiché (sans cadre) n'est pas envoyé.
+    expect(barItemSpecs(bar, [{ initial: 'E', rect: null }, { icon: 'grid', rect: { x: 0, y: 0, width: 0, height: 0 } }])).toEqual([])
+    expect(glassable({ label: 'Navigation', bar: { items: [] } })).toBe(true)
+  })
+
+  it('dessinent le bouton rouge avec le symbole du mode et la pastille ⚠', () => {
+    expect(toSpec('s', rect, { icon: 'friends', label: 'Prendre une photo', shutter: { warn: true } }, true)).toMatchObject({
+      kind: 'shutter',
+      symbol: 'person.2.fill',
+      warn: true,
+      items: null,
+    })
+    for (const icon of ['globe', 'friends', 'lock'] as const) expect(glassSymbol(icon)).toBeTruthy()
   })
 })

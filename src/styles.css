@@ -16,6 +16,9 @@
   --shadow: 0 6px 20px rgb(0 0 0 / 0.18);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Barre flottante du bas (0.23.0) : hauteur, et place à laisser sous le contenu des écrans où elle est. */
+  --bar-h: 64px;
+  --bar-space: calc(var(--safe-bottom) + 12px + var(--bar-h));
   --font: 'Outfit Variable', 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color-scheme: light;
 }
@@ -312,29 +315,6 @@ html.picti-ar .recaler {
 }
 html.picti-ar .camera-video {
   visibility: hidden;
-}
-
-/* Profil qui arrive par la droite quand on glisse le doigt vers la gauche sur le viseur. Rien n'y
-   réagit au doigt, mais le panneau lui-même recouvre les boutons du viseur : ceux en verre de l'app
-   iOS, testés en leur centre (`glassButtons.ts`), s'effacent quand il passe dessus. */
-.swipe-peek {
-  position: absolute;
-  inset: 0;
-  z-index: 25;
-  overflow: hidden;
-  background: var(--paper);
-  transform: translateX(100%);
-  box-shadow: -10px 0 30px rgb(0 0 0 / 0.45);
-  will-change: transform;
-}
-
-.swipe-peek * {
-  pointer-events: none !important;
-}
-
-/* Préparé mais pas affiché : ni mise en page, ni image chargée (la photo d'en-tête est un fond). */
-.swipe-peek.idle {
-  display: none;
 }
 
 .camera-video {
@@ -2336,8 +2316,9 @@ button.avatar-item {
 
 .map-actions {
   position: absolute;
-  right: 16px;
-  bottom: calc(var(--safe-bottom) + 32px);
+  /* Hors de la bande du bord droit (24 px) d'où l'on revient au viseur, au-dessus de la barre du bas. */
+  right: 32px;
+  bottom: calc(var(--bar-space) + 20px);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2356,6 +2337,8 @@ button.avatar-item {
   right: 0;
   bottom: 0;
   z-index: 5;
+  /* Le bas de la feuille passe sous la barre du bas : son contenu s'arrête au-dessus. */
+  padding-bottom: calc(var(--bar-space) + 16px) !important;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2397,9 +2380,9 @@ button.avatar-item {
   flex: 1;
 }
 
-.maplibregl-ctrl-bottom-left,
-.maplibregl-ctrl-bottom-right {
-  bottom: var(--safe-bottom);
+.world-map .maplibregl-ctrl-bottom-left,
+.world-map .maplibregl-ctrl-bottom-right {
+  bottom: calc(var(--bar-space) + 8px);
 }
 
 .premium-tag {
@@ -2823,9 +2806,11 @@ button.avatar-item {
 
 .shutter-label {
   position: absolute;
-  bottom: 54px;
-  left: 0;
-  translate: -50% 0;
+  /* À côté du cercle (à droite, à hauteur de son bord haut) : au-dessus de la pilule de la barre, qui
+     le couvrirait dans l'app iOS (verre natif par-dessus la page). */
+  top: -44px;
+  left: 50px;
+  translate: 0 -50%;
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--glass);
@@ -2836,7 +2821,7 @@ button.avatar-item {
   backdrop-filter: blur(8px);
 }
 
-/* Les notifications du viseur passent au-dessus du nom du mode. */
+/* Les notifications du viseur passent au-dessus du bouton rouge (et de la barre du bas). */
 #root:has(.viewfinder) .toast {
   bottom: calc(var(--safe-bottom) + 156px);
 }
@@ -3005,8 +2990,8 @@ button.avatar-item {
 .map-no-friends {
   position: absolute;
   left: 16px;
-  right: 80px;
-  bottom: calc(var(--safe-bottom) + 32px);
+  right: 96px;
+  bottom: calc(var(--bar-space) + 20px);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -4151,4 +4136,497 @@ html.picti-ar .tutorial {
   align-items: center;
   gap: 6px;
   margin: 0 auto calc(var(--safe-bottom) + 24px);
+}
+
+
+/* ---------- 0.23.0 : barre flottante, carte et profil en glissé ---------- */
+
+/* Réduction du bouton rouge : 0 sur le viseur, 1 ailleurs (carte, profil, menu ouvert). Déclarée pour
+   pouvoir s'animer (léger ressort) ; posée directement pendant les glissés (`usePanes`). */
+@property --away {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Pilule décollée des bords (16 px sur les côtés, 12 px au-dessus de la zone du geste d'accueil), en
+   verre : translucide et floutée sur le site et Android, vrai Liquid Glass dans l'app iOS 26+. */
+.bottom-nav {
+  --away: 0;
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + 12px);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: var(--bar-h);
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.72);
+  border: 1px solid rgb(255 255 255 / 0.5);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.22);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  color: var(--ink);
+  transition: --away 0.22s cubic-bezier(0.34, 1.45, 0.55, 1);
+  touch-action: none;
+}
+
+.bottom-nav.away {
+  --away: 1;
+}
+
+.bottom-nav.dragging {
+  transition: none;
+}
+
+.nav-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  transition: transform 0.15s;
+}
+
+.nav-item:active {
+  transform: scale(0.9);
+}
+
+.nav-item .round-badge {
+  top: 2px;
+  right: 0;
+}
+
+.nav-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--salmon);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.nav-profile.active .nav-avatar {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px var(--red);
+}
+
+/* Emplacement du bouton rouge : grand sur le viseur (76 px, il déborde de 20 px au-dessus de la pilule),
+   réduit ailleurs (44 px, centré dans la pilule). */
+.nav-shutter {
+  position: relative;
+  width: 76px;
+  height: var(--bar-h);
+}
+
+.nav-shutter .shutter-group {
+  position: absolute;
+  left: 0;
+  top: -20px;
+  transform: translateY(calc(var(--away) * 14px)) scale(calc(1 - var(--away) * 0.42));
+}
+
+.nav-shutter .shutter {
+  box-shadow: 0 6px calc(24px - var(--away) * 18px) rgb(235 12 12 / calc(0.45 - var(--away) * 0.25));
+}
+
+/* App iOS 26+ : la pilule, Menu, l'avatar et le bouton rouge sont dessinés par le natif ; les éléments
+   web, transparents, restent ceux qu'on touche (la colonne des modes reste web). */
+.bottom-nav.glass-native {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.bottom-nav.glass-native .nav-item,
+.shutter.glass-native {
+  opacity: 0;
+}
+
+/* Écrans voisins du viseur : la carte à gauche, Mon profil à droite. Cachés hors de l'écran tant qu'on
+   n'y va pas ; déplacés sous le doigt pendant un glissé (styles posés par `usePanes`). */
+.shell-pane {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  visibility: hidden;
+  will-change: transform;
+}
+
+.map-pane {
+  transform: translateX(-100%);
+  box-shadow: 10px 0 30px rgb(0 0 0 / 0.45);
+}
+
+.profile-pane {
+  transform: translateX(100%);
+  box-shadow: -10px 0 30px rgb(0 0 0 / 0.45);
+}
+
+.shell-pane.shown {
+  transform: none;
+  visibility: visible;
+}
+
+/* Profil préparé mais pas affiché : ni mise en page, ni image chargée (la photo d'en-tête est un fond).
+   La carte, elle, garde sa mise en page (MapLibre a besoin de la taille de son cadre). */
+.profile-pane:not(.shown):not(.moving) {
+  display: none;
+}
+
+/* Le bas des écrans avec la barre : leur contenu s'arrête au-dessus d'elle. */
+.profile-pane .card:last-child {
+  padding-bottom: calc(var(--bar-space) + 32px);
+}
+
+.map-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--ink-2);
+}
+
+/* Bande du bord droit de la carte : d'ici, glisser vers la gauche ramène au viseur. */
+.map-edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  z-index: 26;
+  touch-action: none;
+}
+
+/* Double appui : passage caméra arrière ↔ avant, court fondu de l'image. */
+.camera-flip {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+  animation: camera-flip 0.6s ease-out forwards;
+}
+
+@keyframes camera-flip {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Feuilles (rendues à la racine) : au-dessus des écrans voisins. Le menu Explorer reste sous la barre
+   du bas (bouton rouge réduit pour revenir au viseur) ; les autres passent au-dessus. */
+.sheet-layer {
+  z-index: 35;
+}
+
+.sheet-layer.explorer {
+  z-index: 28;
+}
+
+.sheet-layer.explorer .sheet {
+  padding-bottom: calc(var(--bar-space) + 20px);
+}
+
+.explorer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.explorer-head h2 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.explorer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.explorer-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 116px;
+  padding: 16px;
+  border: none;
+  border-radius: 24px;
+  background: var(--paper-2);
+  text-align: left;
+  transition: transform 0.15s;
+}
+
+.explorer-tile:active {
+  transform: scale(0.97);
+}
+
+.explorer-tile strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.explorer-tile > span:last-child {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.explorer-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--red);
+}
+
+.explorer-icon .round-badge {
+  top: -4px;
+  right: -6px;
+}
+
+.explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 20px;
+  background: var(--paper-2);
+  text-align: left;
+}
+
+.explorer-row svg {
+  color: var(--red);
+  flex-shrink: 0;
+}
+
+.explorer-row span {
+  display: flex;
+  flex-direction: column;
+}
+
+.explorer-row small {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.explorer-footer {
+  margin-top: 16px;
+  color: var(--ink-2);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Mon profil : ⚙️ en haut à droite, en-tête avec avatar et compteurs, onglets. */
+.settings-btn {
+  position: absolute;
+  top: calc(var(--safe-top) + 16px);
+  right: 16px;
+  z-index: 2;
+}
+
+.profile-head .card-title-row {
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-head .avatar {
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.profile-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-stats {
+  margin-top: 4px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.profile-tabs {
+  margin-bottom: 20px;
+}
+
+.tab-help {
+  margin: -8px 0 12px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* Vignettes de capture : l'appui long ne doit pas ouvrir le menu de l'image (iOS). */
+.grid-item {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Fiche photo : [ Retrouver ] [ Reproduire ] (⇪). */
+.detail-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-action-row > .btn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-action-row > .btn.reproduce-btn {
+  flex: 0 1 auto;
+  padding-inline: 18px;
+}
+
+.detail-action-row > .share-btn {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+}
+
+.more-btn {
+  position: absolute;
+  top: calc(var(--safe-top) + 16px);
+  right: 16px;
+  z-index: 2;
+}
+
+/* Paramètres. */
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-group .section-title {
+  margin: 0;
+}
+
+.settings-list {
+  margin: 0;
+}
+
+.settings-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--paper-2);
+}
+
+.settings-list dt {
+  color: var(--ink-2);
+}
+
+.settings-list dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 20px;
+  background: var(--paper-2);
+  text-align: left;
+}
+
+.settings-row svg {
+  flex-shrink: 0;
+  color: var(--red);
+}
+
+.settings-row span {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-row small,
+.settings-note {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.settings-version {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 15px;
+  text-align: left;
+}
+
+.settings-signout {
+  align-self: flex-start;
+}
+
+/* Import depuis la carte : photos sans position, à poser au centre de la carte ? */
+.import-place {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--paper-2);
+  font-size: 15px;
+}
+
+.import-place-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }

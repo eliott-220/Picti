@@ -13,6 +13,7 @@ describe('parseHash', () => {
     expect(parseHash('#/chasses')).toEqual({ name: 'chasses' })
     expect(parseHash('#/proximite')).toEqual({ name: 'proximite' })
     expect(parseHash('#/carte')).toEqual({ name: 'carte' })
+    expect(parseHash('#/parametres')).toEqual({ name: 'parametres' })
   })
 
   it('ouvre « Mes amis » dans le profil', () => {

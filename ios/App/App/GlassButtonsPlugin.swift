@@ -1,8 +1,8 @@
 import Capacitor
 import UIKit
 
-/// Vrais boutons Liquid Glass (iOS 26) à la place des boutons ronds, des pastilles et des
-/// sélecteurs web. Le JS (`src/glassButtons.ts`) envoie la liste complète, cadres en points.
+/// Vrais boutons Liquid Glass (iOS 26) à la place des boutons ronds, des pastilles, des
+/// sélecteurs web et (0.23.0) de la barre flottante du bas (pilule, Menu, avatar, bouton rouge). Le JS (`src/glassButtons.ts`) envoie la liste complète, cadres en points.
 /// Ils ne font que l'affichage : les touches passent au bouton web, transparent, en dessous
 /// (défilement, appuis, VoiceOver). Un bouton situé dans une zone qui défile est posé dans la
 /// vue de défilement d'iOS qui la porte (WebKit en crée une par zone `overflow` qui défile) : il
@@ -59,7 +59,12 @@ public class GlassButtonsPlugin: CAPPlugin, CAPBridgedPlugin {
                 let scrollView = spec.scroller.flatMap(scrollView(for:))
                 let target: UIView = scrollView ?? overlay
                 if control.superview !== target {
-                    target.addSubview(control)
+                    // La pilule de la barre passe sous tout le reste (bouton rouge compris).
+                    if spec.kind == .bar {
+                        target.insertSubview(control, at: 0)
+                    } else {
+                        target.addSubview(control)
+                    }
                 } else if scrollView != nil, target.subviews.last !== control {
                     // Toujours au-dessus du contenu que WebKit a pu ajouter depuis.
                     target.bringSubviewToFront(control)
@@ -71,7 +76,13 @@ public class GlassButtonsPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @available(iOS 26.0, *)
     private func makeControl(_ spec: GlassButtonSpec) -> GlassControl {
-        let control: GlassControl = spec.kind == .segmented ? GlassSegmented() : GlassButton()
+        let control: GlassControl
+        switch spec.kind {
+        case .segmented: control = GlassSegmented()
+        case .bar: control = GlassBar()
+        case .shutter: control = GlassShutter()
+        case .button: control = GlassButton()
+        }
         // Affichage seulement : les touches vont au bouton web en dessous, VoiceOver aussi.
         control.isUserInteractionEnabled = false
         control.accessibilityElementsHidden = true
@@ -139,6 +150,19 @@ struct GlassButtonSpec {
     enum Kind: String {
         case button
         case segmented
+        /// Pilule de la barre du bas, avec ses éléments (`items`).
+        case bar
+        /// Bouton rouge (symbole du mode, pastille ⚠).
+        case shutter
+    }
+
+    /// Élément dessiné dans la pilule de la barre (Menu, avatar), cadre relatif à la pilule.
+    struct BarItem: Equatable {
+        let frame: CGRect
+        let symbol: String?
+        let initial: String?
+        let badge: String?
+        let active: Bool
     }
 
     /// Zone qui défile autour du bouton : sa clé et sa partie visible à l'écran.
@@ -171,6 +195,8 @@ struct GlassButtonSpec {
     /// Couleur de l'icône (« #eb0c0c »), nil : couleur du verre.
     let color: UIColor?
     let visible: Bool
+    let items: [BarItem]
+    let warn: Bool
 
     init?(_ object: JSObject) {
         guard let id = object["id"] as? String else { return nil }
@@ -200,6 +226,17 @@ struct GlassButtonSpec {
         rotation = number("rotation")
         color = (object["color"] as? String).flatMap(UIColor.init(hex:))
         visible = object["visible"] as? Bool ?? true
+        items = (object["items"] as? JSArray)?.compactMap { $0 as? JSObject }.map { item in
+            func value(_ name: String) -> CGFloat { CGFloat((item[name] as? NSNumber)?.doubleValue ?? 0) }
+            return BarItem(
+                frame: CGRect(x: value("x"), y: value("y"), width: value("width"), height: value("height")),
+                symbol: item["symbol"] as? String,
+                initial: item["initial"] as? String,
+                badge: item["badge"] as? String,
+                active: item["active"] as? Bool ?? false
+            )
+        } ?? []
+        warn = object["warn"] as? Bool ?? false
     }
 }
 
@@ -365,6 +402,168 @@ final class GlassSegmented: UIView, GlassControlUpdating {
             control.frame = bounds.insetBy(dx: 4, dy: 4)
         }
         alpha = spec.dim ? 0.55 : 1
+        isHidden = spec.hidden(embedded: embedded)
+    }
+}
+
+/// Pilule de la barre flottante du bas (0.23.0) : verre Liquid Glass en capsule ; Menu (symbole) et
+/// avatar (initiale) sont dessinés dans son contenu, là où sont les boutons web (transparents, qu'on touche).
+@available(iOS 26.0, *)
+final class GlassBar: UIView, GlassControlUpdating {
+    let kind = GlassButtonSpec.Kind.bar
+    private let glass = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
+    private var itemViews: [GlassBarItemView] = []
+
+    init() {
+        super.init(frame: .zero)
+        glass.cornerConfiguration = .capsule()
+        addSubview(glass)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) non utilisé")
+    }
+
+    func update(_ spec: GlassButtonSpec, embedded: Bool) {
+        let target = spec.frame(embedded: embedded)
+        if frame != target {
+            frame = target
+            glass.frame = bounds
+        }
+        while itemViews.count < spec.items.count {
+            let view = GlassBarItemView()
+            glass.contentView.addSubview(view)
+            itemViews.append(view)
+        }
+        while itemViews.count > spec.items.count {
+            itemViews.removeLast().removeFromSuperview()
+        }
+        for (view, item) in zip(itemViews, spec.items) {
+            view.update(item)
+        }
+        alpha = spec.dim ? 0.55 : 1
+        isHidden = spec.hidden(embedded: embedded)
+    }
+}
+
+/// Élément de la pilule : symbole (couleur du texte, adaptée par le verre au clair ou au sombre) ou
+/// avatar (rond saumon, initiale blanche, anneau rouge quand Mon profil est affiché), pastille rouge.
+final class GlassBarItemView: UIView {
+    private let symbolView = UIImageView()
+    private let avatar = UILabel()
+    private let badgeLabel = UILabel()
+    private var shown: GlassButtonSpec.BarItem?
+
+    init() {
+        super.init(frame: .zero)
+        isUserInteractionEnabled = false
+        symbolView.contentMode = .center
+        symbolView.tintColor = .label
+        addSubview(symbolView)
+        avatar.textAlignment = .center
+        avatar.textColor = .white
+        avatar.font = .systemFont(ofSize: 17, weight: .semibold)
+        avatar.backgroundColor = UIColor(red: 1, green: 0x84 / 255, blue: 0x84 / 255, alpha: 1)
+        avatar.clipsToBounds = true
+        addSubview(avatar)
+        badgeLabel.backgroundColor = .picti
+        badgeLabel.textColor = .white
+        badgeLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        badgeLabel.textAlignment = .center
+        badgeLabel.layer.cornerRadius = 11
+        badgeLabel.clipsToBounds = true
+        addSubview(badgeLabel)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) non utilisé")
+    }
+
+    func update(_ item: GlassButtonSpec.BarItem) {
+        if frame != item.frame { frame = item.frame }
+        // Mise en page à chaque fois (la pilule peut changer de taille) ; contenu seulement s'il change.
+        symbolView.frame = bounds
+        let side = min(bounds.width, bounds.height, 38)
+        avatar.frame = CGRect(x: (bounds.width - side) / 2, y: (bounds.height - side) / 2, width: side, height: side)
+        avatar.layer.cornerRadius = side / 2
+        if shown != item {
+            shown = item
+            symbolView.isHidden = item.symbol == nil
+            avatar.isHidden = item.symbol != nil
+            symbolView.image = item.symbol.flatMap {
+                UIImage(systemName: $0, withConfiguration: UIImage.SymbolConfiguration(pointSize: 21, weight: .semibold))
+            }
+            avatar.text = item.initial ?? "?"
+            avatar.layer.borderWidth = item.active ? 2.5 : 2
+            avatar.layer.borderColor = (item.active ? UIColor.picti : UIColor.white).cgColor
+            badgeLabel.text = item.badge
+        }
+        badgeLabel.isHidden = item.badge == nil
+        if item.badge != nil {
+            let width = max(22, badgeLabel.intrinsicContentSize.width + 12)
+            badgeLabel.frame = CGRect(x: bounds.width - width + 2, y: 0, width: width, height: 22)
+            bringSubviewToFront(badgeLabel)
+        }
+    }
+}
+
+/// Bouton rouge de la barre (0.23.0) : cercle rouge PICTI, symbole blanc du mode (Public, Amis, Privé),
+/// lueur rouge ; sa taille suit celle du bouton web (grand sur le viseur, réduit ailleurs, grossi pendant
+/// le choix du mode). Pastille orange ⚠ en « Reproduire » hors de la vue de l'originale.
+@available(iOS 26.0, *)
+final class GlassShutter: UIView, GlassControlUpdating {
+    let kind = GlassButtonSpec.Kind.shutter
+    private let circle = UIView()
+    private let symbolView = UIImageView()
+    private let warnView = UIImageView()
+    private var shownSymbol: (name: String?, size: CGFloat)?
+
+    init() {
+        super.init(frame: .zero)
+        circle.backgroundColor = .picti
+        circle.layer.shadowColor = UIColor.picti.cgColor
+        circle.layer.shadowOpacity = 0.45
+        circle.layer.shadowOffset = CGSize(width: 0, height: 6)
+        addSubview(circle)
+        symbolView.tintColor = .white
+        symbolView.contentMode = .center
+        addSubview(symbolView)
+        warnView.image = UIImage(systemName: "exclamationmark.triangle.fill")
+        warnView.tintColor = .white
+        warnView.backgroundColor = UIColor(red: 0xE8 / 255, green: 0x76 / 255, blue: 0, alpha: 1)
+        warnView.contentMode = .center
+        warnView.layer.borderColor = UIColor.white.cgColor
+        warnView.layer.borderWidth = 2
+        warnView.clipsToBounds = true
+        addSubview(warnView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) non utilisé")
+    }
+
+    func update(_ spec: GlassButtonSpec, embedded: Bool) {
+        let target = spec.frame(embedded: embedded)
+        if frame != target {
+            frame = target
+            circle.frame = bounds
+            circle.layer.cornerRadius = bounds.width / 2
+            circle.layer.shadowRadius = bounds.width * 0.16
+            symbolView.frame = bounds
+            let side = max(18, bounds.width * 0.34)
+            warnView.frame = CGRect(x: bounds.width - side + 2, y: -2, width: side, height: side)
+            warnView.layer.cornerRadius = side / 2
+        }
+        // Symbole à 40 % du diamètre, comme l'icône de 36 px dans le bouton web de 76 px.
+        let size = (bounds.width * 0.4).rounded()
+        if shownSymbol?.name != spec.symbol || shownSymbol?.size != size {
+            symbolView.image = spec.symbol.flatMap {
+                UIImage(systemName: $0, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: .semibold))
+            }
+            shownSymbol = (spec.symbol, size)
+        }
+        warnView.isHidden = !spec.warn
+        alpha = spec.disabled ? 0.7 : 1
         isHidden = spec.hidden(embedded: embedded)
     }
 }

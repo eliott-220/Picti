@@ -65,6 +65,11 @@ export interface Store {
   updatePhoto(photo: GeoPhoto): Promise<void>
   removePhoto(id: string): Promise<void>
   addCapture(photoId: string, score: number): Promise<void>
+  /**
+   * Retire ma capture d'une photo d'un autre (0.23.0) : ma ligne de `captures` seulement ; la photo
+   * redevient à chasser (noir et blanc). Mon like sur place devient un like ordinaire.
+   */
+  removeCapture(photoId: string): Promise<void>
   saveProfile(changes: ProfileChanges): Promise<void>
   /** Envoie une demande d'ami (ou accepte la sienne) ; renvoie un message à afficher. */
   addFriend(code: string): Promise<string>

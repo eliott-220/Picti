@@ -1,4 +1,4 @@
-import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl'
+import { AttributionControl, Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl'
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
 import { SwipeDeck } from '../components/SwipeDeck'
 import { EmptyState, IconButton, PhotoTile, RoundButton } from '../components/ui'
+import { ImportSheet } from './ImportSheet'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
 import { useStore } from '../data/storeContext'
@@ -17,7 +18,7 @@ import { distanceMeters, formatDistance } from '../geo/geodesy'
 import { useGlassButton } from '../glassButtons'
 import { useDarkStatusBar } from '../native'
 import { groupBySpot, pileOrder } from '../geo/spots'
-import { goBack, navigate } from '../router'
+import { navigate } from '../router'
 import { useGeolocation } from '../sensors/useGeolocation'
 
 // MapLibre charge son processus de fond à côté de son propre fichier, que
@@ -47,6 +48,12 @@ function savedScope(): MapScope {
     return 'monde'
   }
 }
+
+/**
+ * Dernière vue de la carte : la carte reste montée à gauche du viseur (0.23.0), mais un détour par un
+ * autre écran (fiche, chasse…) la recrée ; elle revient alors là où on l'avait laissée.
+ */
+let lastCamera: { center: [number, number]; zoom: number; bearing: number } | null = null
 
 interface MapPhoto {
   id: string
@@ -114,10 +121,29 @@ interface InBoundsRow {
 /**
  * Carte du monde : toutes les photos géocadrées visibles, regroupées quand
  * on voit de loin (la plus récente du groupe en vignette), à leur position
- * exacte quand on zoome.
+ * exacte quand on zoome. Depuis 0.23.0, l'écran à gauche du viseur (on y vient en glissant vers la
+ * droite) : `active` quand elle est affichée ; « + » importe d'anciennes photos (`onSheet` : feuille
+ * ouverte, la barre du bas se cache) ; `onFriends` : « Mes amis » du filtre Amis.
  */
-export default function WorldMap() {
-  useDarkStatusBar()
+export default function WorldMap({
+  active = true,
+  onFriends,
+  onSheet,
+}: {
+  active?: boolean
+  onFriends?: () => void
+  onSheet?: (open: boolean) => void
+}) {
+  useDarkStatusBar(active)
+  // Import d'anciennes photos (« + ») : celles sans position peuvent être posées au centre de la carte.
+  const [importing, setImporting] = useState<{ lat: number; lon: number } | null>(null)
+  const onSheetRef = useRef(onSheet)
+  useEffect(() => {
+    onSheetRef.current = onSheet
+  })
+  useEffect(() => {
+    onSheetRef.current?.(!!importing)
+  }, [importing])
   // « Monde / Amis » : vrai sélecteur segmenté iOS en verre dans l'app iOS 26+.
   const scopeRef = useRef<HTMLDivElement>(null)
   const { userId, friends } = useStore()
@@ -141,20 +167,25 @@ export default function WorldMap() {
   const [loading, setLoading] = useState(false)
   const centeredOnUser = useRef(false)
 
-  // Création de la carte.
+  // Création de la carte (là où on l'avait laissée, sinon la France vue de haut).
   useEffect(() => {
     if (!container.current) return
+    if (lastCamera) centeredOnUser.current = true
     const map = new MapLibreMap({
       container: container.current,
       style: MAP_STYLE,
-      center: [2.35, 46.6],
-      zoom: 2,
-      attributionControl: { compact: true },
+      center: lastCamera?.center ?? [2.35, 46.6],
+      zoom: lastCamera?.zoom ?? 2,
+      bearing: lastCamera?.bearing ?? 0,
+      // Crédits en bas à gauche, au-dessus de la barre du bas : à droite, ils seraient sous la bande
+      // du bord d'où l'on revient au viseur (0.23.0).
+      attributionControl: false,
       // Carte à plat qu'on peut faire pivoter (deux doigts, ou clic droit glissé).
       pitchWithRotate: false,
       touchPitch: false,
       maxPitch: 0,
     })
+    map.addControl(new AttributionControl({ compact: true }), 'bottom-left')
     mapRef.current = map
     // Rendu des vignettes dès que la carte existe (même si le fond ne charge pas).
     const ready = setTimeout(() => setMap(map))
@@ -169,6 +200,8 @@ export default function WorldMap() {
     const updateView = () => {
       const b = map.getBounds()
       setView({ bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], zoom: map.getZoom() })
+      const c = map.getCenter()
+      lastCamera = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing() }
     }
     // Vignettes et position replacées à chaque image, pendant le déplacement même : sur iPhone,
     // le rendu React attend la fin du geste (les vignettes restaient en place 2 à 3 s).
@@ -196,6 +229,11 @@ export default function WorldMap() {
       mapRef.current = null
     }
   }, [])
+
+  // Affichée après avoir été préparée cachée : la taille du cadre a pu changer entre-temps.
+  useEffect(() => {
+    if (active) mapRef.current?.resize()
+  }, [active])
 
   // Premier affichage : centré sur ma position, vue régionale (photos groupées).
   useEffect(() => {
@@ -404,7 +442,6 @@ export default function WorldMap() {
         )}
 
       <header className="map-top">
-        <RoundButton icon="back" label="Retour" onClick={goBack} />
         <div className="map-title">
           <strong>Carte des photos</strong>
           <span>
@@ -438,7 +475,7 @@ export default function WorldMap() {
       {scope === 'amis' && !hasFriends && !selection && (
         <div className="map-no-friends" role="status">
           <span>Ajoutez des amis pour voir leurs photos</span>
-          <button type="button" className="btn small" onClick={() => navigate('/profil/amis')}>
+          <button type="button" className="btn small" onClick={() => (onFriends ? onFriends() : navigate('/profil/amis'))}>
             Mes amis
           </button>
         </div>
@@ -456,8 +493,23 @@ export default function WorldMap() {
           />
         )}
         <RoundButton icon="compass" label="Ma position" onClick={locate} />
-        <RoundButton icon="grid" label="Liste à proximité" onClick={() => navigate('/proximite')} />
+        <RoundButton
+          icon="plus"
+          label="Ajouter une ancienne photo (importer)"
+          onClick={() => {
+            const c = map?.getCenter()
+            setImporting(c ? { lat: c.lat, lon: c.lng } : { lat: NaN, lon: NaN })
+          }}
+        />
       </nav>
+
+      {importing && (
+        <ImportSheet
+          onClose={() => setImporting(null)}
+          fix={fix}
+          placeAt={Number.isFinite(importing.lat) ? importing : null}
+        />
+      )}
 
       {selection && (
         <section className="map-sheet" role="dialog" aria-label="Photos sélectionnées">

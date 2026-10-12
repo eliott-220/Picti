@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  EDGE_BAND,
   FLICK_MIN,
   freeToSwipe,
+  inRightEdge,
   OPEN_RATIO,
   OPEN_SPEED,
   OWN_GESTURES,
@@ -16,12 +18,12 @@ describe('viseur : glisser de droite à gauche ouvre le profil', () => {
   it('attend que le doigt ait un peu bougé avant de choisir', () => {
     expect(swipeIntent(0, 0)).toBeNull()
     expect(swipeIntent(-(SLOP - 1), 0)).toBeNull()
-    expect(swipeIntent(-SLOP, 0)).toBe('open')
+    expect(swipeIntent(-SLOP, 0)).toBe('left')
   })
 
   it('vers la gauche et plutôt à l’horizontale : on ouvre ; sinon le geste est laissé au viseur', () => {
-    expect(swipeIntent(-30, 10)).toBe('open')
-    expect(swipeIntent(-30, -25)).toBe('open')
+    expect(swipeIntent(-30, 10)).toBe('left')
+    expect(swipeIntent(-30, -25)).toBe('left')
     expect(swipeIntent(30, 0)).toBe('other')
     expect(swipeIntent(-10, 30)).toBe('other')
     expect(swipeIntent(0, -30)).toBe('other')
@@ -67,7 +69,7 @@ describe('viseur : glisser de droite à gauche ouvre le profil', () => {
 
   it('le déclencheur, les réglettes, les feuilles et la frise gardent leurs gestes', () => {
     const selectors = OWN_GESTURES.split(',').map((x) => x.trim())
-    for (const s of ['.shutter-group', 'input', '[role="dialog"]', '.home-timeline']) expect(selectors).toContain(s)
+    for (const s of ['.shutter-group', '.bottom-nav', 'input', '[role="dialog"]', '.home-timeline']) expect(selectors).toContain(s)
     // Les boutons du rail (bord droit) ne servent qu'à l'appui : le geste peut partir d'eux.
     expect(selectors).not.toContain('button')
     // Élément dont un ancêtre correspond (`closest`) : le geste n'y part pas.
@@ -75,5 +77,57 @@ describe('viseur : glisser de droite à gauche ouvre le profil', () => {
     expect(freeToSwipe(inside(true))).toBe(false)
     expect(freeToSwipe(inside(false))).toBe(true)
     expect(freeToSwipe(null)).toBe(true)
+  })
+})
+
+describe('viseur : glisser de gauche à droite ouvre la carte (0.23.0)', () => {
+  it('les deux sens sont reconnus quand ils sont permis, jamais un geste vertical', () => {
+    const both = ['left', 'right'] as const
+    expect(swipeIntent(30, 5, both)).toBe('right')
+    expect(swipeIntent(-30, 5, both)).toBe('left')
+    expect(swipeIntent(5, 30, both)).toBe('other')
+    expect(swipeIntent(5, -30, both)).toBe('other')
+    // Sens non permis (ex. sur la carte, seul le retour vers la gauche compte).
+    expect(swipeIntent(30, 0, ['left'])).toBe('other')
+    expect(swipeIntent(SLOP - 1, 0, both)).toBeNull()
+  })
+
+  it('la carte suit le doigt vers la droite, sans dépasser l’écran', () => {
+    expect(swipeOffset(120, 390, 'right')).toBe(120)
+    expect(swipeOffset(-40, 390, 'right')).toBe(0)
+    expect(swipeOffset(600, 390, 'right')).toBe(390)
+  })
+
+  it('lâchée au-delà d’un tiers de l’écran, ou d’un geste vif, la carte s’ouvre ; sinon elle repart', () => {
+    const width = 390
+    expect(OPEN_RATIO).toBeGreaterThan(1 / 3)
+    expect(opensOnRelease(width * OPEN_RATIO, 0.1, width, 'right')).toBe(true)
+    expect(opensOnRelease(width * OPEN_RATIO - 1, 0.1, width, 'right')).toBe(false)
+    expect(opensOnRelease(FLICK_MIN, OPEN_SPEED + 0.1, width, 'right')).toBe(true)
+    expect(opensOnRelease(FLICK_MIN, OPEN_SPEED, width, 'right')).toBe(false)
+    // Dans l'autre sens : jamais.
+    expect(opensOnRelease(-width, 3, width, 'right')).toBe(false)
+  })
+
+  it('la vitesse se mesure dans le sens du geste', () => {
+    const toRight = [
+      { x: 100, t: 0 },
+      { x: 160, t: 60 },
+    ]
+    expect(releaseSpeed(toRight, 'right')).toBeCloseTo(1)
+    expect(releaseSpeed(toRight, 'left')).toBeCloseTo(-1)
+  })
+})
+
+describe('carte : le retour au viseur part du bord droit seulement', () => {
+  it('bande de 24 px collée à la paroi droite', () => {
+    expect(EDGE_BAND).toBe(24)
+    // Écran de 390 px qui commence à 10 px (cadre centré sur ordinateur).
+    expect(inRightEdge(400, 10, 390)).toBe(true)
+    expect(inRightEdge(400 - EDGE_BAND, 10, 390)).toBe(true)
+    expect(inRightEdge(400 - EDGE_BAND - 1, 10, 390)).toBe(false)
+    expect(inRightEdge(200, 10, 390)).toBe(false)
+    // Hors de l'écran.
+    expect(inRightEdge(401, 10, 390)).toBe(false)
   })
 })

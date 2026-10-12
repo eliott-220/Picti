@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
 import { VISIBLE_BY, type GeoPhoto, type Visibility } from '../data/types'
@@ -139,20 +140,35 @@ export function IconButton({
   )
 }
 
-export function Sheet({ onClose, children, label }: { onClose: () => void; children: ReactNode; label: string }) {
+export function Sheet({
+  onClose,
+  children,
+  label,
+  className = '',
+}: {
+  onClose: () => void
+  children: ReactNode
+  label: string
+  /** Classe de la couche (ex. `explorer` : au-dessus de la carte et du profil, sous la barre du bas). */
+  className?: string
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  return (
-    <div className="sheet-layer">
+  // Rendue à la racine de l'app : une feuille ouverte depuis la carte ou le profil (écrans déplacés par
+  // les glissés, chacun sur son propre plan) passe bien au-dessus d'eux.
+  const layer = (
+    <div className={`sheet-layer ${className}`}>
       <button type="button" className="sheet-backdrop" aria-label="Fermer" onClick={onClose} />
       <section className="sheet" role="dialog" aria-modal="true" aria-label={label}>
         {children}
       </section>
     </div>
   )
+  const root = document.getElementById('root')
+  return root ? createPortal(layer, root) : layer
 }
 
 export function PhotoTile({

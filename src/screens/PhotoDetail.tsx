@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { photoTime } from '../components/arProjection'
+import { RemoveCaptureSheet } from '../components/CaptureGrid'
 import { FriendButton } from '../components/FriendButton'
 import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
-import { Avatar, Chip, IconButton, PhotoTile, RoundButton } from '../components/ui'
+import { Avatar, Chip, IconButton, PhotoTile, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
@@ -12,7 +13,7 @@ import { PremiumCard } from '../components/PremiumCard'
 import { SwipeDeck } from '../components/SwipeDeck'
 import { usePhotosHere } from '../data/usePhotosHere'
 import { canSaveOthersPhotos } from '../data/premium'
-import { savePhotoToDevice } from '../data/savePhoto'
+import { sharePhoto } from '../data/sharePhoto'
 import { useStore } from '../data/storeContext'
 import { usePhoto } from '../data/usePhoto'
 import { usePublicProfile } from '../data/usePublicProfile'
@@ -158,26 +159,30 @@ function PhotoDetailView({
   const deck = !sheet && here.length > 1
   const toast = useToast()
   const body = useRef<HTMLElement>(null)
-  const [saving, setSaving] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [paywall, setPaywall] = useState(false)
+  // « ⋯ » : autres actions (retirer une capture), puis sa confirmation.
+  const [more, setMore] = useState<'menu' | 'remove' | null>(null)
   const mine = isMine(photo)
-  const canSave = mine || canSaveOthersPhotos(profile)
+  const allowed = mine || canSaveOthersPhotos(profile)
   const captured = captures.some((c) => c.photoId === photo.id)
+  // Partager : la photo en couleur seulement (la mienne, ou capturée) ; pas encore capturée, rien.
+  const shareable = mine || captured
   const canReproduce = captured && isGeoframed(photo) && photo.visibility !== 'prive'
   const reproduce = () => navigate(`/reproduire/${photo.id}`, { replace: sheet })
 
-  async function save() {
-    if (!canSave) {
+  async function share() {
+    if (!allowed) {
       setPaywall(true)
       return
     }
-    setSaving(true)
+    setSharing(true)
     try {
-      await savePhotoToDevice(photo)
+      await sharePhoto(photo)
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Enregistrement impossible')
+      toast(err instanceof Error ? err.message : 'Partage impossible')
     } finally {
-      setSaving(false)
+      setSharing(false)
     }
   }
 
@@ -200,6 +205,8 @@ function PhotoDetailView({
           />
         )}
         {!sheet && <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />}
+        {/* Capture d'une photo d'un autre : « ⋯ » → « Retirer de mes captures ». */}
+        {!sheet && captured && !mine && <RoundButton icon="more" label="Autres actions" onClick={() => setMore('menu')} className="more-btn" />}
         <div className="detail-caption">
           <h1>{mine ? photo.title : photo.ownerName || 'Photo'}</h1>
           <p>{mine ? photoDate(photo) : photoTitleAndDate(photo)}</p>
@@ -223,42 +230,50 @@ function PhotoDetailView({
         )}
 
         <div className="detail-actions">
-          {sheet ? (
-            <>
-              {canReproduce && (
-                <button type="button" className="btn" onClick={reproduce}>
-                  <Icon name="reproduce" /> Reproduire cette photo
+          {/* [ Retrouver ] [ Reproduire ] (⇪) — Partager remplace « Enregistrer sur mon téléphone » (0.23.0). */}
+          <div className="detail-action-row">
+            {sheet ? (
+              canReproduce && (
+                <button type="button" className="btn reproduce-btn" onClick={reproduce}>
+                  <Icon name="reproduce" /> Reproduire
                 </button>
-              )}
-              <button type="button" className={`btn ${canReproduce ? 'ghost' : ''}`} onClick={onContemplate}>
-                <Icon name="eye" /> Contempler in situ
-              </button>
-            </>
-          ) : (
-            <>
-              {isGeoframed(photo) ? (
-                <button type="button" className="btn" onClick={() => navigate(`/chasse/${photo.id}`)}>
-                  <Icon name="flag" /> {captured ? 'Revoir in situ' : 'Capturer'}
-                </button>
-              ) : (
-                mine && (
-                  <button type="button" className="btn" onClick={() => navigate(`/recaler/${photo.id}`)}>
-                    <Icon name="scan" /> Géocadrer sur place
+              )
+            ) : (
+              <>
+                {isGeoframed(photo) ? (
+                  <button type="button" className="btn" onClick={() => navigate(`/chasse/${photo.id}`)}>
+                    <Icon name="flag" /> {captured ? 'Retrouver' : 'Capturer'}
                   </button>
-                )
-              )}
-              {canReproduce && (
-                <button type="button" className="btn ghost" onClick={reproduce}>
-                  <Icon name="reproduce" /> Reproduire cette photo
-                </button>
-              )}
-            </>
+                ) : (
+                  mine && (
+                    <button type="button" className="btn" onClick={() => navigate(`/recaler/${photo.id}`)}>
+                      <Icon name="scan" /> Géocadrer sur place
+                    </button>
+                  )
+                )}
+                {canReproduce && (
+                  <button type="button" className="btn ghost reproduce-btn" onClick={reproduce}>
+                    <Icon name="reproduce" /> Reproduire
+                  </button>
+                )}
+              </>
+            )}
+            {shareable && (
+              <RoundButton
+                icon="share"
+                label={sharing ? 'Partage en cours…' : allowed ? 'Partager la photo' : 'Partager la photo (PICTI Premium)'}
+                onClick={() => !sharing && void share()}
+                dim={sharing}
+                className="share-btn"
+              />
+            )}
+          </div>
+          {sheet && (
+            <button type="button" className={`btn ${canReproduce ? 'ghost' : ''}`} onClick={onContemplate}>
+              <Icon name="eye" /> Contempler in situ
+            </button>
           )}
-          <button type="button" className="btn ghost" onClick={() => void save()} disabled={saving}>
-            <Icon name="download" /> {saving ? 'Enregistrement…' : 'Enregistrer sur mon téléphone'}
-            {!canSave && <span className="premium-tag">Premium</span>}
-          </button>
-          {paywall && <PremiumCard reason="Enregistrer les photos des autres : PICTI Premium" />}
+          {paywall && <PremiumCard reason="Partager les photos des autres : PICTI Premium" />}
         </div>
 
         <AuthorBlock photo={photo} />
@@ -274,6 +289,20 @@ function PhotoDetailView({
 
         <TechnicalDetails photo={photo} mine={mine} />
       </section>
+
+      {more === 'menu' && (
+        <Sheet onClose={() => setMore(null)} label="Autres actions" className="above-panes">
+          <div className="shot-sheet">
+            <button type="button" className="btn ghost" onClick={() => setMore('remove')}>
+              <Icon name="flag" /> Retirer de mes captures
+            </button>
+            <button type="button" className="btn ghost" onClick={() => setMore(null)}>
+              Annuler
+            </button>
+          </div>
+        </Sheet>
+      )}
+      {more === 'remove' && <RemoveCaptureSheet photo={photo} onClose={() => setMore(null)} />}
     </>
   )
 }
