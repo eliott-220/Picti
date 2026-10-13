@@ -499,8 +499,37 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     `loadPreference` / `savePreference` : `@capacitor/preferences` dans l'app.
 
 - **Navigation (0.23.0, prompt `PROMPT-0.023.0.md` du dossier d'Eliott ; conception
-  `PICTI-ERGONOMIE-MENU.md`)** — le viseur ne garde que l'action ; le reste passe par une barre flottante
-  et deux glissés, **pareil sur le site, Android et l'app iOS** (barre en CSS, gestes dans la page) :
+  `PICTI-ERGONOMIE-MENU.md` ; corrigée en 0.23.1, voir le premier point)** — le viseur ne garde que
+  l'action ; le reste passe par une barre flottante et des glissés, **pareil sur le site, Android et l'app
+  iOS** (barre en CSS, gestes dans la page) :
+  - **0.23.1 (retours d'Eliott du 13/10 sur l'iPhone) — cinq écrans dans l'ordre de la barre : [ Carte ]
+    [ Amis ] [ Viseur ] [ Mes photos ] [ Profil ]** (`src/components/panes.ts`, testé : `PANES`,
+    `neighborPane`, `paneMove`, `paneOffset`, `awayOf`). Barre : Carte · Amis · bouton rouge · Mes photos ·
+    Profil (pictogramme haut du corps `user`, plus d'initiale ; l'écran affiché en rouge, symbole SF
+    plein dans l'app iOS : `map`/`map.fill`, `person.2`, `photo.on.rectangle`, `person`, donnés
+    directement par `GlassBarItem.symbol`). Glisser mène à l'écran **voisin** (vers la gauche celui de
+    droite) ; le viseur ne bouge pas, les autres glissent par-dessus depuis leur côté (ceux des bords —
+    carte, profil, z-index 26 — au-dessus de ceux du milieu — amis, mes photos, 25) : vers le viseur
+    l'écran actuel repart et découvre le suivant, sinon le suivant arrive par-dessus (`paneMove`). Sur la
+    carte, seule la bande du bord droit mène à Amis. **Plus de flèche retour** sur ces écrans. **Menu (4
+    carrés)** : bouton rond juste au-dessus de la barre, à gauche, **sur le viseur seulement**
+    (`.menu-fab`) ; Explorer = À proximité · Rechercher · Mes chasses · Paramètres. **Onglet Amis**
+    (`FriendsTab.tsx`, `#/amis` ; `#/profil/amis` et `#/notifications` y mènent) : notifications
+    (`NotificationList`, relues à l'arrivée) juste au-dessus de la liste d'amis, puis invitations,
+    demandes, chasseurs ; pastille = non lues + demandes ; **plus de cloche au viseur**. **Mes photos**
+    (`MyPhotosTab.tsx`, `#/photos`). **Mon profil** : en-tête (pictogramme, pseudo, compteurs), Mes
+    captures, ⚙️. App iOS : gestes de WebKit coupés sur les cinq écrans (`pageOwnsSwipes`). Historique :
+    ouvert depuis le viseur = entrée marquée `pictiHomeBelow` ; entre écrans de la barre = remplacement.
+  - **Pile des écrans (0.23.1, `src/screenStack.ts`, testé)** : l'écran qu'on quitte en avançant reste
+    monté, caché (`.screen-slot.covered`, `inert`) ; au retour (flèche, geste d'iOS, bouton du navigateur)
+    il réapparaît tel quel, tout de suite (défilement compris) — plus d'écran blanc le temps de le
+    recharger. Une entrée par niveau d'historique (`currentDepth()`), les écrans de la barre consécutifs ne
+    font qu'un (`slotsOf`, même clé, même `Home`), 5 écrans gardés au plus (`MAX_SCREENS`).
+    `ScreenActiveContext` / `useScreenActive()` : faux pour un écran caché — `useViewfinder` met alors la
+    caméra en pause (accueil, chasse, recalage, tutoriel), `useDarkStatusBar` laisse la barre d'état à
+    l'écran du dessus, `Sheet` (rendue à la racine) se cache.
+  - *Ce qui suit décrit la 0.23.0 (trois écrans) ; la mécanique (glissés sans rendu React, `--away`,
+    pause de la caméra, verre natif) est la même avec cinq.*
   - **Trois écrans côte à côte : [ Carte ] ← [ Viseur ] → [ Mon profil ]**, tous rendus par `Home`
     (`src/screens/Home.tsx`, prop `pane`) : les routes `#/`, `#/carte` et `#/profil` (`/profil/amis`)
     renvoient le même élément `<Home>` (`App.tsx`), qui reste monté de l'un à l'autre. La carte
@@ -935,6 +964,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.23.1 : barre à cinq boutons (Carte · Amis · bouton rouge · Mes photos · Profil), cinq écrans côte à côte dans cet ordre (glisser = écran voisin), pas de flèche retour sur eux ; pictogramme du profil au lieu de l'initiale ; onglet Amis avec les notifications au-dessus des amis (plus de cloche au viseur) ; onglet Mes photos ; Menu 4 carrés au-dessus de la barre, sur le viseur seulement ; pile des écrans : retour sans écran blanc.
 - 0.23.0 : barre flottante en bas (Menu · bouton rouge · avatar, vrai Liquid Glass dans l'app iOS 26+) ; carte à gauche du viseur en glissant (retour depuis le bord droit ou par le bouton rouge réduit), profil à droite, les trois gardés montés ; choix du mode en colonne au-dessus du bouton rouge ; double appui = caméra avant / arrière (plus de bouton selfie) ; « + » d'import sur la carte (photo sans position posée au centre de la carte) ; menu Explorer 2 × 2 ; Mon profil à onglets + page Paramètres (mode par défaut, compte, Premium, tutoriel, version, suivi visuel caché) ; fiche : « Retrouver » · « Reproduire » · Partager (feuille du système avec le fichier, remplace « Enregistrer ») ; retirer une capture. Plugins Capacitor Share et Filesystem. Migration de nettoyage des notifications proposée, pas appliquée.
 - 0.22.0 : tutoriel du premier lancement, avant la création du compte : photo d'essai prise avec sa caméra et posée devant soi, à retrouver en se tournant (flèche, netteté, vibrations), capture en couleur, puis « la photo la plus proche est à 240 m au nord-est » (fonction `nearest_public_photo`, sans compte) ; orientation relative seulement (ARKit ou gyroscope), ni GPS ni boussole ; « Revoir le tutoriel » dans le menu. Plugins Capacitor Haptics et Preferences. Numéro libéré par l'abandon de la croix de visée (09/10, jamais en ligne).
 - 0.18.0 : coque native Capacitor 8 (iOS + Android), web embarqué ; liens des e-mails vers l'app en ligne, pas de bandeau de mise à jour, « · app iOS » dans le menu ; liens d'invitation préparés (pas actifs). Site web inchangé.
@@ -992,3 +1022,4 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - [2026-10-12 — Glisser vers la gauche sur le viseur ouvre le profil (0.21.1)](claude/picti/2026-10-12-profil-en-glissant.md)
 - [2026-10-12 — Tutoriel du premier lancement : photo d'essai, puis la vraie photo la plus proche (0.22.0)](claude/picti/2026-10-12-photo-essai.md)
 - [2026-10-12 — Barre du bas, carte en glissé, double appui, Paramètres, partager, retirer une capture (0.23.0)](claude/picti/2026-10-12-barre-du-bas.md)
+- [2026-10-13 — Cinq onglets dans la barre, glissés entre eux, pile des écrans (0.23.1)](claude/picti/2026-10-13-cinq-onglets.md)
