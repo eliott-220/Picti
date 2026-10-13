@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import { grabVideoFrame, type EncodedImage } from '../data/images'
+import { clampZoom, hardwareRange, type ZoomRange } from '../geo/zoom'
 
 export type CameraStatus = 'starting' | 'ready' | 'error'
 
@@ -12,7 +13,14 @@ export interface CameraState {
   error: string | null
   /** Dimensions natives du flux (px). */
   size: { width: number; height: number } | null
-  capture(): Promise<EncodedImage>
+  /**
+   * Zoom matériel de la caméra (contrainte `zoom`) : sa plage, null si elle ne zoome pas, undefined
+   * tant qu'elle n'a jamais été ouverte ; `zoom` : celui qu'elle applique (1 sans zoom matériel).
+   */
+  zoomRange: ZoomRange | null | undefined
+  zoom: number
+  /** Image courante ; `digital` > 1 : seul le centre est gardé (zoom numérique). */
+  capture(digital?: number): Promise<EncodedImage>
 }
 
 function describe(e: unknown): string {
@@ -38,6 +46,64 @@ const KEEP_ALIVE_MS = 15_000
 let shared: { facing: CameraFacing; stream: Promise<MediaStream>; users: number; stopTimer: number } | null = null
 
 const isLive = (s: MediaStream) => s.getVideoTracks().some((t) => t.readyState === 'live')
+
+// Zoom matériel (Safari 17+ sur iPhone : 0,5 = ultra grand-angle, 1 = objectif principal, jusqu'à 10 ;
+// certains Chrome) : absent des types du DOM.
+type ZoomCapable = MediaTrackCapabilities & { zoom?: { min?: number; max?: number } }
+type ZoomSettings = MediaTrackSettings & { zoom?: number }
+
+// Dernière plage de zoom vue pour chaque caméra : connue avant même de rouvrir le flux (le viseur
+// choisit sa caméra d'après elle, `zoomPlan`).
+let knownZoom: Partial<Record<CameraFacing, ZoomRange | null>> = {}
+const zoomListeners = new Set<() => void>()
+
+function setKnownZoom(facing: CameraFacing, range: ZoomRange | null) {
+  const previous = knownZoom[facing]
+  if (previous === range || (previous && range && previous.min === range.min && previous.max === range.max)) return
+  knownZoom = { ...knownZoom, [facing]: range }
+  zoomListeners.forEach((l) => l())
+}
+
+/** Plage du zoom matériel de cette caméra : null si elle ne zoome pas, undefined si jamais ouverte. */
+export function useCameraZoomRange(facing: CameraFacing): ZoomRange | null | undefined {
+  return useSyncExternalStore(
+    (listener) => {
+      zoomListeners.add(listener)
+      return () => {
+        zoomListeners.delete(listener)
+      }
+    },
+    () => knownZoom[facing],
+  )
+}
+
+function trackZoomRange(track: MediaStreamTrack | undefined): ZoomRange | null {
+  try {
+    return hardwareRange((track?.getCapabilities?.() as ZoomCapable | undefined)?.zoom)
+  } catch {
+    return null
+  }
+}
+
+function trackZoom(track: MediaStreamTrack | undefined): number {
+  const z = (track?.getSettings?.() as ZoomSettings | undefined)?.zoom
+  return typeof z === 'number' && z > 0 ? z : 1
+}
+
+/** Demande le zoom `zoom` (borné à la plage de la caméra) ; renvoie celui qu'elle applique. */
+async function applyZoom(track: MediaStreamTrack | undefined, zoom: number): Promise<number> {
+  const range = trackZoomRange(track)
+  if (!track || !range) return 1
+  const wanted = clampZoom(zoom, range)
+  if (Math.abs(trackZoom(track) - wanted) > 1e-3) {
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: wanted } as MediaTrackConstraintSet] })
+    } catch {
+      // Refusé (caméra occupée, valeur hors des formats) : on garde le zoom actuel.
+    }
+  }
+  return trackZoom(track)
+}
 
 function stopShared() {
   const s = shared
@@ -111,8 +177,11 @@ if (typeof document !== 'undefined') {
   })
 }
 
-/** Flux de la caméra (arrière par défaut), affiché dans l'élément <video> référencé. */
-export function useCamera(enabled = true, facing: CameraFacing = 'environment'): CameraState {
+/**
+ * Flux de la caméra (arrière par défaut), affiché dans l'élément <video> référencé ; `zoom` : zoom
+ * matériel demandé (appliqué si la caméra sait zoomer — le flux partagé reprend celui de chaque écran).
+ */
+export function useCamera(enabled = true, facing: CameraFacing = 'environment', zoom = 1): CameraState {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [unsupported] = useState(unsupportedReason)
   const [state, setState] = useState<{ status: CameraStatus; error: string | null }>({
@@ -122,6 +191,13 @@ export function useCamera(enabled = true, facing: CameraFacing = 'environment'):
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
   // Relance du flux quand le système l'a coupé (retour dans l'app).
   const [restart, setRestart] = useState(0)
+  const zoomRange = useCameraZoomRange(facing)
+  const [applied, setApplied] = useState(1)
+  const [track, setTrack] = useState<MediaStreamTrack | null>(null)
+  const zoomRef = useRef(zoom)
+  useEffect(() => {
+    zoomRef.current = zoom
+  })
 
   useEffect(() => {
     const video = videoRef.current
@@ -147,6 +223,13 @@ export function useCamera(enabled = true, facing: CameraFacing = 'environment'):
           releaseStream(s)
           return
         }
+        // Zoom de l'écran appliqué avant d'afficher l'image (pas d'éclair au mauvais cadrage).
+        const t = s.getVideoTracks()[0]
+        const z = await applyZoom(t, zoomRef.current)
+        if (cancelled) return
+        setKnownZoom(facing, trackZoomRange(t))
+        setApplied(z)
+        setTrack(t ?? null)
         video.srcObject = s
         await video.play().catch(() => undefined)
         onSize()
@@ -158,6 +241,7 @@ export function useCamera(enabled = true, facing: CameraFacing = 'environment'):
 
     return () => {
       cancelled = true
+      setTrack(null)
       if (stream) releaseStream(stream)
       document.removeEventListener('visibilitychange', onVisible)
       video.removeEventListener('loadedmetadata', onSize)
@@ -166,13 +250,26 @@ export function useCamera(enabled = true, facing: CameraFacing = 'environment'):
     }
   }, [enabled, unsupported, facing, restart])
 
-  const capture = useCallback(() => {
+  // Zoom changé pendant que le flux est ouvert (boutons, pincement) : appliqué au fil de l'eau, une
+  // demande à la fois (la dernière l'emporte).
+  useEffect(() => {
+    if (!track || !zoomRange) return
+    let stale = false
+    void applyZoom(track, zoom).then((z) => {
+      if (!stale) setApplied(z)
+    })
+    return () => {
+      stale = true
+    }
+  }, [track, zoomRange, zoom])
+
+  const capture = useCallback((digital = 1) => {
     const video = videoRef.current
     if (!video) return Promise.reject(new Error('Caméra indisponible'))
-    return grabVideoFrame(video)
+    return grabVideoFrame(video, digital)
   }, [])
 
   return unsupported
-    ? { videoRef, status: 'error', error: unsupported, size: null, capture }
-    : { videoRef, ...state, size, capture }
+    ? { videoRef, status: 'error', error: unsupported, size: null, zoomRange: null, zoom: 1, capture }
+    : { videoRef, ...state, size, zoomRange, zoom: zoomRange ? applied : 1, capture }
 }

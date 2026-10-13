@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   EDGE_BAND,
   FLICK_MIN,
+  flickDirection,
   freeToSwipe,
   inRightEdge,
   OPEN_RATIO,
@@ -49,6 +50,25 @@ describe('viseur : glisser de droite à gauche ouvre le profil', () => {
     expect(opensOnRelease(-(FLICK_MIN - 1), 3, 400)).toBe(false)
     // Assez long mais lent.
     expect(opensOnRelease(-FLICK_MIN, OPEN_SPEED, 400)).toBe(false)
+  })
+
+  it('0.24.0 : un petit coup de doigt rapide de 40 px change de page (direction et vitesse suffisent)', () => {
+    expect(FLICK_MIN).toBeLessThanOrEqual(30)
+    expect(OPEN_SPEED).toBeLessThanOrEqual(0.3)
+    expect(opensOnRelease(-40, 0.4, 390)).toBe(true)
+    expect(opensOnRelease(40, 0.4, 390, 'right')).toBe(true)
+    // Doigt lent : seuil au tiers de l'écran, comme avant.
+    expect(opensOnRelease(-100, 0.1, 390)).toBe(false)
+    expect(opensOnRelease(-140, 0.1, 390)).toBe(true)
+    // Loin, mais relancé en sens inverse au dernier moment : l'écran revient.
+    expect(opensOnRelease(-200, -0.6, 390)).toBe(false)
+  })
+
+  it('pendant l’arrivée d’un écran, un coup de doigt prolonge vers le suivant', () => {
+    expect(flickDirection(-50, 0.8, ['left', 'right'])).toBe('left')
+    expect(flickDirection(50, 0.8, ['left'])).toBeNull()
+    expect(flickDirection(-20, 0.8, ['left'])).toBeNull()
+    expect(flickDirection(-80, 0.1, ['left'])).toBeNull()
   })
 
   it('la vitesse au lâcher est celle de la fin du geste', () => {

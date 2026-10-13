@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
-import { awayOf, neighborPane, paneMove, paneOffset, pushOffsets, type Pane, type PaneMove, type SidePane } from './panes'
+import { awayOf, neighborPane, paneMove, paneOffset, pushOffsets, tabOf, type Pane, type PaneMove, type SidePane } from './panes'
 import {
+  flickDirection,
   freeToSwipe,
   inRightEdge,
   opensOnRelease,
@@ -24,6 +25,11 @@ interface Drag {
   /** Sens permis : ceux qui ont un écran voisin (sur la carte, depuis le bord droit : vers la gauche). */
   allowed: readonly SwipeDirection[]
   dir: SwipeDirection | null
+  /**
+   * Geste commencé pendant qu'un écran finit d'arriver (0.24.0) : il ne déplace rien, mais un coup de
+   * doigt prolonge le mouvement vers l'écran suivant une fois celui-ci arrivé (comme Instagram).
+   */
+  queued?: boolean
 }
 
 /** Fin du mouvement : les styles posés à la main laissent la place à ceux de l'écran affiché. */
@@ -39,6 +45,8 @@ function clearPaneStyles(panes: (HTMLElement | null)[], bar: HTMLElement | null)
   if (bar) {
     bar.classList.remove('dragging')
     bar.style.removeProperty('--away')
+    bar.style.removeProperty('--tab')
+    bar.style.removeProperty('--tab-lag')
   }
 }
 
@@ -52,8 +60,13 @@ const moveMs = (m: PaneMove) => (m.push ? PUSH_MS : SLIDE_MS)
  * sur la carte, le doigt la déplace et seul un glissé partant de la bande du bord droit mène à l'écran
  * voisin. Lâché au-delà d'un tiers de l'écran (ou d'un geste vif), l'écran finit sa course puis `onCommit`
  * change d'adresse ; sinon il repart. Pendant le geste rien n'est redessiné par React : les écrans bougent
- * par leur style, et la barre reçoit `--away` (0 sur le viseur, 1 ailleurs). `goTo` fait la même
- * animation sans le doigt (boutons de la barre, bouton rouge réduit, menu).
+ * par leur style, et la barre reçoit `--away` (0 sur le viseur, 1 ailleurs) et `--tab` (place de la bulle
+ * de l'onglet actif, 0.24.0). `goTo` fait la même animation sans le doigt (boutons de la barre, bouton
+ * rouge réduit, menu).
+ *
+ * 0.24.0 : un petit coup de doigt rapide suffit (`opensOnRelease`) — l'écran finit seul, doigt levé ; un
+ * second doigt (pincement) n'est jamais un glissé ; un coup de doigt donné pendant qu'un écran finit
+ * d'arriver le prolonge vers le suivant, une page à la fois.
  */
 export function usePanes({
   pane,
@@ -114,6 +127,10 @@ export function usePanes({
     if (b) {
       b.classList.toggle('dragging', !animate)
       b.style.setProperty('--away', String(awayOf(m, shown)))
+      // Bulle de l'onglet actif (0.24.0) : elle suit le doigt ; `--tab-lag`, plus lent, l'étire en route.
+      const tab = String(tabOf(m, shown))
+      b.style.setProperty('--tab', tab)
+      b.style.setProperty('--tab-lag', tab)
     }
   }
 
@@ -121,12 +138,21 @@ export function usePanes({
 
   function end() {
     clearStyles()
+    // Retour annulé : rien à enchaîner. Course engagée : l'écran suivant attend le changement d'adresse.
+    if (!committing.current) queuedTarget.current = null
     moving.current = null
+    committing.current = false
     setMove(null)
   }
 
+  // Mouvement en route vers un nouvel écran (course finale engagée) : un nouveau geste peut le prolonger.
+  const committing = useRef(false)
+  // Écran suivant demandé par un coup de doigt pendant la course : rejoint dès l'arrivée.
+  const queuedTarget = useRef<Pane | null>(null)
+
   /** Finit la course ; `commit` : jusqu'au nouvel écran (puis changement d'adresse), sinon retour. */
   function settle(m: PaneMove, commit: boolean) {
+    committing.current = commit
     place(m, commit === m.arriving ? 1 : 0, true)
     clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
@@ -139,10 +165,15 @@ export function usePanes({
 
   // Nouvel écran affiché (adresse changée) : ses styles de classe prennent le relais, avant d'être peints.
   useLayoutEffect(() => {
+    // Coup de doigt donné pendant la course : on continue aussitôt vers l'écran suivant.
+    const next = queuedTarget.current
+    queuedTarget.current = null
+    if (next && next !== pane) requestAnimationFrame(() => goToRef.current(next))
     if (!moving.current) return
     clearTimeout(timer.current)
     clearPaneStyles([panes.carte.current, panes.amis.current, panes.photos.current, panes.profil.current], bar.current)
     moving.current = null
+    committing.current = false
     setMove(null)
   }, [pane, panes, bar])
 
@@ -155,6 +186,11 @@ export function usePanes({
   useLayoutEffect(() => {
     if (move && drag.current?.dir) placeRef.current(move, lastShown.current, false)
   }, [move])
+
+  const goToRef = useRef(goTo)
+  useEffect(() => {
+    goToRef.current = goTo
+  })
 
   /** Va à un écran de la barre avec la même animation qu'au doigt. */
   function goTo(target: Pane) {
@@ -181,6 +217,14 @@ export function usePanes({
     const dx = e.clientX - d.x
     const t = e.timeStamp
     samples.current = [...samples.current.filter((p) => t - p.t <= SPEED_WINDOW_MS * 2), { x: e.clientX, t }]
+    if (d.queued) {
+      if (!d.dir) {
+        const intent = swipeIntent(dx, e.clientY - d.y, ['left', 'right'])
+        if (intent === 'other') drag.current = null
+        else if (intent) d.dir = intent
+      }
+      return
+    }
     if (!d.dir) {
       const intent = swipeIntent(dx, e.clientY - d.y, d.allowed)
       if (!intent) return
@@ -211,6 +255,25 @@ export function usePanes({
     const d = drag.current
     if (!d || e.pointerId !== d.id) return
     drag.current = null
+    if (d.queued) {
+      // Coup de doigt donné pendant la course vers `to` : il emmène à l'écran voisin de `to` (une page à la
+      // fois) — dès l'arrivée si la course n'est pas finie, sinon tout de suite. Sur la carte, seul le bord
+      // droit en fait sortir : on n'y enchaîne pas au-delà.
+      if (cancelled || !d.dir) return
+      samples.current.push({ x: e.clientX, t: e.timeStamp })
+      const dx = e.clientX - d.x
+      const dir = flickDirection(dx, releaseSpeed(samples.current, dx < 0 ? 'left' : 'right'), [d.dir])
+      if (!dir) return
+      const m = moving.current
+      if (m && committing.current) {
+        const next = neighborPane(m.to, dir)
+        if (next && m.to !== 'carte') queuedTarget.current = next
+      } else if (!m && pane !== 'carte') {
+        const next = neighborPane(pane, dir)
+        if (next) goTo(next)
+      }
+      return
+    }
     const m = moving.current
     if (!d.dir || !m) return
     samples.current.push({ x: e.clientX, t: e.timeStamp })
@@ -227,11 +290,29 @@ export function usePanes({
 
   const directions = (['left', 'right'] as const).filter((dir) => neighborPane(pane, dir))
 
+  /** Un second doigt (pincement pour zoomer, 0.22.1) : ce n'est jamais un glissé de page. */
+  function secondFinger() {
+    const d = drag.current
+    if (!d) return
+    drag.current = null
+    const m = moving.current
+    if (d.dir && m && !d.queued) settle(m, false)
+  }
+
   /** Gestes sur les écrans (le `<main>` du viseur, qui les contient tous) ; la carte : voir `edgeHandlers`. */
   const handlers = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       swallowClick.current = false
-      if (pane === 'carte' || !enabled || moving.current || !e.isPrimary || e.button !== 0 || !freeToSwipe(e.target)) return
+      if (!e.isPrimary) return secondFinger()
+      // Écran qui finit d'arriver : un nouveau geste peut prolonger le mouvement (pas depuis la carte).
+      if (moving.current && committing.current && !drag.current && enabled && e.button === 0 && freeToSwipe(e.target)) {
+        if (moving.current.to === 'carte') return
+        drag.current = { x: e.clientX, y: e.clientY, width: 0, id: e.pointerId, allowed: ['left', 'right'], dir: null, queued: true }
+        samples.current = [{ x: e.clientX, t: e.timeStamp }]
+        swallowClick.current = true
+        return
+      }
+      if (pane === 'carte' || !enabled || moving.current || e.button !== 0 || !freeToSwipe(e.target)) return
       // Depuis le viseur, rien ne part d'un écran voisin préparé caché.
       if (pane === 'viseur' && (e.target as Element).closest?.('.shell-pane')) return
       begin(e, directions)
@@ -246,7 +327,8 @@ export function usePanes({
   const edgeHandlers = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       swallowClick.current = false
-      if (pane !== 'carte' || moving.current || !e.isPrimary || e.button !== 0) return
+      if (!e.isPrimary) return secondFinger()
+      if (pane !== 'carte' || moving.current || e.button !== 0) return
       const r = e.currentTarget.closest('.screen')?.getBoundingClientRect()
       if (r && !inRightEdge(e.clientX, r.left, r.width)) return
       e.stopPropagation()

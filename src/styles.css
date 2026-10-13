@@ -239,7 +239,8 @@ img {
 .round-btn.glass-native,
 .icon-btn.glass-native,
 .chip.glass-native,
-.segmented.glass-native {
+.segmented.glass-native,
+.zoom-lens.glass-native {
   opacity: 0;
   box-shadow: none;
 }
@@ -482,6 +483,68 @@ html.picti-ar .camera-video {
   border-radius: 50%;
   background: #e87600;
   color: #fff;
+}
+
+/* Zoom et grand angle (0.22.1) : boutons d'objectif, comme dans l'appareil photo de l'iPhone. Depuis
+   0.24.0, petite rangée centrée juste au-dessus de la barre du bas (au niveau du Menu, à gauche), sur le
+   viseur seulement. Effacée en fondu (150 ms) pendant le choix du mode — la colonne Public / Amis / Privé
+   monte à cet endroit — et quand le menu est ouvert : les deux ne se superposent jamais. */
+.zoom-lenses {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bar-space) + 19px);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.28);
+  transition: opacity 0.15s ease-out, visibility 0s linear 0s;
+}
+
+.zoom-lenses.faded,
+.viewfinder:has(.shutter.picking) .zoom-lenses {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out, visibility 0s linear 0.15s;
+}
+
+.zoom-lens {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 999px;
+  background: rgb(20 20 20 / 0.55);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+}
+
+.zoom-lens.active {
+  background: var(--red);
+  font-size: 13px;
+}
+
+.zoom-lens:active {
+  transform: scale(0.94);
+}
+
+/* Boutons natifs (verre) : chacun est sa propre bulle, sans capsule autour. */
+.zoom-lenses:has(> .zoom-lens.glass-native) {
+  background: none;
+}
+
+/* Reproduire : entre le curseur d'opacité et le déclencheur. */
+.reproduce-viewfinder .zoom-lenses {
+  bottom: calc(var(--safe-bottom) + 116px);
 }
 
 /* Image figée au déclenchement, le temps de choisir (feuille). */
@@ -1474,8 +1537,50 @@ html.picti-ar .camera-video {
   font-size: 14px;
 }
 
-.nearby .dir-arrow {
+.nearby .dir-arrow,
+.nearby-arrow {
   color: var(--red);
+}
+
+/* Flèche de guidage (0.24.0) : le cap vers la photo tourne en douceur (bruit du GPS gommé, toujours par le
+   plus court chemin) ; le cap du téléphone, lui, est suivi tel quel. */
+.guide-arrow,
+.guide-arrow-bearing {
+  display: inline-grid;
+  place-items: center;
+}
+
+.guide-arrow-bearing {
+  transition: transform 0.5s ease-out;
+}
+
+.nearby-here {
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Sans cap fiable : petite boussole « N » (flèches nord en haut). */
+.nearby-north {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.nearby-north-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.22);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* ---------- Recherche ---------- */
@@ -2823,9 +2928,9 @@ button.avatar-item {
   backdrop-filter: blur(8px);
 }
 
-/* Les notifications du viseur passent au-dessus du bouton rouge (et de la barre du bas). */
+/* Les notifications du viseur passent au-dessus du bouton rouge, de la barre du bas et des boutons du zoom. */
 #root:has(.viewfinder) .toast {
-  bottom: calc(var(--safe-bottom) + 156px);
+  bottom: calc(var(--safe-bottom) + 168px);
 }
 
 .import-visibility {
@@ -4151,6 +4256,22 @@ html.picti-ar .tutorial {
   initial-value: 0;
 }
 
+/* Bulle de l'onglet actif (0.24.0) : sa place dans la barre (0 Carte, 1 Amis, 2 bouton rouge, 3 Mes photos,
+   4 Profil), animée avec un léger ressort ou posée sous le doigt (`usePanes`). `--tab-lag` la suit avec un
+   peu de retard : l'écart des deux étire la bulle pendant le trajet (effet « goutte » d'iOS 26), puis elle
+   reprend sa forme à l'arrêt. */
+@property --tab {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 2;
+}
+
+@property --tab-lag {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 2;
+}
+
 /* Pilule décollée des côtés (16 px), en bas comme celle d'Instagram (`--bar-bottom`), en verre :
    translucide et floutée sur le site et Android, vrai Liquid Glass dans l'app iOS 26+. */
 .bottom-nav {
@@ -4173,7 +4294,10 @@ html.picti-ar .tutorial {
   -webkit-backdrop-filter: blur(22px) saturate(1.6);
   backdrop-filter: blur(22px) saturate(1.6);
   color: var(--ink);
-  transition: --away 0.24s cubic-bezier(0.3, 0.7, 0.3, 1);
+  transition:
+    --away 0.24s cubic-bezier(0.3, 0.7, 0.3, 1),
+    --tab 0.3s cubic-bezier(0.34, 1.25, 0.64, 1),
+    --tab-lag 0.42s cubic-bezier(0.3, 0.9, 0.3, 1);
   touch-action: none;
 }
 
@@ -4181,8 +4305,75 @@ html.picti-ar .tutorial {
   --away: 1;
 }
 
+/* Place de la bulle selon l'écran affiché (sous le doigt, `usePanes` la pose directement). */
+.bottom-nav.tab-carte {
+  --tab: 0;
+  --tab-lag: 0;
+}
+
+.bottom-nav.tab-amis {
+  --tab: 1;
+  --tab-lag: 1;
+}
+
+.bottom-nav.tab-viseur {
+  --tab: 2;
+  --tab-lag: 2;
+}
+
+.bottom-nav.tab-photos {
+  --tab: 3;
+  --tab-lag: 3;
+}
+
+.bottom-nav.tab-profil {
+  --tab: 4;
+  --tab-lag: 4;
+}
+
+/* Sous le doigt, rien ne traîne… sauf `--tab-lag`, qui étire la bulle quand le doigt va vite. */
 .bottom-nav.dragging {
-  transition: none;
+  transition: --tab-lag 0.18s ease-out;
+}
+
+/* Bulle de l'onglet actif (0.24.0) : pilule translucide (flou + reflet) derrière l'icône, qui glisse d'une
+   icône à l'autre. Centre d'une place `s` dans la pilule (colonnes 1fr 1fr 56px 1fr 1fr, 6 px de marge) :
+   linéaire par morceaux, calculé ici pour `--tab` et `--tab-lag` ; la bulle couvre les deux (étirée en
+   route). Invisible au bouton rouge (sur le viseur, c'est le rond rouge qui montre la page) : elle en naît
+   en quittant le viseur et s'y fond en y revenant. */
+.nav-bubble {
+  --col: calc((100% - 68px) / 4);
+  --bw: min(60px, calc(var(--col) - 4px));
+  --x-tab: calc(
+    6px + var(--col) / 2 + var(--col) * min(var(--tab), 1) + (var(--col) / 2 + 28px) * clamp(0, var(--tab) - 1, 1) +
+      (var(--col) / 2 + 28px) * clamp(0, var(--tab) - 2, 1) + var(--col) * max(var(--tab) - 3, 0)
+  );
+  --x-lag: calc(
+    6px + var(--col) / 2 + var(--col) * min(var(--tab-lag), 1) +
+      (var(--col) / 2 + 28px) * clamp(0, var(--tab-lag) - 1, 1) + (var(--col) / 2 + 28px) * clamp(0, var(--tab-lag) - 2, 1) +
+      var(--col) * max(var(--tab-lag) - 3, 0)
+  );
+  position: absolute;
+  top: 50%;
+  left: calc(min(var(--x-tab), var(--x-lag)) - var(--bw) / 2);
+  width: calc(max(var(--x-tab), var(--x-lag)) - min(var(--x-tab), var(--x-lag)) + var(--bw));
+  height: 48px;
+  translate: 0 -50%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.18)), rgb(0 0 0 / 0.07);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.65),
+    inset 0 1px 1px rgb(255 255 255 / 0.9),
+    0 2px 8px rgb(0 0 0 / 0.1);
+  -webkit-backdrop-filter: blur(6px) saturate(1.5);
+  backdrop-filter: blur(6px) saturate(1.5);
+  opacity: min(var(--away), clamp(0, max(var(--tab) - 2, 2 - var(--tab)), 1));
+  pointer-events: none;
+}
+
+/* App iOS 26+ : la bulle est dessinée par le natif, dans la pilule (le web ne garde que sa place). */
+.bottom-nav.glass-native .nav-bubble {
+  visibility: hidden;
 }
 
 .nav-item {
@@ -4212,6 +4403,33 @@ html.picti-ar .tutorial {
 /* Écran affiché : pictogramme rouge, trait plus épais (en plein dans l'app iOS). */
 .nav-item.active {
   color: var(--red);
+}
+
+/* 0.24.0 : la couleur suit la bulle — elle passe de l'ancienne icône à la nouvelle pendant le trajet. */
+.nav-carte {
+  --i: 0;
+}
+
+.nav-amis {
+  --i: 1;
+}
+
+.nav-photos {
+  --i: 3;
+}
+
+.nav-profil {
+  --i: 4;
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .nav-item {
+    color: color-mix(
+      in srgb,
+      var(--red) calc(100% * clamp(0, 1 - max(var(--tab) - var(--i), var(--i) - var(--tab)), 1)),
+      var(--ink)
+    );
+  }
 }
 
 .nav-item.active svg {

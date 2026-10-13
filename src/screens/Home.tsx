@@ -14,6 +14,8 @@ import { PREPARE_MS } from '../components/swipeOpen'
 import { usePanes, type Pane } from '../components/usePanes'
 import type { SidePane } from '../components/panes'
 import { useTyping } from '../components/useTyping'
+import { usePinchZoom } from '../components/usePinchZoom'
+import { ZoomLenses } from '../components/ZoomLenses'
 import { DirectionArrow, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { CELEBRATION_MS } from '../components/useCapture'
@@ -32,6 +34,7 @@ import { coverViewport, focalPx, FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis, type CameraAngles } from '../geo/orientation'
 import { reproduceStatus, type ReproduceState } from '../geo/reproduce'
 import { GPS_GOOD_ACCURACY } from '../geo/tracking'
+import { reproduceZoom, settleZoom, ZOOM, type ZoomRoute } from '../geo/zoom'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { goBack, historyMark, navigate } from '../router'
 import type { CameraFacing } from '../sensors/useCamera'
@@ -121,14 +124,20 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
   })
   // Le viseur est visible (affiché, ou découvert par un glissé) : sinon la caméra se met en pause.
   const onViewfinder = screenActive && (pane === 'viseur' || panes.move?.under === 'viseur')
+  // Zoom demandé (boutons 0,5 · 1 · 2 · 5, pincement) ; pendant un pincement, la caméra ne change pas.
+  const [zoomWanted, setZoomWanted] = useState(1)
+  const [pinchRoute, setPinchRoute] = useState<ZoomRoute | null>(null)
   // Caméra, position et orientation : suivi visuel d'ARKit dans l'app iPhone (les photos restent à
   // leur place au centimètre près) ; sinon caméra web, position suivie image par image (et pas à pas)
-  // et boussole, avec la focale de la caméra principale mesurée en tournant le téléphone.
-  const { camera, geo, orientation, position, focal35, ar } = useViewfinder({
+  // et boussole, avec la focale de la caméra principale mesurée en tournant le téléphone. Le zoom
+  // multiplie la focale : les photos du décor restent à leur place à tous les grossissements.
+  const { camera, geo, orientation, position, focal35, ar, zoom } = useViewfinder({
     stage: stageRef,
     facing,
     calibrateFocal: true,
     active: onViewfinder,
+    zoom: zoomWanted,
+    lockZoom: pinchRoute,
   })
   const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = camera
   const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications } = useStore()
@@ -265,6 +274,33 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
       setFacing((f) => (f === 'user' ? 'environment' : 'user'))
     },
   }
+
+  // Reproduire : on part du cadrage de l'originale (prise au grand angle → 0,5), une fois la caméra prête.
+  const reproduceZoomSet = useRef(false)
+  useEffect(() => {
+    if (!reproduce || selfie || reproduceZoomSet.current || cameraStatus !== 'ready' || zoom.presets.length < 2) return
+    reproduceZoomSet.current = true
+    setZoomWanted(reproduceZoom(reproduce.focal35, zoom.baseFocal35, zoom.range))
+  }, [reproduce, selfie, cameraStatus, zoom.presets.length, zoom.baseFocal35, zoom.range])
+
+  // Pincer pour zoomer (caméra arrière) ; relâché près d'un repère, le zoom s'y range. Avec la caméra
+  // d'ARKit, arrêtée à 1, un pincement poussé vers l'intérieur passe au grand angle.
+  const canZoom = !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !sheet && !frozen && !held && !captureSheet?.open
+  // Boutons du zoom : sur le viseur seulement (pas sur la carte, les onglets ni en selfie), gardés pendant
+  // l'ouverture du menu pour s'effacer en douceur.
+  const zoomShown =
+    !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !frozen && !held && !captureSheet?.open && pane === 'viseur'
+  const pinch = usePinchZoom({
+    enabled: canZoom,
+    zoom: zoom.value,
+    onStart: () => setPinchRoute(zoom.route),
+    onChange: setZoomWanted,
+    onEnd: (raw) => {
+      setPinchRoute(null)
+      const wide = zoom.route === 'ar' && raw < ZOOM.pinchToWide && zoom.range.min < 1
+      setZoomWanted(wide ? zoom.range.min : settleZoom(Math.min(Math.max(raw, zoom.range.min), zoom.range.max), zoom.presets))
+    },
+  })
 
   // Photos d'autres utilisateurs à chasser autour de soi.
   const captured = new Set(captures.map((c) => c.photoId))
@@ -437,6 +473,14 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
     <main
       className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`}
       {...(shell ? panes.handlers : {})}
+      onPointerDownCapture={pinch.onPointerDownCapture}
+      onPointerMoveCapture={pinch.onPointerMoveCapture}
+      onPointerUpCapture={pinch.onPointerUpCapture}
+      onPointerCancelCapture={pinch.onPointerCancelCapture}
+      onClickCapture={(e) => {
+        pinch.onClickCapture(e)
+        if (shell && !e.isPropagationStopped()) panes.handlers.onClickCapture(e)
+      }}
     >
       <div
         className="camera-stage"
@@ -448,8 +492,16 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
         }
       >
         {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
-            Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée. */}
-        <video ref={videoRef} className={`camera-video ${selfie ? 'mirror' : ''}`} playsInline muted autoPlay />
+            Selfie : aperçu en miroir, comme un reflet ; la photo prise, elle, n'est pas inversée.
+            Zoom numérique (caméra web qui ne zoome pas) : l'image est agrandie, la photo recadrée d'autant. */}
+        <video
+          ref={videoRef}
+          className={`camera-video ${selfie ? 'mirror' : ''}`}
+          style={zoom.videoScale > 1 ? { transform: `scale(${zoom.videoScale})` } : undefined}
+          playsInline
+          muted
+          autoPlay
+        />
         {cameraStatus === 'error' && (
           <div className="camera-fallback">
             <Icon name="image" size={40} />
@@ -551,6 +603,11 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
           </button>
         </div>
       )}
+
+      {/* Zoom (0.22.1) : depuis 0.24.0, petite rangée centrée juste au-dessus de la barre du bas, sur le viseur
+          seulement ; elle s'efface pendant le choix du mode (colonne au-dessus du bouton rouge) et quand le
+          menu est ouvert : les deux ne se superposent jamais. */}
+      {zoomShown && <ZoomLenses presets={zoom.presets} zoom={zoom.value} onSelect={setZoomWanted} faded={!!sheet} />}
 
       {reproduce && (
         <div className="bottom-bar">

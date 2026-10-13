@@ -1,10 +1,10 @@
-import { useRef, type Ref, type RefObject } from 'react'
+import { useLayoutEffect, useRef, type Ref, type RefObject } from 'react'
 import type { Visibility } from '../data/types'
 import { useGlassButton } from '../glassButtons'
 import { haptic } from '../native'
-import { readAway } from './awayLook'
+import { readAway, readTab } from './awayLook'
 import { Icon, type IconName } from './Icon'
-import type { Pane } from './panes'
+import { tabSlot, type Pane } from './panes'
 import { Shutter } from './Shutter'
 
 /** Boutons de la barre, de gauche à droite (le bouton rouge est au milieu, entre Amis et Mes photos). */
@@ -25,6 +25,13 @@ const TABS: { pane: Exclude<Pane, 'viseur'>; icon: IconName; label: string; symb
  * retour au viseur — le passage suit `--away` (0 → 1), animé ou posé par le glissé des écrans
  * (`usePanes`). Dans l'app iOS 26+ : vraie pilule Liquid Glass, pictogrammes dessinés dedans (l'écran
  * affiché en plein, en rouge ; l'appareil photo aussi, au rythme de `--away`).
+ *
+ * 0.24.0 (comme BeReal et Instagram) : une **bulle** en verre derrière l'icône de l'onglet actif, qui
+ * glisse d'une icône à l'autre en s'étirant (effet « goutte ») ; l'icône active prend le rouge PICTI, la
+ * couleur passant de l'une à l'autre pendant le trajet. Sa place est `--tab` (0 Carte … 4 Profil ; 2 =
+ * le bouton rouge, où elle s'efface : sur le viseur, c'est le rond rouge qui montre la page), posée par la
+ * classe de l'écran affiché, ou sous le doigt par `usePanes`. Dans l'app iOS 26+, vraie bulle Liquid Glass
+ * dans la pilule native, alignée sur l'élément web `.nav-bubble`.
  */
 export function BottomBar({
   ref,
@@ -55,6 +62,7 @@ export function BottomBar({
   friendsBadge: number
 }) {
   const navRef = useRef<HTMLElement | null>(null)
+  const bubbleRef = useRef<HTMLSpanElement>(null)
   // Place du bouton rouge : l'appareil photo y est dessiné dans la pilule native hors du viseur (0.23.3).
   const shutterSlot = useRef<HTMLDivElement>(null)
   const tabRefs = {
@@ -72,13 +80,25 @@ export function BottomBar({
           symbol: pane === t.pane ? t.activeSymbol : t.symbol,
           active: pane === t.pane,
           badge: t.pane === 'amis' ? friendsBadge : undefined,
+          slot: tabSlot(t.pane),
         })),
         // Hors du viseur : appareil photo comme les autres pictogrammes (même taille, même couleur).
         { ref: shutterSlot as RefObject<HTMLElement | null>, symbol: 'camera', away: true },
       ],
+      bubble: bubbleRef,
     },
     away: () => readAway(navRef.current),
+    tab: () => readTab(navRef.current),
   })
+  // « Réduire les animations » : la bulle ne glisse pas, elle change de place en fondu.
+  const shownPane = useRef(pane)
+  useLayoutEffect(() => {
+    if (shownPane.current === pane) return
+    shownPane.current = pane
+    const bubble = bubbleRef.current
+    if (pane === 'viseur' || !bubble?.animate || !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    bubble.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' })
+  }, [pane])
   const setRefs = (el: HTMLElement | null) => {
     navRef.current = el
     if (typeof ref === 'function') ref(el)
@@ -105,7 +125,13 @@ export function BottomBar({
     )
   }
   return (
-    <nav ref={setRefs} className={`bottom-nav${away ? ' away' : ''}${native ? ' glass-native' : ''}`} aria-label="Navigation">
+    <nav
+      ref={setRefs}
+      className={`bottom-nav tab-${pane}${away ? ' away' : ''}${native ? ' glass-native' : ''}`}
+      aria-label="Navigation"
+    >
+      {/* Bulle de l'onglet actif (0.24.0) : sous les icônes, placée par `--tab` (voir styles.css). */}
+      <span ref={bubbleRef} className="nav-bubble" aria-hidden="true" />
       {tab(TABS[0])}
       {tab(TABS[1])}
       <div ref={shutterSlot} className="nav-shutter">

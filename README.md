@@ -168,6 +168,13 @@ Partager une photo (0.23.0) : dans l'app, le fichier est écrit dans le cache (`
 puis donné à la feuille de partage du système (`@capacitor/share`) — réglé aussi sur Android, où
 l'ancien « Enregistrer » ne faisait rien.
 
+**Zoom et grand angle** (0.22.1, partout) : boutons « 0,5 · 1× · 2 · 5 » au-dessus de la barre du bas (depuis 0.24.0 ;
+au-dessus du déclencheur en 0.22.1), comme sur l'iPhone, et pincer à deux doigts pour zoomer. Les photos du décor restent à leur place à tous
+les grossissements, et une photo prise au grand angle garde son vrai champ de vision. Sur iPhone, le 0,5
+est le vrai ultra grand-angle ; dans l'app, le suivi visuel (ARKit, objectif principal seulement) s'arrête
+le temps du 0,5, et au-delà de 1 l'image d'ARKit est agrandie (photo recadrée). « Reproduire » part du
+cadrage de l'originale. Pas en selfie.
+
 ### Liens d'invitation dans l'app (préparé, pas encore actif)
 
 L'écouteur `appUrlOpen` (`listenForAppLinks`) recopie le `#/…` d'un lien PICTI dans l'adresse de

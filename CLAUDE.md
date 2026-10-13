@@ -557,6 +557,59 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
       **Inchangé** : tout ce qui va vers le viseur ou en part (la page passe par-dessus, le viseur
       réapparaît dessous), et le retour du système (`pop` : geste d'iOS, bouton du navigateur ou
       d'Android), qu'iOS a déjà animé. « Réduire les animations » : fondu pour les pages de la pile.
+  - **0.24.0, partie 1 (prompt `PROMPT-0.024.0-1.md`)** — branche `claude/version-0.24` (une seule branche pour
+    les quatre parties) :
+    - **Bouton rouge seulement sur l'accueil** : déjà fait en 0.23.3, vérifié (banc : rond rouge au viseur, absent
+      partout ailleurs, animation à l'aller et au retour, au doigt aussi).
+    - **Bulle de l'onglet actif** (comme BeReal / Instagram) : `.nav-bubble` dans la barre, sous les icônes ; sa
+      place est la propriété CSS animée **`--tab`** (0 Carte, 1 Amis, 2 bouton rouge, 3 Mes photos, 4 Profil ;
+      classe `tab-<écran>` de la barre, ressort léger de 0,3 s) et **`--tab-lag`**, qui la suit avec retard
+      (0,42 s) : la bulle couvre les deux places → elle **s'étire en route** (effet « goutte ») et reprend sa
+      forme à l'arrêt. Centre d'une place calculé en CSS (colonnes `1fr 1fr 56px 1fr 1fr`, linéaire par
+      morceaux avec `clamp`). **Invisible au bouton rouge** (`opacity = min(--away, |--tab − 2|)`) : en quittant
+      le viseur elle naît de l'appareil photo, en y revenant elle s'y fond pendant que le rond rouge revient.
+      Couleur des icônes : `color-mix` entre `--red` et `--ink` selon la distance à la bulle (`--i` par
+      onglet) — l'icône active est rouge, la couleur passe de l'une à l'autre pendant le trajet. Pendant un
+      glissé, `usePanes.place` pose `--tab` / `--tab-lag` sous le doigt (`tabOf(move, shown)`, `panes.ts`,
+      testé : `tabSlot`, `tabTint`, `bubbleAlpha`) ; geste annulé → elle revient. « Réduire les animations » :
+      pas de glissement, fondu (`animate` dans `BottomBar`). **App iOS 26+** : vraie bulle dans la pilule native
+      (`GlassBar.bubble` = `UIGlassEffect(style: .clear)` teinté, sous les pictogrammes), posée image par image
+      sur le cadre de `.nav-bubble` (`bubbleSpec`, `bar.bubble`) ; teinte de chaque pictogramme
+      (`GlassBarItemSpec.tint`, `GlassOptions.tab` lu par `readTab`, mélange `label` → rouge PICTI en Swift).
+    - **Changer de page au simple geste** (`swipeOpen.ts`) : **coup de doigt** = au moins `FLICK_MIN` 30 px et plus
+      de `OPEN_SPEED` 0,3 px/ms (avant : 40 px, 0,5) → la page voisine finit seule, doigt levé ; doigt lent :
+      seuil `OPEN_RATIO` (35 %) comme avant ; relancé dans l'autre sens au dernier moment (< −0,3 px/ms) : retour.
+      Geste surtout vertical = défilement (inchangé), carte = bord droit (inchangé). **Un geste pendant la
+      course la prolonge vers la page suivante** (`flickDirection`, `queued` dans `usePanes`, une page à la
+      fois ; que la page précédente soit arrivée avant ou après le lâcher). **Second doigt = jamais un glissé**
+      (`secondFinger` : le glissé en cours repart, place au pincement).
+    - **Zoom 0.22.1 fusionné** (`claude/grand-angle-et-zoom`, fusion sans réécriture) et **replacé** : rangée
+      `ZoomLenses` centrée juste au-dessus de la barre (`bottom: --bar-space + 19px`, au niveau du Menu, sans le
+      toucher), **sur le viseur seulement** (`zoomShown` : `pane === 'viseur'`, pas en selfie, ni prise figée,
+      ni fiche) ; **effacée en fondu (150 ms)** pendant le choix du mode (`.viewfinder:has(.shutter.picking)`) et
+      quand le menu est ouvert (`faded`) — la colonne Public / Amis / Privé monte à cet endroit, les deux ne se
+      superposent jamais. Le verre natif suit le fondu (`GlassOptions.fade` → `opacity` du spec, `readOpacity`).
+      Pincement inchangé (`usePinchZoom`), double appui toujours caméra avant / arrière. Reproduire : rangée
+      au-dessus de sa propre barre (comme en 0.22.1).
+    - **Flèches de « À proximité » réparées** (`Nearby.tsx`). Cause, reproduite au banc « iPhone simulé » avec
+      l'ancien code : dans l'app iOS, les mesures de la boussole arrivent (le suivi visuel les recevait : 1 435
+      relevés dans le journal de l'iPhone du 13/10, 14 h–15 h) mais `useOrientation` n'écoutait pas tant que *la
+      page* n'avait pas obtenu l'accès (`permissionGranted`), et « À proximité » ne le demande jamais → cap nul,
+      flèches figées nord en haut ; et elles tremblaient car le cap vers chaque photo était recalculé à chaque
+      relevé GPS. De plus le cap utilisé était celui de **l'objectif**, indéfini téléphone à plat (il visait le
+      sol). Correctifs : `useOrientation` écoute aussi avant l'accès (une mesure reçue vaut accès accordé ; dans
+      Safari rien n'arrive avant la demande) ; **cap du téléphone tel qu'on le tient** `deviceHeading` (direction
+      horizontale de objectif + haut de l'écran : le haut de l'écran à plat, l'objectif debout) ; nord recalé
+      sur la boussole **aussi à plat** (`compassReference` : l'objectif debout, le haut de l'écran à plat — avant,
+      un premier recalage fait à plat faussait le nord de tous les écrans) ; **position stable** `steadyViewer`
+      (ne suit pas les sauts plus petits que la précision) ; **« ici »** sous la précision du GPS (`guideTo`) ;
+      flèche `GuideArrow` (cap vers la photo lissé par transition, toujours par le plus court chemin) ; même
+      source de cap que le viseur (`useGuideHeading` : orientation calée d'ARKit si sa session tourne encore,
+      sinon gyroscope + boussole) ; sans cap : nord en haut **et** petite boussole « N » (+ « Activer la
+      boussole » si l'accès manque). Module commun `src/geo/guidance.ts` (testé), repris par le chaud / froid.
+    - **Migrations en attente** `20261012160000_photo_la_plus_proche` et `20261012220000_retirer_une_capture` :
+      rejouées sur la vraie base dans un bloc annulé le 13/10 (fonctions, règles et déclencheurs existants
+      identiques avant / après → 0.19.0 en ligne non concernée ; voir la note de session) — **pas appliquées**.
   - **Pile des écrans (0.23.1, `src/screenStack.ts`, testé)** : l'écran qu'on quitte en avançant reste
     monté, caché (`.screen-slot.covered`, `inert`) ; au retour (flèche, geste d'iOS, bouton du navigateur)
     il réapparaît tel quel, tout de suite (défilement compris) — plus d'écran blanc le temps de le
@@ -903,6 +956,53 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   le retour du système. **Depuis 0.23.0** : généralisé à la carte (à gauche du viseur) — `usePanes`
   remplace `useSwipeOpen`, voir « Navigation » (section Technique) ; le profil n'est plus un aperçu
   inerte mais le vrai écran, gardé monté.
+- **Zoom et grand angle** (0.22.1, demande d'Eliott : « rajoute la possibilité de faire des photos grand
+  angle et de zoomer » ; partout, viseur de l'accueil et « Reproduire ») : boutons d'objectif au-dessus du
+  déclencheur comme sur l'iPhone (**depuis 0.24.0 : rangée centrée juste au-dessus de la barre du bas**, voir « 0.24.0 ») (`ZoomLenses` : « 0,5 · 1× · 2 · 5 », celui qui porte le zoom actuel
+  l'affiche, « 1,4× » ; vrais boutons Liquid Glass dans l'app iOS 26+) et **pincer à deux doigts**
+  (`usePinchZoom`, phase de capture sur le `<main>` du viseur ; relâché à moins de 4 % d'un repère, il s'y
+  range ; pas depuis le déclencheur, la frise, les feuilles ni les boutons du zoom ; les glissés entre écrans
+  et les piles cèdent au second doigt : `usePanes` depuis 0.24.0 (avant : `useSwipeOpen`), `useCardSwipe` ; l'appui qui suit est
+  avalé). Pas en selfie, ni pendant une feuille ou une prise figée ; boutons masqués pendant le
+  carrousel des modes (`:has(.shutter.picking)`), frise remontée au-dessus d'eux. Retour à 1× à chaque
+  ouverture du viseur ; chasse et recalage restent à 1×.
+  - **Le zoom multiplie la focale équivalente** de l'image affichée et de la photo prise : les photos du
+    décor restent calées à tous les grossissements (banc : à 2×, chaque photo s'écarte deux fois plus du
+    centre et grandit deux fois, ARKit et caméra web), et une photo prise au 0,5 a sa vraie focale (≈ 13 mm)
+    — elle est affichée dans le décor avec son vrai champ de vision, comme toute photo.
+  - Règles pures : `src/geo/zoom.ts` (testé) — `zoomPlan` choisit la caméra et la façon de zoomer :
+    **caméra web qui sait zoomer** (contrainte `zoom`, `getCapabilities().zoom` : Safari 17+ sur iPhone —
+    caméras « virtuelles » triple / double grand-angle, WebKit ramène le zoom à 1 = objectif principal,
+    0,5 = vrai ultra grand-angle, jusqu'à 10 avec le vrai téléobjectif ; vérifié dans
+    `AVVideoCaptureSource.mm` de WebKit) → flux déjà zoomé ; **sinon zoom numérique** (au-delà de 1 seulement,
+    jusqu'à `ZOOM.digitalMax` = 5) : vidéo agrandie en CSS (`zoom.videoScale`), photo recadrée au centre
+    (`cropRect`, `grabVideoFrame(video, zoom)`) ; **caméra d'ARKit** (app iOS) : ARKit ne filme qu'avec
+    l'objectif principal (pas d'ultra grand-angle en suivi du monde) → de 1 à 5, image d'ARKit agrandie par
+    le plugin et photo haute résolution recadrée (2× : 1512 × 2016, 5× : 605 × 806) ; **0,5 : la caméra web
+    prend le relais** (zoom matériel 0,5), le suivi visuel s'arrête le temps du grand angle comme pour un
+    selfie (position et orientation : GPS et boussole ; au retour à 1×, nouvelle session, calage repris de
+    zéro). Pendant un pincement, la caméra ne change pas (`lock`) : avec ARKit, arrêté à 1, un pincement
+    poussé sous 0,8 passe au 0,5 au relâcher ; depuis le 0,5, relâché au-dessus de 1 → ARKit.
+  - Caméra web (`useCamera(enabled, facing, zoom)`) : zoom appliqué avant d'afficher l'image (pas d'éclair
+    au mauvais cadrage), puis au fil de l'eau (`applyConstraints({ advanced: [{ zoom }] })`) ; le flux
+    partagé reprend le zoom de chaque écran ; plage gardée par caméra (`useCameraZoomRange`) pour choisir
+    avant même de rouvrir le flux. Le viseur complète en CSS tant que la caméra n'a pas rejoint le zoom
+    demandé (cadrage toujours juste).
+  - **Focale par objectif** (`cameraFocal.ts`) : principale (`picti.focale`) et ultra grand-angle
+    (`picti.focale.ultra-grand-angle`), mesurées en tournant (`useFocalCalibration(…, lens)`) seulement à 1
+    ou à 0,5 exactement ; ailleurs `focalAtZoom` (principale × zoom ; sous 1, ultra grand-angle mesurée,
+    sinon moitié de la principale, × zoom / 0,5 : les caméras virtuelles de l'iPhone agrandissent d'un
+    objectif à l'autre sans saut de cadrage).
+  - Plugin `ArTracking` : `isAvailable` renvoie aussi `zoom: true`, `ultraWide` (ultra grand-angle
+    arrière) et `telephoto` (facteur du téléobjectif d'après `virtualDeviceSwitchOverVideoZoomFactors`,
+    pour le dernier bouton) ; `show({ …, zoom })` agrandit l'`ARSCNView` autour du centre dans un cadre
+    qui coupe à ses bords ; `capture({ zoom })` recadre au centre (dimensions de la partie gardée, même
+    focale en pixels). Plugin plus ancien que la page : ni zoom ni grand angle (un seul repère, pas de
+    boutons). État : `ArState.lenses`.
+  - **Reproduire** part du cadrage de l'originale (`reproduceZoom` : focale de l'originale / focale à 1 de
+    cette caméra, 1 à moins de 10 % près) : une photo prise au grand angle se reproduit au 0,5.
+  - Pas encore vu sur l'iPhone ni sur Android (WebView Android : sans zoom matériel exposé, zoom numérique
+    de 1 à 5, pas de 0,5). Note de session : `claude/picti/2026-10-12-grand-angle-et-zoom.md`.
 - **Liens d'invitation (préparés, pas actifs)** : `appUrlOpen` → `appLinkHash` (même hôte que
   `APP_URL`, ancre `#/…` seulement) → `location.hash`. Modèles
   `public/.well-known/apple-app-site-association` (`TEAM_ID_APPLE.app.picti`, composant
@@ -1001,6 +1101,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
 - 0.23.3 : bouton Réglages de Mon profil réparé (l'onglet restait par-dessus les Paramètres, et par-dessus toute page ouverte depuis un onglet) ; hors du viseur, plus de rond rouge : appareil photo seul, comme les autres pictogrammes, avec une petite animation dans les deux sens (au doigt aussi) ; pages qui se poussent entre elles (onglets et pages), sauf vers / depuis le viseur.
 - 0.23.2 : barre plus basse (hauteur d'Instagram) ; bouton rouge dans la pilule, de la taille des autres boutons ; appareil photo hors du viseur, symbole du mode sur le viseur.
 - 0.23.1 : barre à cinq boutons (Carte · Amis · bouton rouge · Mes photos · Profil), cinq écrans côte à côte dans cet ordre (glisser = écran voisin), pas de flèche retour sur eux ; pictogramme du profil au lieu de l'initiale ; onglet Amis avec les notifications au-dessus des amis (plus de cloche au viseur) ; onglet Mes photos ; Menu 4 carrés au-dessus de la barre, sur le viseur seulement ; pile des écrans : retour sans écran blanc.
@@ -1063,3 +1164,4 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - [2026-10-12 — Barre du bas, carte en glissé, double appui, Paramètres, partager, retirer une capture (0.23.0)](claude/picti/2026-10-12-barre-du-bas.md)
 - [2026-10-13 — Cinq onglets dans la barre, glissés entre eux, pile des écrans (0.23.1)](claude/picti/2026-10-13-cinq-onglets.md)
 - [2026-10-13 — Réglages réparés, appareil photo seul hors du viseur, pages qui se poussent (0.23.3)](claude/picti/2026-10-13-reglages-et-transitions.md)
+- [2026-10-13 — Version 0.24 : bulle de l'onglet actif, zoom au-dessus de la barre, flèches de « À proximité », socle avant testeurs, import, haptique, chaud / froid (0.24.0)](claude/picti/2026-10-13-version-0.24.md)

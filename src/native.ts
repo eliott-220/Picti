@@ -48,6 +48,20 @@ export interface GlassBarItemSpec {
   alpha: number
   scale: number
   angle: number
+  /**
+   * Teinte rouge PICTI du symbole (0.24.0) : 1 pour l'onglet actif, entre les deux pendant que la bulle
+   * glisse d'un onglet à l'autre (la couleur passe de l'ancien au nouveau).
+   */
+  tint: number
+}
+
+/** Bulle de l'onglet actif (0.24.0), cadre relatif à la pilule, et son opacité. */
+export interface GlassBubbleSpec {
+  x: number
+  y: number
+  width: number
+  height: number
+  alpha: number
 }
 
 /** Aspect d'un calque du bouton rouge (0.23.3) : opacité, échelle, rotation (degrés). */
@@ -66,6 +80,8 @@ export interface GlassButtonSpec {
   kind: 'button' | 'segmented' | 'bar' | 'shutter'
   /** Barre du bas : Menu et avatar, dessinés dans la pilule. Null sinon. */
   items: GlassBarItemSpec[] | null
+  /** Barre du bas (0.24.0) : bulle de verre derrière l'onglet actif ; null sinon, ou invisible. */
+  bubble: GlassBubbleSpec | null
   /** Bouton rouge : pastille ⚠ (Reproduire, hors de la vue de l'originale). */
   warn: boolean
   /**
@@ -108,6 +124,8 @@ export interface GlassButtonSpec {
   color: string | null
   /** Faux quand le bouton web est recouvert (feuille, fiche…) ou hors de l'écran (bouton fixe). */
   visible: boolean
+  /** Opacité du bouton web suivie par le natif (0.24.0 : fondu des boutons du zoom), 1 sinon. */
+  opacity: number
 }
 
 interface GlassButtonsPlugin {
@@ -209,14 +227,20 @@ export interface NativeArShot {
 }
 
 interface ArTrackingPlugin {
-  isAvailable(): Promise<{ available: boolean }>
+  /**
+   * ARKit disponible ; depuis 0.22.1 : `zoom` (le plugin agrandit l'image et recadre la photo),
+   * `ultraWide` (l'appareil a un ultra grand-angle), `telephoto` (facteur du téléobjectif, null sans).
+   * Un plugin plus ancien ne renvoie que `available`.
+   */
+  isAvailable(): Promise<{ available: boolean; zoom?: boolean; ultraWide?: boolean; telephoto?: number | null }>
   /** Démarre une session (nouveau repère) ; la caméra n'est affichée qu'avec `show`. */
   start(): Promise<{ session: number }>
   stop(): Promise<void>
-  /** Affiche la caméra derrière la page, dans ce cadre (points de la page). */
-  show(frame: { x: number; y: number; width: number; height: number }): Promise<void>
+  /** Affiche la caméra derrière la page, dans ce cadre (points de la page), agrandie `zoom` fois (≥ 1). */
+  show(frame: { x: number; y: number; width: number; height: number; zoom?: number }): Promise<void>
   hide(): Promise<void>
-  capture(): Promise<NativeArShot>
+  /** Photo ; `zoom` > 1 : seul le centre de l'image est gardé (dimensions de la partie gardée, même focale). */
+  capture(options?: { zoom?: number }): Promise<NativeArShot>
   /** Localisation visuelle d'Apple disponible en ces points (Look Around). */
   geoTrackingAvailability(options: { points: { lat: number; lon: number }[] }): Promise<{
     supported: boolean

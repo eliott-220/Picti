@@ -5,14 +5,17 @@
 /** Sens du doigt : `left` = de droite à gauche, `right` = de gauche à droite. */
 export type SwipeDirection = 'left' | 'right'
 
-/** Part de la largeur à parcourir pour que l'écran s'ouvre (ou se ferme) quand on lâche. */
+/** Part de la largeur à parcourir pour que l'écran s'ouvre (ou se ferme) quand on lâche, doigt lent. */
 export const OPEN_RATIO = 0.35
-/** Vitesse (px/ms) d'un geste vif qui ouvre l'écran, même lâché tôt. */
-export const OPEN_SPEED = 0.5
+/**
+ * Vitesse (px/ms) d'un coup de doigt qui change de page, même lâché tôt (0.24.0, comme BeReal et
+ * Instagram : la direction et la vitesse suffisent ; 0,5 avant).
+ */
+export const OPEN_SPEED = 0.3
 /** Durée (ms) de la fin du geste sur laquelle on mesure sa vitesse au lâcher. */
 export const SPEED_WINDOW_MS = 100
-/** Distance minimale (px) d'un geste vif. */
-export const FLICK_MIN = 40
+/** Distance minimale (px) d'un coup de doigt (0.24.0 ; 40 avant). */
+export const FLICK_MIN = 30
 /** Déplacement (px) avant de décider du sens du geste. */
 export const SLOP = 10
 /** Durée de l'arrivée de l'écran, ou de son retour (ms). */
@@ -66,13 +69,26 @@ export function releaseSpeed(samples: readonly { x: number; t: number }[], dir: 
 }
 
 /**
- * Lâché après `dx` px, le doigt allant dans le sens `dir` à `speed` px/ms : l'écran s'ouvre (assez
- * loin, ou geste assez vif).
+ * Lâché après `dx` px, le doigt allant dans le sens `dir` à `speed` px/ms : l'écran s'ouvre — coup de doigt
+ * rapide (`FLICK_MIN`, `OPEN_SPEED`), même court, ou doigt lent mais assez loin (`OPEN_RATIO`). Un doigt
+ * relancé dans l'autre sens au dernier moment ramène l'écran.
  */
 export function opensOnRelease(dx: number, speed: number, width: number, dir: SwipeDirection = 'left'): boolean {
   const distance = sign(dir) * dx
   if (distance <= 0 || width <= 0) return false
-  return distance >= width * OPEN_RATIO || (distance >= FLICK_MIN && speed > OPEN_SPEED)
+  if (speed < -OPEN_SPEED) return false
+  return (distance >= FLICK_MIN && speed > OPEN_SPEED) || distance >= width * OPEN_RATIO
+}
+
+/**
+ * Geste lancé pendant qu'un écran finit d'arriver (0.24.0, comme Instagram) : un coup de doigt dans un sens
+ * permis le prolonge vers l'écran suivant. Lâché après `dx` px à `speed` px/ms, mesurée dans le sens du
+ * doigt (`releaseSpeed(…, sens de dx)`).
+ */
+export function flickDirection(dx: number, speed: number, allowed: readonly SwipeDirection[]): SwipeDirection | null {
+  const dir: SwipeDirection = dx < 0 ? 'left' : 'right'
+  if (!allowed.includes(dir) || Math.abs(dx) < FLICK_MIN) return null
+  return speed > OPEN_SPEED ? dir : null
 }
 
 /** Le doigt est-il posé dans la bande du bord droit (`EDGE_BAND`) d'un écran qui va de `left` à `left + width` ? */

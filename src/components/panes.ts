@@ -77,3 +77,34 @@ export function paneOffset(pane: SidePane, shown: number): number {
 export function awayOf(move: PaneMove, shown: number): number {
   return move.under === 'viseur' ? Math.min(1, Math.max(0, shown)) : 1
 }
+
+/** Place de chaque écran dans la barre (0 Carte … 2 bouton rouge … 4 Profil) : celle de la bulle (0.24.0). */
+export const tabSlot = (p: Pane) => indexOf(p)
+
+/**
+ * Bulle de l'onglet actif (0.24.0) : sa place dans la barre (`--tab`, de 0 à 4 ; 2 = le bouton rouge, où
+ * elle n'est pas visible) pendant un mouvement, `shown` comme pour l'écran qui glisse — elle va de l'écran
+ * de départ à celui d'arrivée en suivant le doigt, et revient si le geste est annulé.
+ */
+export function tabOf(move: PaneMove, shown: number): number {
+  const s = Math.min(1, Math.max(0, shown))
+  const [from, to] = move.arriving ? [move.under, move.pane] : [move.pane, move.under]
+  const progress = move.arriving ? s : 1 - s
+  return indexOf(from) + (indexOf(to) - indexOf(from)) * progress + 0
+}
+
+/**
+ * Teinte rouge d'un onglet (0 neutre → 1 rouge PICTI) quand la bulle est à la place `tab` : l'icône active
+ * prend la couleur, qui passe de l'ancienne à la nouvelle pendant le glissement (même formule que le CSS).
+ */
+export function tabTint(slot: number, tab: number): number {
+  return Math.min(1, Math.max(0, 1 - Math.abs(tab - slot)))
+}
+
+/**
+ * Opacité de la bulle : nulle au bouton rouge (le rond rouge montre le viseur), pleine à une place d'onglet ;
+ * `away` : éloignement du viseur (la bulle naît de l'appareil photo en quittant le viseur).
+ */
+export function bubbleAlpha(tab: number, away: number): number {
+  return Math.min(Math.max(0, Math.min(1, away)), Math.min(1, Math.abs(tab - CENTER)))
+}

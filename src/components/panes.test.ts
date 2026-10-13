@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { awayOf, neighborPane, paneMove, paneOffset, PANES, pushOffsets } from './panes'
+import { awayOf, bubbleAlpha, neighborPane, paneMove, paneOffset, PANES, pushOffsets, tabOf, tabSlot, tabTint } from './panes'
 
 describe('les cinq écrans de la barre, dans l’ordre de la barre (0.23.1)', () => {
   it('Carte · Amis · Viseur · Mes photos · Profil', () => {
@@ -64,5 +64,51 @@ describe('les cinq écrans de la barre, dans l’ordre de la barre (0.23.1)', ()
     expect(awayOf(back, 1)).toBe(1)
     expect(awayOf(back, 0.3)).toBe(0.3)
     expect(awayOf(paneMove('amis', 'carte')!, 0.5)).toBe(1)
+  })
+})
+
+describe('bulle de l’onglet actif (0.24.0)', () => {
+  it('une place par écran, dans l’ordre de la barre ; le bouton rouge au milieu', () => {
+    expect(PANES.map(tabSlot)).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('suit le mouvement : du viseur vers la carte, elle part du bouton rouge', () => {
+    const toMap = paneMove('viseur', 'carte')!
+    expect(tabOf(toMap, 0)).toBe(2)
+    expect(tabOf(toMap, 0.5)).toBe(1)
+    expect(tabOf(toMap, 1)).toBe(0)
+  })
+
+  it('vers le viseur, elle revient au bouton rouge ; entre deux onglets, elle glisse de l’un à l’autre', () => {
+    const back = paneMove('profil', 'viseur')!
+    expect(tabOf(back, 1)).toBe(4)
+    expect(tabOf(back, 0)).toBe(2)
+    const push = paneMove('amis', 'photos')!
+    expect(tabOf(push, 0)).toBe(1)
+    expect(tabOf(push, 0.5)).toBe(2)
+    expect(tabOf(push, 1)).toBe(3)
+  })
+
+  it('geste annulé : elle revient à sa place (shown ramené à 0)', () => {
+    const toFriends = paneMove('carte', 'amis')!
+    expect(tabOf(toFriends, 0.3)).toBeCloseTo(0.3)
+    expect(tabOf(toFriends, 0)).toBe(0)
+  })
+
+  it('l’icône active prend la couleur ; la couleur passe de l’une à l’autre pendant le glissement', () => {
+    expect(tabTint(0, 0)).toBe(1)
+    expect(tabTint(1, 0)).toBe(0)
+    expect(tabTint(0, 0.25)).toBe(0.75)
+    expect(tabTint(1, 0.25)).toBe(0.25)
+    // Sur le viseur, aucun onglet n'est rouge.
+    for (const slot of [0, 1, 3, 4]) expect(tabTint(slot, 2)).toBe(0)
+  })
+
+  it('invisible au bouton rouge et sur le viseur, pleine sur un onglet', () => {
+    expect(bubbleAlpha(2, 1)).toBe(0)
+    expect(bubbleAlpha(0, 0)).toBe(0)
+    expect(bubbleAlpha(4, 1)).toBe(1)
+    expect(bubbleAlpha(1.5, 1)).toBe(0.5)
+    expect(bubbleAlpha(0, 0.4)).toBe(0.4)
   })
 })

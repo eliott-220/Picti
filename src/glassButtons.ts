@@ -8,7 +8,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import { awayLook, type Look } from './components/awayLook'
 import type { IconName } from './components/Icon'
-import { GlassButtons, platform, type GlassBarItemSpec, type GlassButtonSpec } from './native'
+import { bubbleAlpha, tabTint } from './components/panes'
+import { GlassButtons, platform, type GlassBarItemSpec, type GlassBubbleSpec, type GlassButtonSpec } from './native'
 
 /** Symbole SF de chaque icône proposée en verre (les autres restent des boutons web). */
 const SYMBOLS: Partial<Record<IconName, string>> = {
@@ -62,6 +63,8 @@ export interface GlassBarItem {
   active?: boolean
   /** Appareil photo du bouton rouge (0.23.3) : n'apparaît que hors du viseur, au rythme de `away`. */
   away?: boolean
+  /** Place de l'onglet dans la barre (0.24.0) : sa teinte rouge suit la bulle (`tab`). */
+  slot?: number
 }
 
 export interface GlassOptions {
@@ -80,8 +83,8 @@ export interface GlassOptions {
   disabled?: boolean
   rotation?: number
   color?: string
-  /** Barre du bas (0.23.0) : pilule de verre et ses éléments. */
-  bar?: { items: GlassBarItem[] }
+  /** Barre du bas (0.23.0) : pilule de verre et ses éléments ; `bubble` : bulle de l'onglet actif (0.24.0). */
+  bar?: { items: GlassBarItem[]; bubble?: RefObject<HTMLElement | null> }
   /** Bouton rouge (0.23.0) : cercle rouge et symbole du mode ; `warn` : pastille ⚠. */
   shutter?: { warn?: boolean }
   /**
@@ -89,12 +92,17 @@ export interface GlassOptions {
    * l'animation ou le doigt — le rond rouge s'efface, l'appareil photo de la pilule arrive.
    */
   away?: () => number
+  /** Barre du bas (0.24.0) : place de la bulle de l'onglet actif (`--tab`), lue à chaque image. */
+  tab?: () => number
+  /** Opacité du bouton (0.24.0 : fondu de la rangée du zoom), lue à chaque image ; 1 par défaut. */
+  fade?: () => number
 }
 
-/** Éloignement du viseur et « Réduire les animations », lus à chaque image. */
+/** Éloignement du viseur, place de la bulle (0.24.0) et « Réduire les animations », lus à chaque image. */
 export interface GlassMotion {
   away: number
   reduce: boolean
+  tab?: number
 }
 
 type Rect = { x: number; y: number; width: number; height: number }
@@ -130,6 +138,9 @@ export function barItemSpecs(
 ): GlassBarItemSpec[] {
   const half = (v: number) => Math.round(v * 2) / 2
   const camera = roundLook(awayLook(motion.away, motion.reduce).camera)
+  // Teinte de chaque onglet d'après la bulle ; sans elle, celle de l'écran affiché.
+  const tint = (it: MeasuredBarItem) =>
+    it.slot != null && motion.tab != null ? Math.round(tabTint(it.slot, motion.tab) * 100) / 100 : it.active ? 1 : 0
   return items.flatMap((it) =>
     it.rect && it.rect.width > 0 && it.rect.height > 0
       ? [
@@ -143,10 +154,30 @@ export function barItemSpecs(
             badge: badgeText(it.badge),
             active: !!it.active,
             ...(it.away ? camera : { alpha: 1, scale: 1, angle: 0 }),
+            tint: tint(it),
           },
         ]
       : [],
   )
+}
+
+/**
+ * Bulle de l'onglet actif (0.24.0) : cadre relatif à la pilule (au demi-point) et opacité (au centième,
+ * nulle au bouton rouge et sur le viseur). Null si elle n'est pas affichée.
+ */
+export function bubbleSpec(bar: Rect, bubble: Rect | null, motion: GlassMotion): GlassBubbleSpec | null {
+  if (!bubble || bubble.width <= 0 || bubble.height <= 0 || motion.tab == null) return null
+  const alpha = Math.round(bubbleAlpha(motion.tab, motion.away) * 100) / 100
+  if (alpha <= 0) return null
+  const half = (v: number) => Math.round(v * 2) / 2
+  return { x: half(bubble.x - bar.x), y: half(bubble.y - bar.y), width: half(bubble.width), height: half(bubble.height), alpha }
+}
+
+/** Opacité calculée d'un élément (fondu en cours compris), 1 sans élément. */
+export function readOpacity(el: Element | null): number {
+  if (!el) return 1
+  const v = parseFloat(getComputedStyle(el).opacity)
+  return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1
 }
 
 /**
@@ -161,6 +192,8 @@ export function toSpec(
   scroller: ScrollerPort | null = null,
   items: readonly MeasuredBarItem[] = [],
   motion: GlassMotion = { away: 0, reduce: false },
+  bubble: Rect | null = null,
+  opacity = 1,
 ): GlassButtonSpec | null {
   if (!glassable(options)) return null
   const half = (v: number) => Math.round(v * 2) / 2
@@ -172,6 +205,7 @@ export function toSpec(
     id,
     kind,
     items: options.bar ? barItemSpecs(rect, items, motion) : null,
+    bubble: options.bar ? bubbleSpec(rect, bubble, motion) : null,
     warn: !!options.shutter?.warn,
     disc: look && roundLook(look.disc),
     look: look && roundLook(look.mode),
@@ -202,7 +236,8 @@ export function toSpec(
     disabled: !!options.disabled,
     rotation: half(options.rotation ?? 0),
     color: options.color ?? null,
-    visible: onTop && rect.width > 0 && rect.height > 0,
+    visible: onTop && rect.width > 0 && rect.height > 0 && opacity > 0.01,
+    opacity: Math.round(Math.min(1, Math.max(0, opacity)) * 100) / 100,
   }
 }
 
@@ -310,8 +345,13 @@ function tick() {
       ...item,
       rect: ref.current?.getBoundingClientRect() ?? null,
     }))
-    const motion = { away: current.away?.() ?? 0, reduce: !!reducedMotion?.matches }
-    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect), activeScroller(parents), items, motion)
+    const motion = { away: current.away?.() ?? 0, reduce: !!reducedMotion?.matches, tab: current.tab?.() }
+    const bubble = current.bar?.bubble?.current?.getBoundingClientRect() ?? null
+    const opacity = current.fade?.() ?? 1
+    // Le fondu ne dispense pas du contrôle d'occlusion : une feuille ou un écran caché
+    // doit toujours recouvrir le verre natif.
+    const top = pageVisible && !el.closest('[inert]') && onTop(el, rect)
+    const spec = toSpec(id, rect, current, top, activeScroller(parents), items, motion, bubble, opacity)
     if (spec) specs.push(spec)
   }
   // La pilule de la barre sous ses boutons : le natif empile dans l'ordre reçu.

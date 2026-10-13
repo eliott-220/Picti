@@ -165,6 +165,15 @@ struct GlassButtonSpec {
         let active: Bool
         /// Aspect du symbole (0.23.3) : l'appareil photo n'apparaît que hors du viseur.
         let look: Look
+        /// Teinte rouge PICTI du symbole (0.24.0) : 1 pour l'onglet actif, entre les deux pendant que la
+        /// bulle glisse d'un onglet à l'autre.
+        let tint: CGFloat
+    }
+
+    /// Bulle de l'onglet actif (0.24.0) : cadre relatif à la pilule et opacité.
+    struct Bubble: Equatable {
+        let frame: CGRect
+        let alpha: CGFloat
     }
 
     /// Opacité, échelle et rotation (degrés) d'un calque (0.23.3, `awayLook` du JS).
@@ -227,6 +236,10 @@ struct GlassButtonSpec {
     /// Bouton rouge de la barre (0.23.3) : rond rouge et symbole du mode, qui s'effacent hors du viseur.
     let disc: Look
     let look: Look
+    /// Barre du bas (0.24.0) : bulle de verre derrière l'onglet actif.
+    let bubble: Bubble?
+    /// Opacité du bouton web (0.24.0 : fondu des boutons du zoom).
+    let opacity: CGFloat
 
     init?(_ object: JSObject) {
         guard let id = object["id"] as? String else { return nil }
@@ -264,12 +277,23 @@ struct GlassButtonSpec {
                 initial: item["initial"] as? String,
                 badge: item["badge"] as? String,
                 active: item["active"] as? Bool ?? false,
-                look: Look(item)
+                look: Look(item),
+                tint: CGFloat((item["tint"] as? NSNumber)?.doubleValue ?? ((item["active"] as? Bool ?? false) ? 1 : 0))
             )
         } ?? []
         warn = object["warn"] as? Bool ?? false
         disc = Look(object["disc"] as? JSObject)
         look = Look(object["look"] as? JSObject)
+        if let b = object["bubble"] as? JSObject {
+            func value(_ name: String) -> CGFloat { CGFloat((b[name] as? NSNumber)?.doubleValue ?? 0) }
+            bubble = Bubble(
+                frame: CGRect(x: value("x"), y: value("y"), width: value("width"), height: value("height")),
+                alpha: (b["alpha"] as? NSNumber).map { CGFloat($0.doubleValue) } ?? 1
+            )
+        } else {
+            bubble = nil
+        }
+        opacity = (object["opacity"] as? NSNumber).map { CGFloat($0.doubleValue) } ?? 1
     }
 }
 
@@ -380,7 +404,7 @@ final class GlassButton: UIButton, GlassControlUpdating {
             setNeedsLayout()
         }
         isEnabled = !spec.disabled
-        alpha = spec.dim || spec.disabled ? 0.55 : 1
+        alpha = (spec.dim || spec.disabled ? 0.55 : 1) * spec.opacity
         isHidden = spec.hidden(embedded: embedded)
 
         badgeLabel.isHidden = spec.badge == nil
@@ -441,16 +465,27 @@ final class GlassSegmented: UIView, GlassControlUpdating {
 
 /// Pilule de la barre flottante du bas (0.23.0) : verre Liquid Glass en capsule ; Menu (symbole) et
 /// avatar (initiale) sont dessinés dans son contenu, là où sont les boutons web (transparents, qu'on touche).
+/// 0.24.0 : une bulle de verre plus claire derrière l'onglet actif, posée image par image là où est la
+/// bulle web (`.nav-bubble`) : elle glisse et s'étire avec elle, au rythme de l'animation ou du doigt.
 @available(iOS 26.0, *)
 final class GlassBar: UIView, GlassControlUpdating {
     let kind = GlassButtonSpec.Kind.bar
     private let glass = UIVisualEffectView(effect: UIGlassEffect(style: .regular))
+    private let bubble: UIVisualEffectView = {
+        let effect = UIGlassEffect(style: .clear)
+        effect.tintColor = UIColor.label.withAlphaComponent(0.08)
+        return UIVisualEffectView(effect: effect)
+    }()
     private var itemViews: [GlassBarItemView] = []
 
     init() {
         super.init(frame: .zero)
         glass.cornerConfiguration = .capsule()
         addSubview(glass)
+        bubble.cornerConfiguration = .capsule()
+        bubble.isUserInteractionEnabled = false
+        bubble.isHidden = true
+        glass.contentView.addSubview(bubble)
     }
 
     required init?(coder: NSCoder) {
@@ -474,6 +509,15 @@ final class GlassBar: UIView, GlassControlUpdating {
         for (view, item) in zip(itemViews, spec.items) {
             view.update(item)
         }
+        if let b = spec.bubble, b.alpha > 0.01 {
+            if bubble.frame != b.frame { bubble.frame = b.frame }
+            bubble.alpha = b.alpha
+            bubble.isHidden = false
+            // Toujours sous les pictogrammes.
+            if glass.contentView.subviews.first !== bubble { glass.contentView.sendSubviewToBack(bubble) }
+        } else {
+            bubble.isHidden = true
+        }
         alpha = spec.dim ? 0.55 : 1
         isHidden = spec.hidden(embedded: embedded)
     }
@@ -486,6 +530,7 @@ final class GlassBarItemView: UIView {
     private let avatar = UILabel()
     private let badgeLabel = UILabel()
     private var shown: GlassButtonSpec.BarItem?
+    private var shownTint: CGFloat = -1
 
     init() {
         super.init(frame: .zero)
@@ -530,12 +575,18 @@ final class GlassBarItemView: UIView {
             symbolView.image = item.symbol.flatMap {
                 UIImage(systemName: $0, withConfiguration: UIImage.SymbolConfiguration(pointSize: 21, weight: .semibold))
             }
-            // Écran affiché (0.23.1) : pictogramme en plein (le JS envoie la variante `.fill`), en rouge.
-            symbolView.tintColor = item.active ? .picti : .label
             avatar.text = item.initial ?? "?"
             avatar.layer.borderWidth = item.active ? 2.5 : 2
             avatar.layer.borderColor = (item.active ? UIColor.picti : UIColor.white).cgColor
             badgeLabel.text = item.badge
+        }
+        // Écran affiché (0.23.1) : pictogramme en plein (le JS envoie la variante `.fill`), en rouge ; depuis
+        // 0.24.0 la couleur passe d'une icône à l'autre pendant que la bulle glisse (`tint`).
+        if shownTint != item.tint {
+            shownTint = item.tint
+            symbolView.tintColor = UIColor { traits in
+                UIColor.label.resolvedColor(with: traits).mixed(with: .picti, amount: item.tint)
+            }
         }
         badgeLabel.isHidden = item.badge == nil
         if item.badge != nil {
@@ -543,6 +594,19 @@ final class GlassBarItemView: UIView {
             badgeLabel.frame = CGRect(x: bounds.width - width + 2, y: 0, width: width, height: 22)
             bringSubviewToFront(badgeLabel)
         }
+    }
+}
+
+extension UIColor {
+    /// Mélange linéaire avec `other` (`amount` 0 → soi, 1 → `other`), composantes sRGB.
+    func mixed(with other: UIColor, amount: CGFloat) -> UIColor {
+        let t = min(1, max(0, amount))
+        var (r1, g1, b1, a1): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        var (r2, g2, b2, a2): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        guard getRed(&r1, green: &g1, blue: &b1, alpha: &a1), other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2) else {
+            return t < 0.5 ? self : other
+        }
+        return UIColor(red: r1 + (r2 - r1) * t, green: g1 + (g2 - g1) * t, blue: b1 + (b2 - b1) * t, alpha: a1 + (a2 - a1) * t)
     }
 }
 

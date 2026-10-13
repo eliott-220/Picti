@@ -33,6 +33,7 @@ import { ON_FOOT, updateVehicle, VEHICLE, type MotionSample, type VehicleState }
 import { angleDiffDeg, normalizeDeg } from '../geo/math'
 import type { GpsFix } from '../geo/tracking'
 import { anglesFromBasis, type CameraAngles, type CameraBasis } from '../geo/orientation'
+import type { ArLenses } from '../geo/zoom'
 import {
   ArTracking,
   hasArTracking,
@@ -66,6 +67,8 @@ export interface ArState {
    * écrans reviennent au GPS et à la boussole, le calage repart de zéro une fois redescendu.
    */
   vehicle: boolean
+  /** Ce que le plugin sait faire du zoom et objectifs de l'appareil ; null tant qu'on ne le sait pas. */
+  lenses: ArLenses | null
 }
 
 export const AR_TRACKING = {
@@ -117,7 +120,7 @@ function initialStatus(): ArStatus {
 // --- État partagé ---------------------------------------------------------------------------
 
 const aligner = new GeoAligner()
-let state: ArState = { status: initialStatus(), camera: null, tracking: null, trackingReason: null, align: aligner.state, vehicle: false }
+let state: ArState = { status: initialStatus(), camera: null, tracking: null, trackingReason: null, align: aligner.state, vehicle: false, lenses: null }
 const listeners = new Set<() => void>()
 const poseListeners = new Set<() => void>()
 
@@ -373,7 +376,10 @@ async function startSession() {
   publish({ status: 'checking' })
   try {
     available ??= ArTracking.isAvailable()
-      .then((r) => r.available)
+      .then((r) => {
+        publish({ lenses: { zoom: r.zoom === true, ultraWide: r.ultraWide === true, telephoto: typeof r.telephoto === 'number' ? r.telephoto : null } })
+        return r.available
+      })
       .catch(() => false)
     if (!(await available)) return publish({ status: 'unavailable' })
     if (run !== startRun) return
@@ -730,9 +736,16 @@ export function useArTracking(wanted: boolean, active = true): { state: ArState;
 
 /**
  * Affiche la caméra du suivi derrière l'élément `stage` (la page y devient transparente : classe
- * `picti-ar` sur <html>), tant que `visible`.
+ * `picti-ar` sur <html>), tant que `visible`, agrandie `zoom` fois (zoom numérique du viseur).
  */
-export function useArCamera(stage: RefObject<HTMLElement | null>, visible: boolean) {
+export function useArCamera(stage: RefObject<HTMLElement | null>, visible: boolean, zoom = 1) {
+  const zoomRef = useRef(zoom)
+  const placeRef = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    zoomRef.current = zoom
+    placeRef.current?.()
+  }, [zoom])
+
   useEffect(() => {
     const el = stage.current
     if (!visible || !el) return
@@ -741,14 +754,17 @@ export function useArCamera(stage: RefObject<HTMLElement | null>, visible: boole
     const place = () => {
       frame = 0
       const r = el.getBoundingClientRect()
-      const key = [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 2) / 2).join(',')
+      const z = Math.round(zoomRef.current * 1000) / 1000
+      const key = [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 2) / 2).concat(z).join(',')
       if (key === last) return
       last = key
-      void ArTracking.show({ x: r.left, y: r.top, width: r.width, height: r.height }).catch(() => undefined)
+      void ArTracking.show({ x: r.left, y: r.top, width: r.width, height: r.height, zoom: z }).catch(() => undefined)
     }
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(place)
     }
+    // Zoom changé (boutons, pincement) : la caméra est agrandie à l'image suivante.
+    placeRef.current = schedule
     showCount++
     clearTimeout(hideTimer)
     document.documentElement.classList.add('picti-ar')
@@ -757,6 +773,7 @@ export function useArCamera(stage: RefObject<HTMLElement | null>, visible: boole
     observer.observe(el)
     window.addEventListener('resize', schedule)
     return () => {
+      placeRef.current = null
       observer.disconnect()
       window.removeEventListener('resize', schedule)
       cancelAnimationFrame(frame)
@@ -771,9 +788,12 @@ export function useArCamera(stage: RefObject<HTMLElement | null>, visible: boole
   }, [stage, visible])
 }
 
-/** Photo prise par le suivi : l'image de l'objectif (haute résolution) et sa focale équivalente. */
-export async function captureArPhoto(): Promise<EncodedImage & { focal35: number; pose: NativeArPose }> {
-  const shot = await ArTracking.capture()
+/**
+ * Photo prise par le suivi : l'image de l'objectif (haute résolution) et sa focale équivalente ;
+ * `zoom` > 1 : seul le centre est gardé (la focale équivalente est multipliée d'autant).
+ */
+export async function captureArPhoto(zoom = 1): Promise<EncodedImage & { focal35: number; pose: NativeArPose }> {
+  const shot = await ArTracking.capture(zoom > 1 ? { zoom } : undefined)
   const response = await fetch(nativeFileUrl(shot.path))
   if (!response.ok) throw new Error('Photo illisible')
   const blob = await response.blob()

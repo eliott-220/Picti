@@ -9,6 +9,7 @@ import {
   type CameraAngles,
   type CameraBasis,
 } from '../geo/orientation'
+import { compassReference } from '../geo/guidance'
 import { isRemembered, remember } from './permissions'
 
 export type OrientationStatus = 'unsupported' | 'needs-permission' | 'denied' | 'waiting' | 'active'
@@ -131,7 +132,11 @@ export function useOrientation(enabled = true): OrientationState {
   const [snapshot, setSnapshot] = useState<{ basis: CameraBasis; absolute: boolean } | null>(null)
   const [measurement, setMeasurement] = useState<{ basis: CameraBasis; at: number } | null>(null)
 
-  const listening = enabled && (status === 'waiting' || status === 'active')
+  // 0.24.0 : on écoute aussi avant l'accès accordé par la page. Dans l'app iOS, les mesures arrivent sans
+  // que cette page l'ait demandé (le suivi visuel les recevait, vu dans les journaux de l'iPhone du 13/10)
+  // alors que « À proximité » attendait un accès qu'elle ne demandait jamais : flèches figées, nord en haut.
+  // Une mesure reçue vaut accès accordé ; dans Safari, rien n'arrive avant la demande (bouton).
+  const listening = enabled && status !== 'unsupported' && status !== 'denied'
 
   // Accès accordé ailleurs (autre écran, ou réactivation automatique).
   useEffect(() => {
@@ -168,8 +173,9 @@ export function useOrientation(enabled = true): OrientationState {
       let raw = rotateForScreen(basisFromDeviceOrientation(ev.alpha, ev.beta, ev.gamma), screenAngle())
       if (typeof ev.webkitCompassHeading === 'number' && Number.isFinite(ev.webkitCompassHeading) && ev.webkitCompassHeading >= 0) {
         // iOS : alpha vient du gyroscope, relatif à un repère arbitraire ; son écart avec
-        // le nord de la boussole est recalé lentement (voir `geo/heading.ts`).
-        const { heading, pitch } = anglesFromBasis(raw)
+        // le nord de la boussole est recalé lentement (voir `geo/heading.ts`). La boussole donne le cap
+        // de l'objectif debout, celui du haut de l'écran à plat (0.24.0 : `compassReference`).
+        const { heading, pitch } = compassReference(raw)
         sharedNorth = updateNorth(sharedNorth, {
           gyroHeading: heading,
           compass: ev.webkitCompassHeading,
@@ -195,15 +201,19 @@ export function useOrientation(enabled = true): OrientationState {
           frame = 0
           setSnapshot({ basis: basis!, absolute })
           setMeasurement(measured ? { basis: measured, at: measuredAt } : null)
-          setStatus((s) => (s === 'waiting' ? 'active' : s))
+          setStatus((s) => (s === 'waiting' || s === 'needs-permission' ? 'active' : s))
         })
+      }
+      if (!permissionGranted) {
+        permissionGranted = true
+        grantListeners.forEach((l) => l())
       }
     }
 
     window.addEventListener(type, onEvent)
     // Ordinateur sans capteurs : aucun événement exploitable n'arrive.
     const timeout = setTimeout(() => {
-      if (!basis) setStatus('unsupported')
+      if (!basis) setStatus((s) => (s === 'waiting' ? 'unsupported' : s))
     }, 4000)
     return () => {
       window.removeEventListener(type, onEvent)

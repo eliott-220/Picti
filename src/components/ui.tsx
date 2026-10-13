@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
 import { VISIBLE_BY, type GeoPhoto, type Visibility } from '../data/types'
+import { unwrapDeg } from '../geo/guidance'
 import { cycle } from '../geo/spots'
 import { useGlassButton } from '../glassButtons'
 import { navigate } from '../router'
@@ -331,6 +332,25 @@ export function DirectionArrow({ deg, size = 20 }: { deg: number; size?: number 
   return (
     <span className="dir-arrow" style={{ transform: `rotate(${deg}deg)` }}>
       <Icon name="arrow" size={size} />
+    </span>
+  )
+}
+
+/**
+ * Flèche de guidage vers une photo (0.24.0, « À proximité ») : `bearing` (cap vers la photo, lissé par une
+ * transition, toujours par le plus court chemin) tourné de −`heading` (cap du téléphone, suivi tel quel —
+ * il est déjà lissé par les capteurs) ; sans cap, nord en haut.
+ */
+export function GuideArrow({ heading, bearing, size = 22 }: { heading: number | null; bearing: number; size?: number }) {
+  // Angle « déroulé » : il garde la valeur affichée tant que le cap n'a pas changé (à 360° près).
+  const [turn, setTurn] = useState(bearing)
+  const next = unwrapDeg(turn, bearing)
+  if (Math.abs(next - turn) > 1e-9) setTurn(next)
+  return (
+    <span className="guide-arrow" style={{ transform: `rotate(${heading == null ? 0 : -heading}deg)` }}>
+      <span className="guide-arrow-bearing" style={{ transform: `rotate(${turn}deg)` }}>
+        <Icon name="arrow" size={size} />
+      </span>
     </span>
   )
 }

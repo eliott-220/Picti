@@ -32,3 +32,10 @@ export function readAway(el: Element | null): number {
   const v = parseFloat(getComputedStyle(el).getPropertyValue('--away'))
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0
 }
+
+/** `--tab` de la barre (place de la bulle de l'onglet actif, 0.24.0) ; 2 (le bouton rouge) à défaut. */
+export function readTab(el: Element | null): number {
+  if (!el) return 2
+  const v = parseFloat(getComputedStyle(el).getPropertyValue('--tab'))
+  return Number.isFinite(v) ? v : 2
+}

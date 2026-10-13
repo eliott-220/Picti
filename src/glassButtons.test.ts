@@ -8,7 +8,7 @@ vi.mock('@capacitor/core', () => ({
   SystemBarType: {},
 }))
 
-const { badgeText, barItemSpecs, glassable, glassSymbol, toSpec } = await import('./glassButtons')
+const { badgeText, barItemSpecs, bubbleSpec, glassable, glassSymbol, toSpec } = await import('./glassButtons')
 
 const rect = { x: 309.26, y: 79.74, width: 48, height: 48 }
 /** Élément de la pilule sans effet (tous sauf l'appareil photo). */
@@ -36,6 +36,7 @@ describe('boutons Liquid Glass', () => {
       id: 'glass-1',
       kind: 'button',
       items: null,
+      bubble: null,
       warn: false,
       disc: null,
       look: null,
@@ -58,6 +59,7 @@ describe('boutons Liquid Glass', () => {
       rotation: 0,
       color: null,
       visible: true,
+      opacity: 1,
     })
   })
 
@@ -114,8 +116,8 @@ describe('boutons Liquid Glass', () => {
     ])
     expect(spec).toMatchObject({ kind: 'bar', symbol: null, title: null, x: 16, width: 358, warn: false })
     expect(spec?.items).toEqual([
-      { x: 34, y: 10, width: 44, height: 44, symbol: 'square.grid.2x2', initial: null, badge: '2', active: false, ...plain },
-      { x: 280, y: 12, width: 40, height: 40, symbol: null, initial: 'E', badge: null, active: true, ...plain },
+      { x: 34, y: 10, width: 44, height: 44, symbol: 'square.grid.2x2', initial: null, badge: '2', active: false, ...plain, tint: 0 },
+      { x: 280, y: 12, width: 40, height: 40, symbol: null, initial: 'E', badge: null, active: true, ...plain, tint: 1 },
     ])
     // Un élément pas encore affiché (sans cadre) n'est pas envoyé.
     expect(barItemSpecs(bar, [{ initial: 'E', rect: null }, { icon: 'grid', rect: { x: 0, y: 0, width: 0, height: 0 } }])).toEqual([])
@@ -142,9 +144,39 @@ describe('boutons Liquid Glass', () => {
         { symbol: 'person.fill', active: true, rect: { x: 300, y: 770, width: 48, height: 48 } },
       ]),
     ).toEqual([
-      { x: 14, y: 10, width: 48, height: 48, symbol: 'map', initial: null, badge: null, active: false, ...plain },
-      { x: 284, y: 10, width: 48, height: 48, symbol: 'person.fill', initial: null, badge: null, active: true, ...plain },
+      { x: 14, y: 10, width: 48, height: 48, symbol: 'map', initial: null, badge: null, active: false, ...plain, tint: 0 },
+      { x: 284, y: 10, width: 48, height: 48, symbol: 'person.fill', initial: null, badge: null, active: true, ...plain, tint: 1 },
     ])
+  })
+
+  it('bulle de l’onglet actif (0.24.0) : cadre relatif à la pilule, invisible au bouton rouge', () => {
+    const bar = { x: 16, y: 760, width: 358, height: 64 }
+    const bubble = { x: 30.2, y: 768, width: 60, height: 48 }
+    expect(bubbleSpec(bar, bubble, { away: 1, reduce: false, tab: 0 })).toEqual({ x: 14, y: 8, width: 60, height: 48, alpha: 1 })
+    // Sur le viseur (au bouton rouge), ou rien à mesurer : pas de bulle.
+    expect(bubbleSpec(bar, bubble, { away: 0, reduce: false, tab: 2 })).toBeNull()
+    expect(bubbleSpec(bar, bubble, { away: 1, reduce: false, tab: 2 })).toBeNull()
+    expect(bubbleSpec(bar, null, { away: 1, reduce: false, tab: 0 })).toBeNull()
+    // En quittant le viseur, elle naît de l'appareil photo.
+    expect(bubbleSpec(bar, bubble, { away: 0.5, reduce: false, tab: 1.5 })?.alpha).toBe(0.5)
+    const spec = toSpec('b', bar, { label: 'Navigation', bar: { items: [] } }, true, null, [], { away: 1, reduce: false, tab: 4 }, bubble)
+    expect(spec?.bubble).toMatchObject({ alpha: 1 })
+  })
+
+  it('la couleur de l’icône suit la bulle d’un onglet à l’autre (0.24.0)', () => {
+    const bar = { x: 16, y: 760, width: 358, height: 64 }
+    const items = [
+      { symbol: 'map', slot: 0, rect: { x: 30, y: 770, width: 48, height: 48 } },
+      { symbol: 'person.2', slot: 1, rect: { x: 100, y: 770, width: 48, height: 48 } },
+    ]
+    const [map, friends] = barItemSpecs(bar, items, { away: 1, reduce: false, tab: 0.25 })
+    expect(map.tint).toBe(0.75)
+    expect(friends.tint).toBe(0.25)
+  })
+
+  it('suivent le fondu d’une rangée (boutons du zoom, 0.24.0)', () => {
+    expect(toSpec('z', rect, { title: '1×', label: 'Zoom 1' }, true, null, [], undefined, null, 0.4)).toMatchObject({ opacity: 0.4, visible: true })
+    expect(toSpec('z', rect, { title: '1×', label: 'Zoom 1' }, true, null, [], undefined, null, 0)).toMatchObject({ visible: false })
   })
 
   it('hors du viseur, plus de rond rouge : l’appareil photo est dessiné dans la pilule (0.23.3)', () => {
