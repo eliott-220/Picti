@@ -8,7 +8,8 @@ import { StoreProvider } from './data/store'
 import { useStore } from './data/storeContext'
 import { authLinkError, supabase } from './data/supabase'
 import { isNative } from './native'
-import { goBack, navigate, useRoute } from './router'
+import { goBack, navigate, useRoute, type Route } from './router'
+import { ScreenActiveContext, useScreenStack } from './screenStack'
 import { Auth, type AuthMode } from './screens/Auth'
 import { Gallery } from './screens/Gallery'
 import { Home } from './screens/Home'
@@ -17,7 +18,6 @@ import { Hunts } from './screens/Hunts'
 import { Invite } from './screens/Invite'
 import { Nearby } from './screens/Nearby'
 import { NewPassword } from './screens/NewPassword'
-import { Notifications } from './screens/Notifications'
 import { Person } from './screens/Person'
 import { PhotoDetail } from './screens/PhotoDetail'
 import { Recaler } from './screens/Recaler'
@@ -94,6 +94,9 @@ function Splash({ message }: { message?: string }) {
 function Screens() {
   const route = useRoute()
   const { ready, error } = useStore()
+  // Écrans gardés montés : celui qu'on quitte en avançant reste caché dessous, et réapparaît tel quel au
+  // retour (flèche, geste d'iOS, bouton du navigateur) — pas d'écran blanc le temps de le recharger.
+  const slots = useScreenStack(route)
 
   // Lien d'invitation ouvert avant la connexion (ou confirmation du compte par e-mail, qui
   // ramène à l'accueil) : on y revient une fois connecté.
@@ -116,13 +119,29 @@ function Screens() {
     )
   }
 
-  // Viseur, carte (à sa gauche) et Mon profil (à sa droite) : un seul écran `Home` qui reste monté de l'un
-  // à l'autre (même élément, même place) — la carte n'est pas rechargée, la barre du bas reste en place.
+  return slots.map((slot, i) => {
+    const active = i === slots.length - 1
+    return (
+      <div key={slot.key} className={`screen-slot${active ? '' : ' covered'}`} inert={!active}>
+        <ScreenActiveContext.Provider value={active}>
+          <RouteScreen route={slot.route} />
+        </ScreenActiveContext.Provider>
+      </div>
+    )
+  })
+}
+
+/**
+ * Écran d'une route. Viseur, carte, amis, mes photos et profil : un seul `Home` qui reste monté de l'un à
+ * l'autre (même place dans la pile, `screenStack.ts`) — la carte n'est pas rechargée, la barre reste en place.
+ */
+function RouteScreen({ route }: { route: Route }) {
   switch (route.name) {
-    case 'profil':
-      return <Home pane="profil" profileSection={route.section} />
     case 'carte':
-      return <Home pane="carte" />
+    case 'amis':
+    case 'photos':
+    case 'profil':
+      return <Home pane={route.name} />
     case 'parametres':
       return <Settings />
     case 'ami':
@@ -141,14 +160,12 @@ function Screens() {
       return <Recaler key={route.id} id={route.id} />
     case 'galerie':
       return <Gallery key={route.id} id={route.id} />
-    case 'notifications':
-      return <Notifications />
     case 'reproduire':
       return <Reproduce key={route.id} id={route.id} />
     case 'personne':
       return <Person key={route.id} id={route.id} />
     case 'tutoriel':
-      // Revu depuis le menu : on revient là où on était (ou à la chasse de la photo la plus proche).
+      // Revu depuis les Paramètres : on revient là où on était (ou à la chasse de la photo la plus proche).
       return (
         <Tutorial
           account

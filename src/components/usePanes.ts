@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
+import { awayOf, neighborPane, paneMove, paneOffset, type Pane, type PaneMove, type SidePane } from './panes'
 import {
   freeToSwipe,
   inRightEdge,
@@ -11,22 +12,14 @@ import {
   type SwipeDirection,
 } from './swipeOpen'
 
-/** Les trois écrans côte à côte : [ Carte ] ← [ Viseur ] → [ Profil ]. */
-export type Pane = 'viseur' | 'carte' | 'profil'
-
-/** Écran qui bouge pendant un geste ou une animation, et vers où. */
-export interface PaneMove {
-  pane: 'carte' | 'profil'
-  /** Vrai : il arrive (ouverture depuis le viseur) ; faux : il repart (retour au viseur). */
-  opening: boolean
-}
+export type { Pane, PaneMove } from './panes'
 
 interface Drag {
   x: number
   y: number
   width: number
   id: number
-  /** Sens permis : depuis le viseur, les deux ; depuis le bord droit de la carte, vers la gauche. */
+  /** Sens permis : ceux qui ont un écran voisin (sur la carte, depuis le bord droit : vers la gauche). */
   allowed: readonly SwipeDirection[]
   dir: SwipeDirection | null
 }
@@ -38,6 +31,8 @@ function clearPaneStyles(panes: (HTMLElement | null)[], bar: HTMLElement | null)
     el.style.transition = ''
     el.style.visibility = ''
     el.style.transform = ''
+    el.style.display = ''
+    el.style.zIndex = ''
   }
   if (bar) {
     bar.classList.remove('dragging')
@@ -45,42 +40,36 @@ function clearPaneStyles(panes: (HTMLElement | null)[], bar: HTMLElement | null)
   }
 }
 
-/** Position (translateX) d'un écran voisin, `shown` de 0 (caché) à 1 (affiché). */
-function paneTransform(pane: 'carte' | 'profil', shown: number): string {
-  const hidden = (1 - Math.min(1, Math.max(0, shown))) * 100
-  return `translateX(${pane === 'carte' ? -hidden : hidden}%)`
-}
-
 /**
- * Glissés entre le viseur et ses voisins (comme Snap, sans le chat) : sur le viseur, glisser vers la
- * gauche fait arriver le profil par la droite, vers la droite la carte par la gauche, sous le doigt ;
- * sur la carte, glisser vers la gauche depuis la bande du bord droit la referme. Lâché au-delà d'un tiers
- * de l'écran (ou d'un geste vif), l'écran finit sa course puis `onCommit` change d'adresse ; sinon il
- * repart. Pendant le geste, rien n'est redessiné par React : les écrans bougent par leur style, et la
- * barre du bas reçoit `--away` (0 sur le viseur, 1 ailleurs) qui réduit le bouton rouge en même temps.
- * `goTo` fait la même animation sans le doigt (bouton rouge, menu, bouton Profil).
+ * Glissés entre les cinq écrans de la barre (0.23.1 ; `panes.ts`) : sur un écran, glisser le doigt fait
+ * venir l'écran voisin sous le doigt (vers la gauche celui de droite, vers la droite celui de gauche) ;
+ * sur la carte, le doigt la déplace et seul un glissé partant de la bande du bord droit mène à l'écran
+ * voisin. Lâché au-delà d'un tiers de l'écran (ou d'un geste vif), l'écran finit sa course puis `onCommit`
+ * change d'adresse ; sinon il repart. Pendant le geste rien n'est redessiné par React : les écrans bougent
+ * par leur style, et la barre reçoit `--away` (0 sur le viseur, 1 ailleurs). `goTo` fait la même
+ * animation sans le doigt (boutons de la barre, bouton rouge réduit, menu).
  */
 export function usePanes({
   pane,
   enabled,
   onCommit,
-  map,
-  profile,
+  panes,
   bar,
 }: {
   pane: Pane
-  /** Glissés permis depuis le viseur (pas de feuille, de prise en cours…). */
+  /** Glissés permis (pas de prise en cours, de feuille sur le viseur…). */
   enabled: boolean
   onCommit: (target: Pane) => void
-  map: RefObject<HTMLElement | null>
-  profile: RefObject<HTMLElement | null>
+  panes: Record<SidePane, RefObject<HTMLElement | null>>
   bar: RefObject<HTMLElement | null>
 }) {
-  // Écran en mouvement (geste ou animation) : il doit être monté et visible.
+  // Mouvement en cours (geste ou animation) : les écrans concernés doivent être montés et visibles.
   const [move, setMove] = useState<PaneMove | null>(null)
   const drag = useRef<Drag | null>(null)
   const samples = useRef<{ x: number; t: number }[]>([])
   const moving = useRef<PaneMove | null>(null)
+  // Dernière position posée pendant le geste : reposée si l'écran vient d'être monté.
+  const lastShown = useRef(0)
   const swallowClick = useRef(false)
   const timer = useRef(0)
   const onCommitRef = useRef(onCommit)
@@ -89,45 +78,51 @@ export function usePanes({
   })
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  const elOf = (p: 'carte' | 'profil') => (p === 'carte' ? map : profile).current
+  const all = () => [panes.carte.current, panes.amis.current, panes.photos.current, panes.profil.current]
+  const elOf = (p: Pane) => (p === 'viseur' ? null : panes[p].current)
 
-  /** Place l'écran en mouvement (`shown` 0 → 1) et la barre, directement dans leur style. */
+  /** Place l'écran qui glisse (`shown` 0 → 1), l'écran dessous et la barre, directement dans leur style. */
   function place(m: PaneMove, shown: number, animate: boolean) {
+    lastShown.current = shown
     const el = elOf(m.pane)
-    const transition = animate ? `transform ${SLIDE_MS}ms ease-out` : 'none'
     if (el) {
-      el.style.transition = transition
+      el.style.transition = animate ? `transform ${SLIDE_MS}ms ease-out` : 'none'
+      el.style.display = 'block'
       el.style.visibility = 'visible'
-      el.style.transform = paneTransform(m.pane, shown)
+      el.style.zIndex = m.arriving ? '27' : ''
+      el.style.transform = `translateX(${paneOffset(m.pane, shown)}%)`
+    }
+    const under = elOf(m.under)
+    if (under) {
+      under.style.transition = 'none'
+      under.style.display = 'block'
+      under.style.visibility = 'visible'
+      under.style.transform = 'none'
     }
     const b = bar.current
     if (b) {
       b.classList.toggle('dragging', !animate)
-      b.style.setProperty('--away', String(Math.min(1, Math.max(0, shown))))
+      b.style.setProperty('--away', String(awayOf(m, shown)))
     }
   }
 
-  const clearStyles = () => clearPaneStyles([map.current, profile.current], bar.current)
+  const clearStyles = () => clearPaneStyles(all(), bar.current)
 
-  /** Finit la course de l'écran en mouvement ; `commit` : vers sa nouvelle place (puis changement d'adresse). */
+  function end() {
+    clearStyles()
+    moving.current = null
+    setMove(null)
+  }
+
+  /** Finit la course ; `commit` : jusqu'au nouvel écran (puis changement d'adresse), sinon retour. */
   function settle(m: PaneMove, commit: boolean) {
-    const shownAtEnd = commit === m.opening ? 1 : 0
-    place(m, shownAtEnd, true)
+    place(m, commit === m.arriving ? 1 : 0, true)
     clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
-      if (!commit) {
-        clearStyles()
-        moving.current = null
-        setMove(null)
-        return
-      }
-      onCommitRef.current(m.opening ? m.pane : 'viseur')
+      if (!commit) return end()
+      onCommitRef.current(m.to)
       // L'écran affiché change avec l'adresse (effet plus bas) ; sinon, filet de sécurité.
-      timer.current = window.setTimeout(() => {
-        clearStyles()
-        moving.current = null
-        setMove(null)
-      }, 600)
+      timer.current = window.setTimeout(end, 600)
     }, SLIDE_MS)
   }
 
@@ -135,32 +130,30 @@ export function usePanes({
   useLayoutEffect(() => {
     if (!moving.current) return
     clearTimeout(timer.current)
-    clearPaneStyles([map.current, profile.current], bar.current)
+    clearPaneStyles([panes.carte.current, panes.amis.current, panes.photos.current, panes.profil.current], bar.current)
     moving.current = null
     setMove(null)
-  }, [pane, map, profile, bar])
+  }, [pane, panes, bar])
 
-  /** Va à un écran voisin avec la même animation qu'au doigt. */
+  // Écran tout juste monté pendant un geste : posé sous le doigt avant d'être peint (`place` ne lit que
+  // des références : celle d'un rendu précédent convient).
+  const placeRef = useRef(place)
+  useEffect(() => {
+    placeRef.current = place
+  })
+  useLayoutEffect(() => {
+    if (move && drag.current?.dir) placeRef.current(move, lastShown.current, false)
+  }, [move])
+
+  /** Va à un écran de la barre avec la même animation qu'au doigt. */
   function goTo(target: Pane) {
-    if (target === pane || moving.current) return
-    if (target === 'viseur') {
-      const m: PaneMove = { pane: pane as 'carte' | 'profil', opening: false }
-      moving.current = m
-      setMove(m)
-      settle(m, true)
-      return
-    }
-    if (pane !== 'viseur') {
-      // Carte ↔ profil : pas de glissé entre eux, l'écran change directement.
-      onCommitRef.current(target)
-      return
-    }
-    const m: PaneMove = { pane: target, opening: true }
+    const m = paneMove(pane, target)
+    if (!m || moving.current) return
     moving.current = m
     setMove(m)
-    // Un rendu pour monter l'écran, puis la course.
+    // Un rendu pour monter les écrans, puis la course.
     requestAnimationFrame(() => {
-      place(m, 0, false)
+      place(m, m.arriving ? 0 : 1, false)
       requestAnimationFrame(() => settle(m, true))
     })
   }
@@ -180,28 +173,27 @@ export function usePanes({
     if (!d.dir) {
       const intent = swipeIntent(dx, e.clientY - d.y, d.allowed)
       if (!intent) return
-      if (intent === 'other') {
+      const to = intent === 'other' ? null : neighborPane(pane, intent)
+      const m = to && paneMove(pane, to)
+      if (!m) {
         drag.current = null
         return
       }
-      d.dir = intent
+      d.dir = intent as SwipeDirection
       swallowClick.current = true
       try {
-        // Le doigt peut passer sur les boutons du rail sans que le geste se perde.
+        // Le doigt peut passer sur des boutons sans que le geste se perde.
         e.currentTarget.setPointerCapture(e.pointerId)
       } catch {
         // Doigt déjà levé : le relâcher arrive tout de suite.
       }
-      // Depuis le viseur : vers la gauche le profil, vers la droite la carte ; depuis la carte : retour.
-      const m: PaneMove =
-        pane === 'carte' ? { pane: 'carte', opening: false } : { pane: intent === 'left' ? 'profil' : 'carte', opening: true }
       moving.current = m
       setMove(m)
     }
     const m = moving.current
     if (!m) return
     const fraction = swipeOffset(dx, d.width, d.dir) / Math.max(1, d.width)
-    place(m, m.opening ? fraction : 1 - fraction, false)
+    place(m, m.arriving ? fraction : 1 - fraction, false)
   }
 
   function release(e: PointerEvent<HTMLElement>, cancelled: boolean) {
@@ -222,14 +214,16 @@ export function usePanes({
     e.stopPropagation()
   }
 
-  /** Gestes sur le viseur (son `<main>`). */
+  const directions = (['left', 'right'] as const).filter((dir) => neighborPane(pane, dir))
+
+  /** Gestes sur les écrans (le `<main>` du viseur, qui les contient tous) ; la carte : voir `edgeHandlers`. */
   const handlers = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       swallowClick.current = false
-      if (pane !== 'viseur' || !enabled || moving.current || !e.isPrimary || e.button !== 0 || !freeToSwipe(e.target)) return
-      // Rien depuis un écran voisin en cours de préparation (caché) ni depuis la barre.
-      if ((e.target as Element).closest?.('.shell-pane')) return
-      begin(e, ['left', 'right'])
+      if (pane === 'carte' || !enabled || moving.current || !e.isPrimary || e.button !== 0 || !freeToSwipe(e.target)) return
+      // Depuis le viseur, rien ne part d'un écran voisin préparé caché.
+      if (pane === 'viseur' && (e.target as Element).closest?.('.shell-pane')) return
+      begin(e, directions)
     },
     onPointerMove: track,
     onPointerUp: (e: PointerEvent<HTMLElement>) => release(e, false),
@@ -237,7 +231,7 @@ export function usePanes({
     onClickCapture: swallow,
   }
 
-  /** Bande du bord droit de la carte : seul endroit d'où le doigt la referme. */
+  /** Bande du bord droit de la carte : seul endroit d'où le doigt mène à l'écran voisin (Amis). */
   const edgeHandlers = {
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       swallowClick.current = false

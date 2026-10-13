@@ -75,12 +75,13 @@ export function inRightEdge(x: number, left: number, width: number, band = EDGE_
 
 /**
  * Éléments qui gardent leurs propres gestes : déclencheur (appui long puis glisser), barre du bas,
- * frise des photos du lieu, champs et réglettes, feuilles et fenêtres. Les piles de photos du viseur
+ * frise des photos du lieu, champs et réglettes, feuilles et fenêtres, rangées qui défilent de côté
+ * (vignettes, pastilles, avatars des écrans de la barre). Les piles de photos du viseur
  * arrêtent elles-mêmes le geste (`useCardSwipe`). Les autres boutons (rail…) ne servent qu'à l'appui :
  * le geste peut partir d'eux — le rail occupe justement le bord droit.
  */
 export const OWN_GESTURES =
-  'input, select, textarea, [role="slider"], .shutter-group, .bottom-nav, .home-timeline, [role="dialog"], [role="alertdialog"]'
+  'input, select, textarea, [role="slider"], .shutter-group, .bottom-nav, .home-timeline, [role="dialog"], [role="alertdialog"], .strip, .chips, .avatars'
 
 /** Le geste peut partir de cet élément (décor, photo seule, boutons du rail, pastilles d'information). */
 export function freeToSwipe(target: EventTarget | null): boolean {

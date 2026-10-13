@@ -16,9 +16,15 @@ describe('parseHash', () => {
     expect(parseHash('#/parametres')).toEqual({ name: 'parametres' })
   })
 
-  it('ouvre « Mes amis » dans le profil', () => {
-    expect(parseHash('#/profil/amis')).toEqual({ name: 'profil', section: 'amis' })
+  it('onglets Amis et Mes photos de la barre (0.23.1), anciennes adresses comprises', () => {
+    expect(parseHash('#/amis')).toEqual({ name: 'amis' })
+    expect(parseHash('#/photos')).toEqual({ name: 'photos' })
+    expect(parseHash('#/profil/amis')).toEqual({ name: 'amis' })
+    expect(parseHash('#/notifications')).toEqual({ name: 'amis' })
     expect(parseHash('#/profil/autre')).toEqual({ name: 'profil' })
+    // `#/ami/<code>` reste le lien d'invitation, `#/photo/<id>` la fiche.
+    expect(parseHash('#/ami/A1B2C3')).toEqual({ name: 'ami', code: 'A1B2C3' })
+    expect(parseHash('#/photo/x')).toEqual({ name: 'photo', id: 'x' })
   })
 
   it('lit le code d’un lien d’invitation', () => {
@@ -36,9 +42,8 @@ describe('parseHash', () => {
     expect(parseHash('#/photo')).toEqual({ name: 'accueil' })
   })
 
-  it('ouvre la galerie d’un lieu, les notifications, le mode « Reproduire »', () => {
+  it('ouvre la galerie d’un lieu, le mode « Reproduire »', () => {
     expect(parseHash('#/galerie/abc')).toEqual({ name: 'galerie', id: 'abc' })
-    expect(parseHash('#/notifications')).toEqual({ name: 'notifications' })
     expect(parseHash('#/reproduire/abc')).toEqual({ name: 'reproduire', id: 'abc' })
     expect(parseHash('#/reproduire')).toEqual({ name: 'accueil' })
   })

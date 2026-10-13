@@ -147,7 +147,7 @@ export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => v
           {summary.pending > 0 && <>{plural(summary.pending, 'photo')} à recaler sur place. </>}
           {summary.failed > 0 && <>{plural(summary.failed, 'fichier')} illisible{summary.failed > 1 ? 's' : ''}.</>}
           {summary.auto > 0 && (
-            <button type="button" className="link" onClick={() => navigate('/profil')}>
+            <button type="button" className="link" onClick={() => navigate('/photos')}>
               Voir mes photos géocadrées
             </button>
           )}

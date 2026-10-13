@@ -4159,10 +4159,11 @@ html.picti-ar .tutorial {
   bottom: calc(var(--safe-bottom) + 12px);
   z-index: 30;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* Carte · Amis · bouton rouge · Mes photos · Profil (0.23.1). */
+  grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: center;
   height: var(--bar-h);
-  padding: 0 8px;
+  padding: 0 6px;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.72);
   border: 1px solid rgb(255 255 255 / 0.5);
@@ -4206,23 +4207,13 @@ html.picti-ar .tutorial {
   right: 0;
 }
 
-.nav-avatar {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--salmon);
-  color: #fff;
-  font-size: 17px;
-  font-weight: 600;
-  box-shadow: 0 0 0 2px #fff;
+/* Écran affiché : pictogramme rouge, trait plus épais (en plein dans l'app iOS). */
+.nav-item.active {
+  color: var(--red);
 }
 
-.nav-profile.active .nav-avatar {
-  box-shadow:
-    0 0 0 2px #fff,
-    0 0 0 4px var(--red);
+.nav-item.active svg {
+  stroke-width: 2.4;
 }
 
 /* Emplacement du bouton rouge : grand sur le viseur (76 px, il déborde de 20 px au-dessus de la pilule),
@@ -4259,8 +4250,10 @@ html.picti-ar .tutorial {
   opacity: 0;
 }
 
-/* Écrans voisins du viseur : la carte à gauche, Mon profil à droite. Cachés hors de l'écran tant qu'on
-   n'y va pas ; déplacés sous le doigt pendant un glissé (styles posés par `usePanes`). */
+/* Écrans de la barre (0.23.1), côte à côte dans son ordre : carte, amis | viseur | mes photos, profil. Le
+   viseur ne bouge pas ; les autres glissent par-dessus depuis leur côté (ceux des bords au-dessus de ceux
+   du milieu). Cachés hors de l'écran tant qu'on n'y va pas ; déplacés sous le doigt pendant un glissé
+   (styles posés par `usePanes`). */
 .shell-pane {
   position: absolute;
   inset: 0;
@@ -4272,14 +4265,21 @@ html.picti-ar .tutorial {
   will-change: transform;
 }
 
-.map-pane {
+.pane-carte,
+.pane-amis {
   transform: translateX(-100%);
   box-shadow: 10px 0 30px rgb(0 0 0 / 0.45);
 }
 
-.profile-pane {
+.pane-photos,
+.pane-profil {
   transform: translateX(100%);
   box-shadow: -10px 0 30px rgb(0 0 0 / 0.45);
+}
+
+.pane-carte,
+.pane-profil {
+  z-index: 26;
 }
 
 .shell-pane.shown {
@@ -4287,15 +4287,72 @@ html.picti-ar .tutorial {
   visibility: visible;
 }
 
-/* Profil préparé mais pas affiché : ni mise en page, ni image chargée (la photo d'en-tête est un fond).
-   La carte, elle, garde sa mise en page (MapLibre a besoin de la taille de son cadre). */
-.profile-pane:not(.shown):not(.moving) {
+/* Préparés mais pas affichés : ni mise en page, ni image chargée. La carte, elle, garde sa mise en page
+   (MapLibre a besoin de la taille de son cadre). */
+.shell-pane:not(.pane-carte):not(.shown):not(.moving):not(.under) {
   display: none;
 }
 
+/* Pages des écrans de la barre : défilement vertical natif, glissés de côté pour la page. */
+.shell-pane .page {
+  touch-action: pan-y;
+}
+
 /* Le bas des écrans avec la barre : leur contenu s'arrête au-dessus d'elle. */
-.profile-pane .card:last-child {
+.shell-pane .card:last-child {
   padding-bottom: calc(var(--bar-space) + 32px);
+}
+
+/* En-tête des onglets (pas de flèche retour : on en sort en glissant ou par la barre). */
+.tab-header {
+  padding-top: calc(var(--safe-top) + 28px);
+}
+
+/* Menu (4 carrés) : juste au-dessus de la barre, à gauche, sur le viseur seulement. */
+.menu-fab {
+  position: absolute;
+  left: 24px;
+  bottom: calc(var(--bar-space) + 14px);
+  z-index: 29;
+}
+
+/* Pile des écrans (0.23.1) : ceux du dessous restent montés, cachés, et réapparaissent tels quels. */
+.screen-slot {
+  position: absolute;
+  inset: 0;
+}
+
+.screen-slot.covered {
+  visibility: hidden;
+}
+
+/* Mon profil : pictogramme (haut du corps) au lieu de l'initiale. */
+.profile-picto {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--red);
+  box-shadow: 0 0 0 3px #fff;
+}
+
+/* Onglet Amis : notifications en tête, au-dessus de la liste d'amis. */
+.notif-section {
+  margin-bottom: 28px;
+}
+
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notif-head .notif-read-all {
+  margin-top: 0;
 }
 
 .map-loading {

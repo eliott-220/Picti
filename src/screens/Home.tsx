@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { createRef, lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { BottomBar } from '../components/BottomBar'
 import { doubleTapAllowed, isDoubleTap, isTap, type TapPoint } from '../components/doubleTap'
 import { ReproduceCrosshairs } from '../components/ReproduceCrosshairs'
@@ -12,6 +12,7 @@ import { useElementSize } from '../components/useElementSize'
 import { useReproduceStatus } from '../components/useReproduceStatus'
 import { PREPARE_MS } from '../components/swipeOpen'
 import { usePanes, type Pane } from '../components/usePanes'
+import type { SidePane } from '../components/panes'
 import { useTyping } from '../components/useTyping'
 import { DirectionArrow, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
@@ -37,16 +38,21 @@ import type { CameraFacing } from '../sensors/useCamera'
 import { trackArShot } from '../sensors/arTracking'
 import { useViewfinder } from '../sensors/useViewfinder'
 import { haptic, type NativeArPose } from '../native'
+import { useScreenActive } from '../screenStack'
+import { FriendsTab } from './FriendsTab'
 import { MenuSheet } from './MenuSheet'
+import { MyPhotosTab } from './MyPhotosTab'
 import { PhotoSheet } from './PhotoDetail'
 import { Profile } from './Profile'
 
 // La carte (MapLibre) est lourde : chargée à la première ouverture (ou préparée peu après le viseur).
 const WorldMap = lazy(() => import('./WorldMap'))
 
-/** Délai (ms) avant de préparer la carte, cachée à gauche du viseur : après la caméra, comme le profil. */
+/** Délai (ms) avant de préparer la carte, cachée à gauche du viseur : après la caméra et les autres écrans. */
 const MAP_PREPARE_MS = 2500
-/** Drapeau de l'entrée d'historique : la carte ou le profil a été ouvert depuis le viseur (retour = `goBack`). */
+/** Adresse de chaque écran de la barre. */
+const PANE_PATH: Record<Pane, string> = { viseur: '/', carte: '/carte', amis: '/amis', photos: '/photos', profil: '/profil' }
+/** Drapeau de l'entrée d'historique : l'écran de la barre a été ouvert depuis le viseur (retour = `goBack`). */
 const HOME_BELOW = 'pictiHomeBelow'
 /** Fondu de l'image pendant le passage caméra arrière ↔ avant (ms). */
 const FLIP_MS = 600
@@ -75,16 +81,8 @@ interface HeldShot {
  * « Reproduire ») : le viseur seul, la photo d'origine en calque semi-transparent et les deux croix
  * d'orientation ; le rattachement reste décidé par les règles existantes.
  */
-export function Home({
-  reproduce,
-  pane: route = 'viseur',
-  profileSection,
-}: {
-  reproduce?: GeoframedPhoto
-  pane?: Pane
-  profileSection?: 'amis'
-}) {
-  // Carte et profil autour du viseur, barre du bas : pas en « Reproduire ».
+export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: GeoframedPhoto; pane?: Pane }) {
+  // Écrans de la barre autour du viseur, barre du bas : pas en « Reproduire ».
   const shell = !reproduce
   const pane: Pane = shell ? route : 'viseur'
   const [sheet, setSheet] = useState<'menu' | null>(null)
@@ -95,10 +93,16 @@ export function Home({
   const [facing, setFacing] = useState<CameraFacing>(reproduce?.selfie ? 'user' : 'environment')
   const selfie = facing === 'user'
   const [stageRef, stage] = useElementSize<HTMLDivElement>()
-  // Écrans voisins (carte, profil) et barre du bas, déplacés pendant les glissés.
-  const mapRef = useRef<HTMLDivElement>(null)
-  const profileRef = useRef<HTMLDivElement>(null)
+  // Écrans de la barre (carte, amis, mes photos, profil) et barre du bas, déplacés pendant les glissés.
+  const [paneRefs] = useState(() => ({
+    carte: createRef<HTMLDivElement>(),
+    amis: createRef<HTMLDivElement>(),
+    photos: createRef<HTMLDivElement>(),
+    profil: createRef<HTMLDivElement>(),
+  }))
   const barRef = useRef<HTMLElement>(null)
+  // Caché sous un autre écran de la pile (fiche, Paramètres…) : caméra en pause.
+  const screenActive = useScreenActive()
   // Prise de vue suspendue à un choix, attente d'un GPS précis (plus bas) : pas de glissé pendant ce temps.
   const [frozen, setFrozen] = useState<string | null>(null)
   const [held, setHeld] = useState<HeldShot | null>(null)
@@ -108,18 +112,15 @@ export function Home({
   // Feuille ouverte sur la carte (import) : la barre se cache.
   const [mapSheet, setMapSheet] = useState(false)
   const typing = useTyping()
-  // Profil ouvert sur « Mes amis » (menu) : l'adresse le dira une fois l'écran arrivé.
-  const nextSection = useRef<'amis' | undefined>(undefined)
   const panes = usePanes({
     pane,
     enabled: shell && !sheet && !captureSheet?.open && !frozen && !held && !waitGps && !busy,
     onCommit: commitPane,
-    map: mapRef,
-    profile: profileRef,
+    panes: paneRefs,
     bar: barRef,
   })
   // Le viseur est visible (affiché, ou découvert par un glissé) : sinon la caméra se met en pause.
-  const onViewfinder = pane === 'viseur' || panes.move != null
+  const onViewfinder = screenActive && (pane === 'viseur' || panes.move?.under === 'viseur')
   // Caméra, position et orientation : suivi visuel d'ARKit dans l'app iPhone (les photos restent à
   // leur place au centimètre près) ; sinon caméra web, position suivie image par image (et pas à pas)
   // et boussole, avec la focale de la caméra principale mesurée en tournant le téléphone.
@@ -130,13 +131,13 @@ export function Home({
     active: onViewfinder,
   })
   const { videoRef, status: cameraStatus, error: cameraError, size: cameraSize, capture } = camera
-  const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications, profile } = useStore()
+  const { addPhoto, addCapture, nearby, captures, isMine, photos, friends, notifications } = useStore()
   const unread = unreadCount(notifications)
   const toast = useToast()
   // Mode des prochaines photos (Public · Amis · Privé) : appui long sur le déclencheur, puis glisser.
   const visibility = useShotVisibility()
   const sheetPhoto = captureSheet ? photos.find((p) => p.id === captureSheet.id) : undefined
-  // Demandes d'ami reçues : pastille sur le bouton du menu.
+  // Demandes d'ami reçues et notifications non lues : pastille sur Amis.
   const friendRequests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
   useNearbyRefresh(geo.fix)
 
@@ -172,9 +173,9 @@ export function Home({
   }, [waitGps, busy, held, liveAccuracy])
 
   /**
-   * Un écran voisin a fini d'arriver (glissé, barre, menu) : l'adresse suit. Ouvert depuis le viseur, il
-   * ajoute une entrée à l'historique (le retour d'iOS ou du navigateur ramène au viseur) ; entre la carte
-   * et le profil, il la remplace ; le retour au viseur la retire.
+   * Un écran de la barre a fini d'arriver (glissé, barre, menu) : l'adresse suit. Ouvert depuis le viseur,
+   * il ajoute une entrée à l'historique (le retour du navigateur ou d'Android ramène au viseur) ; d'un
+   * écran de la barre à l'autre, il la remplace ; le retour au viseur la retire.
    */
   function commitPane(target: Pane) {
     if (target === 'viseur') {
@@ -182,57 +183,54 @@ export function Home({
       else navigate('/', { replace: true })
       return
     }
-    const path = target === 'carte' ? '/carte' : nextSection.current ? `/profil/${nextSection.current}` : '/profil'
-    nextSection.current = undefined
-    if (pane === 'viseur') navigate(path, { mark: { [HOME_BELOW]: true } })
-    else navigate(path, { replace: true, mark: { [HOME_BELOW]: historyMark(HOME_BELOW) === true } })
+    if (pane === 'viseur') navigate(PANE_PATH[target], { mark: { [HOME_BELOW]: true } })
+    else navigate(PANE_PATH[target], { replace: true, mark: { [HOME_BELOW]: historyMark(HOME_BELOW) === true } })
   }
 
-  /** Mon profil, éventuellement sur « Mes amis » (menu Explorer, carte « Amis » sans ami). */
-  function openProfile(section?: 'amis') {
+  /** Ouvre un écran de la barre (bouton, menu) avec l'animation du glissé. */
+  function openPane(target: Pane) {
     setSheet(null)
-    if (pane === 'profil') {
-      if (section !== profileSection) navigate(section ? `/profil/${section}` : '/profil', { replace: true, mark: { [HOME_BELOW]: historyMark(HOME_BELOW) === true } })
-      return
-    }
-    nextSection.current = section
-    panes.goTo('profil')
+    panes.goTo(target)
   }
 
-  // Carte et profil préparés cachés peu après l'ouverture du viseur (leur premier affichage coûte, le
+  // Écrans de la barre préparés cachés peu après l'ouverture du viseur (leur premier affichage coûte, le
   // doigt ne doit pas l'attendre), puis gardés montés.
-  const [prepared, setPrepared] = useState({ carte: pane === 'carte', profil: pane === 'profil' })
-  const want = (p: 'carte' | 'profil') => pane === p || panes.move?.pane === p
-  if ((want('carte') && !prepared.carte) || (want('profil') && !prepared.profil)) {
-    setPrepared({ carte: prepared.carte || want('carte'), profil: prepared.profil || want('profil') })
-  }
+  const [prepared, setPrepared] = useState<Record<SidePane, boolean>>(() => ({
+    carte: pane === 'carte',
+    amis: pane === 'amis',
+    photos: pane === 'photos',
+    profil: pane === 'profil',
+  }))
+  const wanted = (p: SidePane) => pane === p || panes.move?.pane === p || panes.move?.under === p
+  const missing = (['carte', 'amis', 'photos', 'profil'] as const).filter((p) => wanted(p) && !prepared[p])
+  if (missing.length) setPrepared({ ...prepared, ...Object.fromEntries(missing.map((p) => [p, true])) })
   useEffect(() => {
     if (!shell) return
-    const later = (p: 'carte' | 'profil', ms: number) => window.setTimeout(() => setPrepared((was) => ({ ...was, [p]: true })), ms)
-    const timers = [later('profil', PREPARE_MS), later('carte', MAP_PREPARE_MS)]
+    const later = (ps: SidePane[], ms: number) =>
+      window.setTimeout(() => setPrepared((was) => ({ ...was, ...Object.fromEntries(ps.map((p) => [p, true])) })), ms)
+    const timers = [later(['amis', 'photos', 'profil'], PREPARE_MS), later(['carte'], MAP_PREPARE_MS)]
     return () => timers.forEach(clearTimeout)
   }, [shell])
-  // Les deux voisins ne sont pas redessinés à chaque image du viseur : leurs actions passent par une
+  // Les écrans de la barre ne sont pas redessinés à chaque image du viseur : leurs actions passent par une
   // référence tenue à jour.
-  const actions = useRef({ openProfile, profileBack: () => {} })
+  const actions = useRef({ openPane })
   useEffect(() => {
-    actions.current = {
-      openProfile,
-      profileBack: () => (historyMark(HOME_BELOW) ? panes.goTo('viseur') : goBack()),
-    }
+    actions.current = { openPane }
   })
   const mapActive = pane === 'carte'
-  const mapPane = useMemo(
-    () => (
-      <Suspense fallback={<div className="map-loading">Chargement de la carte…</div>}>
-        <WorldMap active={mapActive} onFriends={() => actions.current.openProfile('amis')} onSheet={setMapSheet} />
-      </Suspense>
-    ),
-    [mapActive],
-  )
-  const profilePane = useMemo(
-    () => <Profile section={profileSection} onBack={() => actions.current.profileBack()} />,
-    [profileSection],
+  const friendsActive = pane === 'amis' && screenActive
+  const paneContent = useMemo(
+    () => ({
+      carte: (
+        <Suspense fallback={<div className="map-loading">Chargement de la carte…</div>}>
+          <WorldMap active={mapActive} onFriends={() => actions.current.openPane('amis')} onSheet={setMapSheet} />
+        </Suspense>
+      ),
+      amis: <FriendsTab active={friendsActive} />,
+      photos: <MyPhotosTab />,
+      profil: <Profile />,
+    }),
+    [mapActive, friendsActive],
   )
 
   // Double appui sur l'image : caméra arrière ↔ avant (fondu de l'image), jamais de photo.
@@ -432,7 +430,8 @@ export function Home({
   // Barre du bas : cachée pendant une fiche, un choix de prise, une feuille de la carte, la saisie.
   const barShown = shell && !captureSheet?.open && !held && !frozen && !mapSheet && !typing
   const shutterLabel = selfie ? 'Prendre un selfie' : 'Prendre une photo'
-  const paneClass = (p: 'carte' | 'profil') => (pane === p ? ' shown' : panes.move?.pane === p ? ' moving' : '')
+  const paneClass = (p: SidePane) =>
+    pane === p ? ' shown' : panes.move?.pane === p ? ' moving' : panes.move?.under === p ? ' under' : ''
 
   return (
     <main
@@ -523,17 +522,10 @@ export function Home({
         <SensorStatus geo={geo} orientation={orientation} position={position} visual={ar.oriented} />
       )}
 
-      {/* Viseur allégé (0.23.0) : notifications et photos à chasser ; la caméra avant se prend d'un double
-          appui, la carte en glissant vers la droite, la recherche dans le menu. */}
+      {/* Viseur allégé : les photos à chasser (les notifications sont dans l'onglet Amis depuis 0.23.1) ; la
+          caméra avant se prend d'un double appui, la recherche dans le menu. */}
       {!reproduce && (
         <nav className="rail" aria-label="Explorer">
-          <RoundButton
-            icon="bell"
-            label={unread ? `Notifications (${unread} non lue${unread > 1 ? 's' : ''})` : 'Notifications'}
-            onClick={() => navigate('/notifications')}
-            dim={!!sheet}
-            badge={unread}
-          />
           <RoundButton
             icon="flag"
             label={toHunt ? `À chasser : ${toHunt} photo${toHunt > 1 ? 's' : ''} à proximité` : 'Photos à chasser à proximité'}
@@ -645,48 +637,40 @@ export function Home({
 
       {onViewfinder && <PreciseLocationNotice geo={geo} />}
 
-      {/* Carte à gauche du viseur, Mon profil à droite : montés une fois préparés, cachés hors de l'écran
-          tant qu'on n'y va pas. */}
-      {shell && prepared.carte && (
-        <div
-          ref={mapRef}
-          className={`shell-pane map-pane${paneClass('carte')}`}
-          inert={pane !== 'carte'}
-          aria-hidden={pane !== 'carte' && !panes.move}
-        >
-          {mapPane}
-        </div>
-      )}
+      {/* Écrans de la barre, côte à côte dans son ordre (carte, amis | viseur | mes photos, profil) : montés
+          une fois préparés, cachés hors de l'écran tant qu'on n'y va pas. */}
+      {shell &&
+        (['carte', 'amis', 'photos', 'profil'] as const).map(
+          (p) =>
+            prepared[p] && (
+              <div
+                key={p}
+                ref={paneRefs[p]}
+                className={`shell-pane pane-${p}${paneClass(p)}`}
+                inert={pane !== p}
+                aria-hidden={pane !== p && !panes.move}
+              >
+                {paneContent[p]}
+              </div>
+            ),
+        )}
       {shell && pane === 'carte' && (
-        // Bande du bord droit : d'ici, glisser vers la gauche ramène au viseur ; ailleurs le doigt déplace la
-        // carte. Gardée pendant le geste (elle tient le doigt : `setPointerCapture`).
-        <div className="map-edge" {...panes.edgeHandlers} role="region" aria-label="Bord de la carte — glisser vers la gauche pour revenir au viseur" />
-      )}
-      {shell && prepared.profil && (
-        <div
-          ref={profileRef}
-          className={`shell-pane profile-pane${paneClass('profil')}`}
-          inert={pane !== 'profil'}
-          aria-hidden={pane !== 'profil' && !panes.move}
-        >
-          {profilePane}
-        </div>
+        // Bande du bord droit : d'ici, glisser vers la gauche mène à l'écran voisin (Amis) ; ailleurs le doigt
+        // déplace la carte. Gardée pendant le geste (elle tient le doigt : `setPointerCapture`).
+        <div className="map-edge" {...panes.edgeHandlers} role="region" aria-label="Bord de la carte — glisser vers la gauche pour l’écran Amis" />
       )}
 
-      {shell && sheet === 'menu' && (
-        <MenuSheet
-          onClose={() => setSheet(null)}
-          onMap={() => {
-            setSheet(null)
-            panes.goTo('carte')
-          }}
-          onFriends={() => openProfile('amis')}
-        />
+      {/* Menu (4 carrés) : juste au-dessus de la barre, sur le viseur seulement (0.23.1). */}
+      {shell && pane === 'viseur' && !panes.move && barShown && (
+        <RoundButton icon="grid" label="Menu" onClick={() => setSheet(sheet === 'menu' ? null : 'menu')} className="menu-fab" />
       )}
+
+      {shell && sheet === 'menu' && <MenuSheet onClose={() => setSheet(null)} />}
 
       {barShown && (
         <BottomBar
           ref={barRef}
+          pane={pane}
           away={pane !== 'viseur' || sheet === 'menu'}
           visibility={visibility}
           onVisibility={setShotVisibility}
@@ -694,12 +678,8 @@ export function Home({
           shootDisabled={busy || !!held}
           shutterLabel={shutterLabel}
           onHome={() => (sheet ? setSheet(null) : panes.goTo('viseur'))}
-          onMenu={() => setSheet(sheet === 'menu' ? null : 'menu')}
-          menuOpen={sheet === 'menu'}
-          menuBadge={friendRequests}
-          onProfile={() => openProfile()}
-          profileActive={pane === 'profil'}
-          profileName={profile?.name ?? ''}
+          onOpen={openPane}
+          friendsBadge={unread + friendRequests}
         />
       )}
     </main>

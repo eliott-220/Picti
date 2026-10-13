@@ -4,6 +4,7 @@
 import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType, type PluginListenerHandle } from '@capacitor/core'
 import { useEffect } from 'react'
 import { APP_URL } from './config'
+import { useScreenActive } from './screenStack'
 
 export type Platform = 'ios' | 'android' | 'web'
 
@@ -231,11 +232,14 @@ export function setStatusBarText(color: 'light' | 'dark'): void {
 
 /** Écran clair en haut (connexion, recherche, carte) : texte foncé tant qu'il est affiché. */
 export function useDarkStatusBar(enabled = true): void {
+  // Écran caché sous un autre de la pile (0.23.1) : la barre d'état appartient à celui du dessus.
+  const screenActive = useScreenActive()
+  const on = enabled && screenActive
   useEffect(() => {
-    if (!enabled) return
+    if (!on) return
     setStatusBarText('dark')
     return () => setStatusBarText('light')
-  }, [enabled])
+  }, [on])
 }
 
 /**

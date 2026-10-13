@@ -16,19 +16,22 @@ class PictiViewController: CAPBridgeViewController {
         super.viewDidLoad()
         // Retour en glissant le doigt depuis le bord gauche, comme dans les apps iOS : l'écran
         // précédent apparaît dessous (historique de la page, `#/…` compris ; `src/router.ts`
-        // remet sa profondeur d'accord au `popstate`). Sauf sur le viseur et la carte (0.23.0) : la
-        // page y a ses propres glissés (`usePanes`) — sur le viseur, vers la gauche le profil, vers la
-        // droite la carte ; sur la carte, le doigt la déplace et le bord droit ramène au viseur —, que
-        // les gestes retour / avant de WebKit prendraient sinon (et le viseur n'a rien avant lui).
+        // remet sa profondeur d'accord au `popstate` ; la page garde l'écran précédent monté, il
+        // réapparaît tel quel). Sauf sur les cinq écrans de la barre du bas (0.23.1 : carte, amis,
+        // viseur, mes photos, profil) : glisser y mène à l'écran voisin (`usePanes`), et sur la carte
+        // le doigt la déplace — les gestes retour / avant de WebKit prendraient ces glissés.
         urlObservation = webView?.observe(\.url, options: [.initial, .new]) { webView, _ in
             webView.allowsBackForwardNavigationGestures = !Self.pageOwnsSwipes(webView.url)
         }
     }
 
-    /// Viseur (adresse sans ancre, ou `#/`) ou carte (`#/carte`) : `parseHash` de `src/router.ts`.
+    /// Écrans de la barre du bas : viseur (adresse sans ancre, ou `#/`), `#/carte`, `#/amis`,
+    /// `#/photos`, `#/profil` (et les anciennes `#/profil/amis`, `#/notifications`) — `parseHash` de
+    /// `src/router.ts`.
     static func pageOwnsSwipes(_ url: URL?) -> Bool {
         guard let url else { return true }
         let path = (url.fragment ?? "").split(separator: "?").first.map(String.init) ?? ""
-        return path.isEmpty || path == "/" || path == "/carte" || path == "/carte/"
+        let head = path.split(separator: "/").first.map(String.init) ?? ""
+        return ["", "carte", "amis", "photos", "profil", "notifications"].contains(head)
     }
 }

@@ -446,8 +446,8 @@ final class GlassBar: UIView, GlassControlUpdating {
     }
 }
 
-/// Élément de la pilule : symbole (couleur du texte, adaptée par le verre au clair ou au sombre) ou
-/// avatar (rond saumon, initiale blanche, anneau rouge quand Mon profil est affiché), pastille rouge.
+/// Élément de la pilule : symbole (couleur du texte, adaptée par le verre au clair ou au sombre ; rouge
+/// pour l'écran affiché) ou avatar (rond saumon, initiale blanche), pastille rouge.
 final class GlassBarItemView: UIView {
     private let symbolView = UIImageView()
     private let avatar = UILabel()
@@ -493,6 +493,8 @@ final class GlassBarItemView: UIView {
             symbolView.image = item.symbol.flatMap {
                 UIImage(systemName: $0, withConfiguration: UIImage.SymbolConfiguration(pointSize: 21, weight: .semibold))
             }
+            // Écran affiché (0.23.1) : pictogramme en plein (le JS envoie la variante `.fill`), en rouge.
+            symbolView.tintColor = item.active ? .picti : .label
             avatar.text = item.initial ?? "?"
             avatar.layer.borderWidth = item.active ? 2.5 : 2
             avatar.layer.borderColor = (item.active ? UIColor.picti : UIColor.white).cgColor

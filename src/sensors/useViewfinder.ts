@@ -1,4 +1,5 @@
 import { useMemo, type RefObject } from 'react'
+import { useScreenActive } from '../screenStack'
 import type { EncodedImage } from '../data/images'
 import { focal35Of } from '../geo/arPose'
 import type { GeoFix } from '../geo/geodesy'
@@ -64,6 +65,9 @@ export function useViewfinder({
   locate?: boolean
   active?: boolean
 }): Viewfinder {
+  // Écran caché sous un autre de la pile (0.23.1) : comme recouvert.
+  const screenActive = useScreenActive()
+  active = active && screenActive
   const wanted = facing === 'environment'
   const { state: arState, view } = useArTracking(wanted, active)
   const arActive = wanted && arState.status === 'running'

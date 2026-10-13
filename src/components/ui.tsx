@@ -6,6 +6,7 @@ import { VISIBLE_BY, type GeoPhoto, type Visibility } from '../data/types'
 import { cycle } from '../geo/spots'
 import { useGlassButton } from '../glassButtons'
 import { navigate } from '../router'
+import { useScreenActive } from '../screenStack'
 import { Dots } from './Dots'
 import { Icon, type IconName } from './Icon'
 import { useCardSwipe } from './useCardSwipe'
@@ -152,11 +153,15 @@ export function Sheet({
   /** Classe de la couche (ex. `explorer` : au-dessus de la carte et du profil, sous la barre du bas). */
   className?: string
 }) {
+  // Écran caché sous un autre de la pile (0.23.1) : sa feuille aussi (elle est rendue à la racine).
+  const active = useScreenActive()
   useEffect(() => {
+    if (!active) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, active])
+  if (!active) return null
   // Rendue à la racine de l'app : une feuille ouverte depuis la carte ou le profil (écrans déplacés par
   // les glissés, chacun sur son propre plan) passe bien au-dessus d'eux.
   const layer = (

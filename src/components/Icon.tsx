@@ -119,6 +119,13 @@ const PATHS = {
       <path d="M14 14h2v2h-2ZM18 18h2v2h-2ZM14 18h2M18 14h2" />
     </>
   ),
+  /** Carte (plan plié), bouton de la barre du bas. */
+  map: (
+    <>
+      <path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Z" />
+      <path d="M9 4v13.5M15 6.5V20" />
+    </>
+  ),
   /** Paramètres (roue dentée). */
   settings: (
     <>

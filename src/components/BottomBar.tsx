@@ -1,20 +1,31 @@
-import { useRef, type Ref } from 'react'
+import { useRef, type Ref, type RefObject } from 'react'
 import type { Visibility } from '../data/types'
 import { useGlassButton } from '../glassButtons'
 import { haptic } from '../native'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
+import type { Pane } from './panes'
 import { Shutter } from './Shutter'
 
+/** Boutons de la barre, de gauche à droite (le bouton rouge est au milieu, entre Amis et Mes photos). */
+const TABS: { pane: Exclude<Pane, 'viseur'>; icon: IconName; label: string; symbol: string; activeSymbol: string }[] = [
+  { pane: 'carte', icon: 'map', label: 'Carte', symbol: 'map', activeSymbol: 'map.fill' },
+  { pane: 'amis', icon: 'friends', label: 'Amis', symbol: 'person.2', activeSymbol: 'person.2.fill' },
+  { pane: 'photos', icon: 'image', label: 'Mes photos', symbol: 'photo.on.rectangle', activeSymbol: 'photo.fill.on.rectangle.fill' },
+  { pane: 'profil', icon: 'user', label: 'Mon profil', symbol: 'person', activeSymbol: 'person.fill' },
+]
+
 /**
- * Barre flottante du bas (0.23.0, façon Instagram) : pilule décollée des bords, visible sur le viseur,
- * la carte et Mon profil. Gauche : Menu (feuille Explorer) ; centre : le bouton rouge — sur le viseur,
- * grand, il déborde au-dessus de la pilule et prend la photo (appui long : choix du mode) ; ailleurs
- * (`away`), réduit à la taille des icônes voisines, il ramène au viseur ; droite : avatar → Mon profil.
- * Le passage grand ↔ réduit suit `--away` (0 → 1), animé (léger ressort) ou posé par le glissé des
- * écrans (`usePanes`). Dans l'app iOS 26+ : vraie pilule Liquid Glass, Menu et avatar dessinés dedans.
+ * Barre flottante du bas (0.23.0, cinq boutons depuis 0.23.1, façon Instagram) : pilule décollée des
+ * bords, sur les cinq écrans qu'elle ouvre — Carte · Amis · bouton rouge (viseur) · Mes photos · Profil,
+ * dans l'ordre où ils sont côte à côte (on passe de l'un au voisin en glissant). Sur le viseur, le bouton
+ * rouge est grand, il déborde au-dessus de la pilule et prend la photo (appui long : choix du mode) ;
+ * ailleurs (`away`), réduit à la taille des autres boutons, il ramène au viseur. Le passage grand ↔
+ * réduit suit `--away` (0 → 1), animé ou posé par le glissé des écrans (`usePanes`). Dans l'app iOS 26+ :
+ * vraie pilule Liquid Glass, pictogrammes dessinés dedans (l'écran affiché en plein, en rouge).
  */
 export function BottomBar({
   ref,
+  pane,
   away,
   visibility,
   onVisibility,
@@ -22,15 +33,13 @@ export function BottomBar({
   shootDisabled,
   shutterLabel,
   onHome,
-  onMenu,
-  menuOpen,
-  menuBadge,
-  onProfile,
-  profileActive,
-  profileName,
+  onOpen,
+  friendsBadge,
 }: {
   ref?: Ref<HTMLElement>
-  /** Hors du viseur (carte, profil, menu ouvert) : bouton rouge réduit, qui ramène au viseur. */
+  /** Écran affiché (bouton en plein). */
+  pane: Pane
+  /** Hors du viseur (ou menu ouvert) : bouton rouge réduit, qui ramène au viseur. */
   away: boolean
   visibility: Visibility
   onVisibility: (v: Visibility) => void
@@ -38,25 +47,26 @@ export function BottomBar({
   shootDisabled: boolean
   shutterLabel: string
   onHome: () => void
-  onMenu: () => void
-  menuOpen: boolean
-  /** Demandes d'ami reçues. */
-  menuBadge: number
-  onProfile: () => void
-  profileActive: boolean
-  profileName: string
+  onOpen: (pane: Exclude<Pane, 'viseur'>) => void
+  /** Notifications non lues et demandes d'ami reçues (pastille sur Amis). */
+  friendsBadge: number
 }) {
   const navRef = useRef<HTMLElement | null>(null)
-  const menuRef = useRef<HTMLButtonElement>(null)
-  const profileRef = useRef<HTMLButtonElement>(null)
-  const initial = profileName.trim().charAt(0).toUpperCase() || '?'
+  const tabRefs = {
+    carte: useRef<HTMLButtonElement>(null),
+    amis: useRef<HTMLButtonElement>(null),
+    photos: useRef<HTMLButtonElement>(null),
+    profil: useRef<HTMLButtonElement>(null),
+  }
   const native = useGlassButton(navRef, {
     label: 'Navigation',
     bar: {
-      items: [
-        { ref: menuRef, icon: 'grid', badge: menuBadge, active: menuOpen },
-        { ref: profileRef, initial, active: profileActive },
-      ],
+      items: TABS.map((t) => ({
+        ref: tabRefs[t.pane] as RefObject<HTMLElement | null>,
+        symbol: pane === t.pane ? t.activeSymbol : t.symbol,
+        active: pane === t.pane,
+        badge: t.pane === 'amis' ? friendsBadge : undefined,
+      })),
     },
   })
   const setRefs = (el: HTMLElement | null) => {
@@ -64,22 +74,30 @@ export function BottomBar({
     if (typeof ref === 'function') ref(el)
     else if (ref) ref.current = el
   }
-  return (
-    <nav ref={setRefs} className={`bottom-nav${away ? ' away' : ''}${native ? ' glass-native' : ''}`} aria-label="Navigation">
+  const tab = (t: (typeof TABS)[number]) => {
+    const badge = t.pane === 'amis' ? friendsBadge : 0
+    return (
       <button
-        ref={menuRef}
+        key={t.pane}
+        ref={tabRefs[t.pane]}
         type="button"
-        className={`nav-item nav-menu${menuOpen ? ' active' : ''}`}
-        aria-label={menuBadge ? `Menu (${menuBadge} demande${menuBadge > 1 ? 's' : ''} d’ami)` : 'Menu'}
-        aria-expanded={menuOpen}
+        className={`nav-item nav-${t.pane}${pane === t.pane ? ' active' : ''}`}
+        aria-label={badge ? `${t.label} (${badge} nouveauté${badge > 1 ? 's' : ''})` : t.label}
+        aria-current={pane === t.pane ? 'page' : undefined}
         onClick={() => {
           haptic('tick')
-          onMenu()
+          onOpen(t.pane)
         }}
       >
-        <Icon name="grid" size={26} />
-        {!!menuBadge && <span className="round-badge">{menuBadge > 99 ? '99+' : menuBadge}</span>}
+        <Icon name={t.icon} size={26} />
+        {!!badge && <span className="round-badge">{badge > 99 ? '99+' : badge}</span>}
       </button>
+    )
+  }
+  return (
+    <nav ref={setRefs} className={`bottom-nav${away ? ' away' : ''}${native ? ' glass-native' : ''}`} aria-label="Navigation">
+      {tab(TABS[0])}
+      {tab(TABS[1])}
       <div className="nav-shutter">
         <Shutter
           visibility={visibility}
@@ -95,21 +113,8 @@ export function BottomBar({
           }}
         />
       </div>
-      <button
-        ref={profileRef}
-        type="button"
-        className={`nav-item nav-profile${profileActive ? ' active' : ''}`}
-        aria-label="Mon profil"
-        aria-current={profileActive ? 'page' : undefined}
-        onClick={() => {
-          haptic('tick')
-          onProfile()
-        }}
-      >
-        <span className="nav-avatar" aria-hidden="true">
-          {initial}
-        </span>
-      </button>
+      {tab(TABS[2])}
+      {tab(TABS[3])}
     </nav>
   )
 }

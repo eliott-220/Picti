@@ -1,41 +1,44 @@
 import { useEffect, useMemo } from 'react'
 import { Icon } from '../components/Icon'
-import { EmptyState, RoundButton, Thumb } from '../components/ui'
+import { EmptyState, Thumb } from '../components/ui'
 import { registerThumbs } from '../data/imageUrls'
 import { groupNotifications, notificationParts, notificationText } from '../data/notifications'
 import { useStore } from '../data/storeContext'
 import { formatDateTime } from '../data/types'
-import { goBack, navigate } from '../router'
+import { navigate } from '../router'
 
-/** Notifications : qui a aimé ou capturé mes photos (likes d'une même photo regroupés). */
-export function Notifications() {
+/**
+ * Notifications : qui a aimé ou capturé mes photos (likes d'une même photo regroupés). Depuis 0.23.1, en
+ * tête de l'onglet Amis (plus d'écran à part ni de cloche au viseur) ; relues quand l'onglet s'affiche.
+ */
+export function NotificationList({ active }: { active: boolean }) {
   const { notifications, markNotificationsRead, reloadNotifications } = useStore()
   const groups = useMemo(() => groupNotifications(notifications), [notifications])
   const unread = groups.filter((g) => g.unread)
 
   useEffect(() => {
-    void reloadNotifications().catch(() => undefined)
-  }, [reloadNotifications])
+    if (active) void reloadNotifications().catch(() => undefined)
+  }, [active, reloadNotifications])
   useEffect(() => {
     registerThumbs(groups.filter((g) => g.thumbPath).map((g) => ({ id: g.photoId, thumbPath: g.thumbPath! })))
   }, [groups])
 
   return (
-    <main className="screen page">
-      <header className="card red page-header compact">
-        <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />
-        <h1 className="display">Notifications</h1>
+    <section className="notif-section" aria-labelledby="notifications-titre">
+      <div className="notif-head">
+        <h2 className="section-title" id="notifications-titre">
+          Notifications{unread.length ? ` (${unread.length})` : ''}
+        </h2>
         {unread.length > 0 && (
           <button
             type="button"
-            className="btn small light notif-read-all"
+            className="btn small ghost notif-read-all"
             onClick={() => void markNotificationsRead(unread.flatMap((g) => g.ids))}
           >
             Tout marquer comme lu
           </button>
         )}
-      </header>
-      <section className="card white">
+      </div>
         {groups.length ? (
           <ul className="notif-list">
             {groups.map((g) => (
@@ -79,9 +82,8 @@ export function Notifications() {
             ))}
           </ul>
         ) : (
-          <EmptyState icon="bell">Quand quelqu’un aimera ou capturera l’une de vos photos, vous le verrez ici.</EmptyState>
+          <EmptyState icon="bell">Quand quelqu’un aimera ou capturera l’une de tes photos, tu le verras ici.</EmptyState>
         )}
-      </section>
-    </main>
+    </section>
   )
 }

@@ -5,8 +5,11 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 export type Route =
   | { name: 'accueil' }
-  /** `#/profil/amis` : directement sur « Mes amis ». */
-  | { name: 'profil'; section?: 'amis' }
+  | { name: 'profil' }
+  /** Onglet Amis de la barre (0.23.1) : notifications, puis amis ; anciennes adresses `#/profil/amis`, `#/notifications`. */
+  | { name: 'amis' }
+  /** Onglet Mes photos de la barre (0.23.1). */
+  | { name: 'photos' }
   | { name: 'chasses' }
   | { name: 'proximite' }
   | { name: 'carte' }
@@ -19,7 +22,6 @@ export type Route =
   | { name: 'ami'; code: string }
   /** Galerie de toutes les photos du lieu d'une photo. */
   | { name: 'galerie'; id: string }
-  | { name: 'notifications' }
   /** Viseur avec la photo à reproduire en calque. */
   | { name: 'reproduire'; id: string }
   /** Profil public d'un utilisateur. */
@@ -35,7 +37,12 @@ export function parseHash(hash: string): Route {
   const [head, id, sub] = parts
   switch (head) {
     case 'profil':
-      return id === 'amis' ? { name: 'profil', section: 'amis' } : { name: 'profil' }
+      return id === 'amis' ? { name: 'amis' } : { name: 'profil' }
+    case 'amis':
+    case 'notifications':
+      return { name: 'amis' }
+    case 'photos':
+      return { name: 'photos' }
     case 'chasses':
       return { name: 'chasses' }
     case 'proximite':
@@ -53,8 +60,6 @@ export function parseHash(hash: string): Route {
     case 'reproduire':
     case 'personne':
       return id ? { name: head, id } : { name: 'accueil' }
-    case 'notifications':
-      return { name: 'notifications' }
     case 'tutoriel':
       return { name: 'tutoriel' }
     case 'parametres':
@@ -101,6 +106,11 @@ let lastNavigation: 'push' | 'replace' | 'pop' = 'push'
 
 export function navigationKind(): 'push' | 'replace' | 'pop' {
   return lastNavigation
+}
+
+/** Profondeur de l'entrée courante de l'historique (pile des écrans gardés montés, `screenStack.ts`). */
+export function currentDepth(): number {
+  return depth
 }
 
 /** Note la profondeur (et `mark`) dans l'entrée courante de l'historique. */

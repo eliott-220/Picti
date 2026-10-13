@@ -127,4 +127,17 @@ describe('boutons Liquid Glass', () => {
     })
     for (const icon of ['globe', 'friends', 'lock'] as const) expect(glassSymbol(icon)).toBeTruthy()
   })
+
+  it('barre à cinq boutons (0.23.1) : symboles donnés directement, l’écran affiché en plein', () => {
+    const bar = { x: 16, y: 760, width: 358, height: 64 }
+    expect(
+      barItemSpecs(bar, [
+        { symbol: 'map', rect: { x: 30, y: 770, width: 48, height: 48 } },
+        { symbol: 'person.fill', active: true, rect: { x: 300, y: 770, width: 48, height: 48 } },
+      ]),
+    ).toEqual([
+      { x: 14, y: 10, width: 48, height: 48, symbol: 'map', initial: null, badge: null, active: false },
+      { x: 284, y: 10, width: 48, height: 48, symbol: 'person.fill', initial: null, badge: null, active: true },
+    ])
+  })
 })

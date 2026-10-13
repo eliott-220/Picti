@@ -5,16 +5,14 @@ import { useStore } from '../data/storeContext'
 import { navigate } from '../router'
 
 /**
- * Menu (bouton 4 carrés de la barre, 0.23.0) : feuille Explorer. Grille 2 × 2 — À proximité, Rechercher,
- * Mes chasses, Amis — puis « Carte du monde » (le même écran que le glissé vers la droite, pour qui ne
- * connaît pas le geste). Mon profil a son bouton dans la barre ; compte, tutoriel, version et réglages
- * sont dans Mon profil › Paramètres.
+ * Menu (bouton 4 carrés au-dessus de la barre, sur le viseur seulement depuis 0.23.1) : feuille Explorer.
+ * Grille 2 × 2 — À proximité, Rechercher, Mes chasses, Paramètres. Carte, Amis, Mes photos et Profil ont
+ * leur bouton dans la barre.
  */
-export function MenuSheet({ onClose, onMap, onFriends }: { onClose: () => void; onMap: () => void; onFriends: () => void }) {
-  const { photos, nearby, captures, isMine, friends } = useStore()
+export function MenuSheet({ onClose }: { onClose: () => void }) {
+  const { photos, nearby, captures, isMine } = useStore()
   const captured = new Set(captures.map((c) => c.photoId))
   const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
-  const requests = friends.filter((f) => f.status === 'pending' && !f.outgoing).length
   const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
   const tiles: { icon: IconName; label: string; detail: string; open: () => void; badge?: number }[] = [
@@ -31,13 +29,7 @@ export function MenuSheet({ onClose, onMap, onFriends }: { onClose: () => void; 
       detail: captured.size ? `${plural(captured.size, 'capture')}` : 'En cours et capturées',
       open: () => navigate('/chasses'),
     },
-    {
-      icon: 'friends',
-      label: 'Amis',
-      detail: requests ? `${plural(requests, 'demande')} à accepter` : 'Inviter par lien ou QR code',
-      open: onFriends,
-      badge: requests,
-    },
+    { icon: 'settings', label: 'Paramètres', detail: 'Mode par défaut, compte, tutoriel', open: () => navigate('/parametres') },
   ]
 
   return (
@@ -49,7 +41,14 @@ export function MenuSheet({ onClose, onMap, onFriends }: { onClose: () => void; 
       <ul className="explorer-grid">
         {tiles.map((t) => (
           <li key={t.label}>
-            <button type="button" className="explorer-tile" onClick={t.open}>
+            <button
+              type="button"
+              className="explorer-tile"
+              onClick={() => {
+                onClose()
+                t.open()
+              }}
+            >
               <span className="explorer-icon">
                 <Icon name={t.icon} size={26} />
                 {!!t.badge && (
@@ -64,13 +63,6 @@ export function MenuSheet({ onClose, onMap, onFriends }: { onClose: () => void; 
           </li>
         ))}
       </ul>
-      <button type="button" className="explorer-row" onClick={onMap}>
-        <Icon name="compass" />
-        <span>
-          <strong>Carte du monde</strong>
-          <small>Ou glisse vers la droite sur le viseur</small>
-        </span>
-      </button>
       <p className="explorer-footer">PICTI {APP_NUMBER}</p>
     </Sheet>
   )

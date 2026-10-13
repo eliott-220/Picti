@@ -475,7 +475,7 @@ export default function WorldMap({
       {scope === 'amis' && !hasFriends && !selection && (
         <div className="map-no-friends" role="status">
           <span>Ajoutez des amis pour voir leurs photos</span>
-          <button type="button" className="btn small" onClick={() => (onFriends ? onFriends() : navigate('/profil/amis'))}>
+          <button type="button" className="btn small" onClick={() => (onFriends ? onFriends() : navigate('/amis'))}>
             Mes amis
           </button>
         </div>

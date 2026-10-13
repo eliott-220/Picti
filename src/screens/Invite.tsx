@@ -36,7 +36,7 @@ export function Invite({ code }: { code: string }) {
     setBusy(true)
     try {
       toast(await requestFriend(person))
-      navigate('/profil/amis', { replace: true })
+      navigate('/amis', { replace: true })
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Demande impossible')
       setBusy(false)
@@ -53,7 +53,7 @@ export function Invite({ code }: { code: string }) {
       <>
         <h1 className="display">C’est votre lien</h1>
         <p>Partagez-le : vos amis qui l’ouvrent pourront vous ajouter sur PICTI.</p>
-        <button type="button" className="btn" onClick={() => navigate('/profil/amis', { replace: true })}>
+        <button type="button" className="btn" onClick={() => navigate('/amis', { replace: true })}>
           Mes amis
         </button>
       </>
@@ -79,7 +79,7 @@ export function Invite({ code }: { code: string }) {
         {link?.status === 'accepted' ? (
           <>
             <p>est déjà votre ami sur PICTI.</p>
-            <button type="button" className="btn" onClick={() => navigate('/profil/amis', { replace: true })}>
+            <button type="button" className="btn" onClick={() => navigate('/amis', { replace: true })}>
               Mes amis
             </button>
           </>

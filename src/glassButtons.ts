@@ -26,6 +26,7 @@ const SYMBOLS: Partial<Record<IconName, string>> = {
   /** Nord de la carte (tourné avec elle). */
   arrow: 'location.north.fill',
   qr: 'qrcode',
+  map: 'map',
   /** Modes du bouton rouge (Public · Amis · Privé). */
   globe: 'globe',
   friends: 'person.2.fill',
@@ -51,6 +52,8 @@ export function badgeText(count?: number): string | null {
 export interface GlassBarItem {
   ref: RefObject<HTMLElement | null>
   icon?: IconName
+  /** Symbole SF donné directement (ex. « map.fill » pour l'écran affiché), sinon celui de `icon`. */
+  symbol?: string
   /** Avatar : initiale du prénom. */
   initial?: string
   badge?: number
@@ -109,8 +112,8 @@ export function barItemSpecs(bar: Rect, items: readonly MeasuredBarItem[]): Glas
             y: half(it.rect.y - bar.y),
             width: half(it.rect.width),
             height: half(it.rect.height),
-            symbol: it.icon ? glassSymbol(it.icon) : null,
-            initial: it.icon ? null : (it.initial ?? '?'),
+            symbol: it.symbol ?? (it.icon ? glassSymbol(it.icon) : null),
+            initial: it.symbol || it.icon ? null : (it.initial ?? '?'),
             badge: badgeText(it.badge),
             active: !!it.active,
           },
