@@ -126,6 +126,8 @@ describe('boutons Liquid Glass', () => {
       items: null,
     })
     for (const icon of ['globe', 'friends', 'lock'] as const) expect(glassSymbol(icon)).toBeTruthy()
+    // Hors du viseur (0.23.2) : appareil photo.
+    expect(toSpec('s', rect, { icon: 'camera', label: 'Revenir au viseur', shutter: {} }, true)).toMatchObject({ kind: 'shutter', symbol: 'camera.fill' })
   })
 
   it('barre à cinq boutons (0.23.1) : symboles donnés directement, l’écran affiché en plein', () => {

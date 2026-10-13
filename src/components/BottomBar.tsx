@@ -16,12 +16,13 @@ const TABS: { pane: Exclude<Pane, 'viseur'>; icon: IconName; label: string; symb
 
 /**
  * Barre flottante du bas (0.23.0, cinq boutons depuis 0.23.1, façon Instagram) : pilule décollée des
- * bords, sur les cinq écrans qu'elle ouvre — Carte · Amis · bouton rouge (viseur) · Mes photos · Profil,
- * dans l'ordre où ils sont côte à côte (on passe de l'un au voisin en glissant). Sur le viseur, le bouton
- * rouge est grand, il déborde au-dessus de la pilule et prend la photo (appui long : choix du mode) ;
- * ailleurs (`away`), réduit à la taille des autres boutons, il ramène au viseur. Le passage grand ↔
- * réduit suit `--away` (0 → 1), animé ou posé par le glissé des écrans (`usePanes`). Dans l'app iOS 26+ :
- * vraie pilule Liquid Glass, pictogrammes dessinés dedans (l'écran affiché en plein, en rouge).
+ * côtés, à la hauteur de celle d'Instagram (0.23.2), sur les cinq écrans qu'elle ouvre — Carte · Amis ·
+ * bouton rouge (viseur) · Mes photos · Profil, dans l'ordre où ils sont côte à côte (on passe de l'un au
+ * voisin en glissant). Le bouton rouge reste dans la pilule, de la taille des autres boutons (0.23.2) :
+ * sur le viseur, symbole du mode, appui = photo (appui long : choix du mode) ; ailleurs (`away`),
+ * appareil photo, appui = retour au viseur — les deux symboles se relaient en fondu au rythme de
+ * `--away` (0 → 1), animé ou posé par le glissé des écrans (`usePanes`). Dans l'app iOS 26+ : vraie
+ * pilule Liquid Glass, pictogrammes dessinés dedans (l'écran affiché en plein, en rouge).
  */
 export function BottomBar({
   ref,
@@ -107,6 +108,8 @@ export function BottomBar({
           warn={false}
           label={shutterLabel}
           reduced={away}
+          iconSize={24}
+          awayIcon="camera"
           onHome={() => {
             haptic('tick')
             onHome()

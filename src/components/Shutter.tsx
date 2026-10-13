@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import { VISIBILITY_SHORT, VISIBLE_BY, type Visibility } from '../data/types'
 import { useGlassButton } from '../glassButtons'
 import { haptic } from '../native'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 import {
   columnLift,
   columnOrder,
@@ -55,6 +55,8 @@ export function Shutter({
   label,
   reduced = false,
   onHome,
+  iconSize = 36,
+  awayIcon,
 }: {
   visibility: Visibility
   /** Mode choisi, une fois le doigt relâché (seulement s'il a changé). */
@@ -66,6 +68,13 @@ export function Shutter({
   label: string
   reduced?: boolean
   onHome?: () => void
+  /** Taille du symbole dans le cercle (px). */
+  iconSize?: number
+  /**
+   * Barre du bas (0.23.2) : symbole du bouton hors du viseur (appareil photo) ; il remplace celui du mode
+   * en fondu, au rythme de `--away` (posé par la barre, et par le glissé des écrans).
+   */
+  awayIcon?: IconName
 }) {
   const ref = useRef<HTMLButtonElement>(null)
   const press = useRef<Press | null>(null)
@@ -101,7 +110,7 @@ export function Shutter({
   const centered = pick ? visibilityAtLift(pick.from, pick.lift) : visibility
   const fullLabel = reduced ? 'Revenir au viseur' : `${label} · visible par ${VISIBLE_BY[centered]}`
   const native = useGlassButton(ref, {
-    icon: VISIBILITY_ICON[centered],
+    icon: reduced && awayIcon ? awayIcon : VISIBILITY_ICON[centered],
     label: fullLabel,
     disabled,
     shutter: { warn: warn && !reduced },
@@ -198,7 +207,16 @@ export function Shutter({
         }
       >
         {/* Pendant le choix, le symbole du cercle est celui de la colonne. */}
-        {!pick && <Icon name={VISIBILITY_ICON[visibility]} size={36} />}
+        {awayIcon ? (
+          <>
+            <span className="shutter-icon mode">{!pick && <Icon name={VISIBILITY_ICON[visibility]} size={iconSize} />}</span>
+            <span className="shutter-icon away">
+              <Icon name={awayIcon} size={iconSize} />
+            </span>
+          </>
+        ) : (
+          !pick && <Icon name={VISIBILITY_ICON[visibility]} size={iconSize} />
+        )}
         {warn && !reduced && (
           <span className="shutter-warn" aria-hidden="true">
             <Icon name="warning" size={16} />
@@ -220,7 +238,7 @@ export function Shutter({
                   filter: `blur(${look.blur}px) drop-shadow(0 1px 4px rgb(0 0 0 / 0.7))`,
                 }}
               >
-                <Icon name={VISIBILITY_ICON[v]} size={36} />
+                <Icon name={VISIBILITY_ICON[v]} size={Math.round(iconSize * 1.25)} />
               </span>
             )
           })}

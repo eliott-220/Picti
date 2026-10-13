@@ -27,6 +27,7 @@ const SYMBOLS: Partial<Record<IconName, string>> = {
   arrow: 'location.north.fill',
   qr: 'qrcode',
   map: 'map',
+  camera: 'camera.fill',
   /** Modes du bouton rouge (Public · Amis · Privé). */
   globe: 'globe',
   friends: 'person.2.fill',

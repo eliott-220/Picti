@@ -16,9 +16,11 @@
   --shadow: 0 6px 20px rgb(0 0 0 / 0.18);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Barre flottante du bas (0.23.0) : hauteur, et place à laisser sous le contenu des écrans où elle est. */
+  /* Barre flottante du bas (0.23.0) : hauteur, écart au bas de l'écran (à la hauteur d'Instagram, juste
+     au-dessus du trait du geste d'accueil d'iOS, 0.23.2), et place à laisser sous le contenu des écrans. */
   --bar-h: 64px;
-  --bar-space: calc(var(--safe-bottom) + 12px + var(--bar-h));
+  --bar-bottom: max(10px, calc(var(--safe-bottom) - 12px));
+  --bar-space: calc(var(--bar-bottom) + var(--bar-h));
   --font: 'Outfit Variable', 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color-scheme: light;
 }
@@ -4149,14 +4151,14 @@ html.picti-ar .tutorial {
   initial-value: 0;
 }
 
-/* Pilule décollée des bords (16 px sur les côtés, 12 px au-dessus de la zone du geste d'accueil), en
-   verre : translucide et floutée sur le site et Android, vrai Liquid Glass dans l'app iOS 26+. */
+/* Pilule décollée des côtés (16 px), en bas comme celle d'Instagram (`--bar-bottom`), en verre :
+   translucide et floutée sur le site et Android, vrai Liquid Glass dans l'app iOS 26+. */
 .bottom-nav {
   --away: 0;
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: calc(var(--safe-bottom) + 12px);
+  bottom: var(--bar-bottom);
   z-index: 30;
   display: grid;
   /* Carte · Amis · bouton rouge · Mes photos · Profil (0.23.1). */
@@ -4171,7 +4173,7 @@ html.picti-ar .tutorial {
   -webkit-backdrop-filter: blur(22px) saturate(1.6);
   backdrop-filter: blur(22px) saturate(1.6);
   color: var(--ink);
-  transition: --away 0.22s cubic-bezier(0.34, 1.45, 0.55, 1);
+  transition: --away 0.2s ease-out;
   touch-action: none;
 }
 
@@ -4216,23 +4218,40 @@ html.picti-ar .tutorial {
   stroke-width: 2.4;
 }
 
-/* Emplacement du bouton rouge : grand sur le viseur (76 px, il déborde de 20 px au-dessus de la pilule),
-   réduit ailleurs (44 px, centré dans la pilule). */
+/* Bouton rouge (0.23.2) : dans la pilule, de la taille des autres boutons (48 px), sans dépasser. Sur
+   le viseur, le symbole du mode ; ailleurs, un appareil photo — en fondu au rythme de `--away`. */
 .nav-shutter {
-  position: relative;
-  width: 76px;
+  display: grid;
+  place-items: center;
+  width: 56px;
   height: var(--bar-h);
 }
 
-.nav-shutter .shutter-group {
-  position: absolute;
-  left: 0;
-  top: -20px;
-  transform: translateY(calc(var(--away) * 14px)) scale(calc(1 - var(--away) * 0.42));
+.nav-shutter .shutter {
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 3px 10px rgb(235 12 12 / 0.35);
 }
 
-.nav-shutter .shutter {
-  box-shadow: 0 6px calc(24px - var(--away) * 18px) rgb(235 12 12 / calc(0.45 - var(--away) * 0.25));
+.nav-shutter .shutter-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.nav-shutter .shutter-icon.mode {
+  opacity: calc(1 - var(--away));
+}
+
+.nav-shutter .shutter-icon.away {
+  opacity: var(--away);
+}
+
+/* Nom du mode pendant le choix : à droite du cercle, au-dessus de la pilule. */
+.nav-shutter .shutter-label {
+  top: -50px;
+  left: 30px;
 }
 
 /* App iOS 26+ : la pilule, Menu, l'avatar et le bouton rouge sont dessinés par le natif ; les éléments
