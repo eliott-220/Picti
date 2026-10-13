@@ -526,6 +526,37 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     boutons (`.nav-shutter`), plus de grossissement ; son symbole : celui du mode sur le viseur, un
     **appareil photo** ailleurs (`Shutter awayIcon`, deux symboles en fondu au rythme de `--away` ; natif :
     `camera.fill`), le mode revient en arrivant sur le viseur.
+  - **0.23.3 (retours d'Eliott du 13/10, prompt `PROMPT-0.023.3.md`)** :
+    - **Bouton Réglages de Mon profil réparé** — cause : dans la pile des écrans, un écran caché gardait
+      son onglet affiché visible (`.shell-pane.shown { visibility: visible }` l'emportait sur le
+      `visibility: hidden` de `.screen-slot.covered`) et, en z-index 26 dans le même plan que tout le
+      reste, **par-dessus** l'écran ouvert depuis lui : Paramètres depuis Mon profil (dans l'app iOS, seuls
+      les boutons en verre natif — retour et les trois pastilles — se dessinaient au-dessus du profil figé),
+      mais aussi la fiche d'une photo ouverte depuis Mes photos ou Amis. Correctif : chaque écran de la
+      pile est un calque à part (`.screen-slot { isolation: isolate }`) et un écran caché cache tout son
+      contenu (`.screen-slot.covered *`). Le menu Explorer, qui doit rester **sous** la barre, est
+      désormais rendu dans l'écran (`Sheet inPlace`) et non plus à la racine.
+    - **Hors du viseur, appareil photo seul** : plus de rond rouge ; le pictogramme est dessiné comme les
+      autres de la barre (même couleur, 26 px). Passage animé au rythme de `--away` (0,24 s, ou sous le
+      doigt pendant un glissé, en arrière s'il est annulé) : le rond (`.nav-shutter .shutter::before`)
+      rétrécit et s'efface, le symbole du mode s'efface en tournant, l'appareil photo arrive en tournant
+      dans l'autre sens ; « Réduire les animations » : simple fondu (seule transition gardée dans ce mode).
+      Formules : `awayLook` (`src/components/awayLook.ts`, testé). **App iOS 26+** : le natif lit `--away`
+      à chaque image (`GlassOptions.away`) ; le bouton rouge natif reçoit `disc` / `look` (opacité,
+      échelle, rotation) et l'appareil photo est un **élément de la pilule** (`GlassBarItem.away`,
+      symbole SF `camera`, `alpha` / `scale` / `angle`), dessiné dans le verre comme les autres.
+    - **Pages qui se poussent** (même durée et même courbe partout : `PUSH_MS` 300 ms,
+      `PUSH_EASING`, `swipeOpen.ts`) — **entre deux onglets qui ne sont pas le viseur** (`paneMove(…).push`,
+      `pushOffsets`, `panes.ts`, testé) : le nouveau arrive du côté où il est dans la barre et pousse
+      l'ancien, collés, au doigt comme par la barre ; la barre ne bouge pas. **Entre deux pages de la pile**
+      (`slotTransition`, `screenStack.ts`, testé ; animations Web dans `Screens`, `App.tsx`) : en avançant
+      ou en remplaçant, la nouvelle arrive de droite et pousse l'ancienne (onglet compris, avec sa barre) ;
+      au retour par la flèche de l'app (`goBack` → `navigationKind() === 'back'`), l'ancienne revient de
+      gauche ; l'écran qui part reste visible et non `inert` le temps du passage (ses boutons en verre
+      natif le suivent) mais n'est plus touché ; s'il a quitté la pile, il est rendu en plus puis démonté.
+      **Inchangé** : tout ce qui va vers le viseur ou en part (la page passe par-dessus, le viseur
+      réapparaît dessous), et le retour du système (`pop` : geste d'iOS, bouton du navigateur ou
+      d'Android), qu'iOS a déjà animé. « Réduire les animations » : fondu pour les pages de la pile.
   - **Pile des écrans (0.23.1, `src/screenStack.ts`, testé)** : l'écran qu'on quitte en avançant reste
     monté, caché (`.screen-slot.covered`, `inert`) ; au retour (flèche, geste d'iOS, bouton du navigateur)
     il réapparaît tel quel, tout de suite (défilement compris) — plus d'écran blanc le temps de le
@@ -595,7 +626,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - **Menu Explorer** (`MenuSheet.tsx`, feuille `.sheet-layer.explorer` sous la barre) : grille 2 × 2 À
     proximité · Rechercher · Mes chasses · Amis (pastille des demandes → `#/profil/amis`), « Carte du
     monde » (même écran que le glissé), pied « PICTI 0.023.0 ». Les feuilles (`Sheet`) sont rendues à la
-    racine (`createPortal` dans `#root`, z-index 35) : une feuille ouverte depuis la carte ou le profil
+    racine (`createPortal` dans `#root`, z-index 35 ; sauf Explorer depuis 0.23.3, rendue dans l'écran) : une feuille ouverte depuis la carte ou le profil
     passe au-dessus d'eux.
   - **Mon profil** (`Profile.tsx`) : avatar, pseudo, « n photos · n captures · n amis », onglets Mes
     photos (piles glissables) / Mes captures (`CaptureGrid`) / Mes amis (amis, invitations, demandes,
@@ -970,6 +1001,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.23.3 : bouton Réglages de Mon profil réparé (l'onglet restait par-dessus les Paramètres, et par-dessus toute page ouverte depuis un onglet) ; hors du viseur, plus de rond rouge : appareil photo seul, comme les autres pictogrammes, avec une petite animation dans les deux sens (au doigt aussi) ; pages qui se poussent entre elles (onglets et pages), sauf vers / depuis le viseur.
 - 0.23.2 : barre plus basse (hauteur d'Instagram) ; bouton rouge dans la pilule, de la taille des autres boutons ; appareil photo hors du viseur, symbole du mode sur le viseur.
 - 0.23.1 : barre à cinq boutons (Carte · Amis · bouton rouge · Mes photos · Profil), cinq écrans côte à côte dans cet ordre (glisser = écran voisin), pas de flèche retour sur eux ; pictogramme du profil au lieu de l'initiale ; onglet Amis avec les notifications au-dessus des amis (plus de cloche au viseur) ; onglet Mes photos ; Menu 4 carrés au-dessus de la barre, sur le viseur seulement ; pile des écrans : retour sans écran blanc.
 - 0.23.0 : barre flottante en bas (Menu · bouton rouge · avatar, vrai Liquid Glass dans l'app iOS 26+) ; carte à gauche du viseur en glissant (retour depuis le bord droit ou par le bouton rouge réduit), profil à droite, les trois gardés montés ; choix du mode en colonne au-dessus du bouton rouge ; double appui = caméra avant / arrière (plus de bouton selfie) ; « + » d'import sur la carte (photo sans position posée au centre de la carte) ; menu Explorer 2 × 2 ; Mon profil à onglets + page Paramètres (mode par défaut, compte, Premium, tutoriel, version, suivi visuel caché) ; fiche : « Retrouver » · « Reproduire » · Partager (feuille du système avec le fichier, remplace « Enregistrer ») ; retirer une capture. Plugins Capacitor Share et Filesystem. Migration de nettoyage des notifications proposée, pas appliquée.
@@ -1030,3 +1062,4 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - [2026-10-12 — Tutoriel du premier lancement : photo d'essai, puis la vraie photo la plus proche (0.22.0)](claude/picti/2026-10-12-photo-essai.md)
 - [2026-10-12 — Barre du bas, carte en glissé, double appui, Paramètres, partager, retirer une capture (0.23.0)](claude/picti/2026-10-12-barre-du-bas.md)
 - [2026-10-13 — Cinq onglets dans la barre, glissés entre eux, pile des écrans (0.23.1)](claude/picti/2026-10-13-cinq-onglets.md)
+- [2026-10-13 — Réglages réparés, appareil photo seul hors du viseur, pages qui se poussent (0.23.3)](claude/picti/2026-10-13-reglages-et-transitions.md)
