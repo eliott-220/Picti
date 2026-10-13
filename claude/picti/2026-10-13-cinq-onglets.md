@@ -48,5 +48,18 @@ page plutôt qu'un écran blanc** avant de charger.
 - La cloche du viseur est retirée (les notifications sont dans Amis, avec la pastille).
 - Les notifications gardent leur texte au vouvoiement (« aime votre photo »).
 
+## 0.23.2 (même jour)
+Eliott : « la barre est un petit peu trop haute, mets-la au même niveau que sur Insta et BeReal ; le rond
+rouge ne doit pas dépasser la barre, c'est moche, fais comme les autres pictogrammes ; quand on n'est pas
+sur l'accueil, son pictogramme devient un appareil photo, c'est en revenant sur cette page qu'il redevient
+Public, Privé ou Amis ».
+- Pilule descendue : bas à 22 pt du bas de l'écran sur iPhone (au lieu de 46), juste au-dessus du trait du
+  geste d'accueil, comme la barre d'Instagram ; 10 px sur un écran sans geste.
+- Bouton rouge : 48 px dans la pilule, comme les autres boutons ; symbole du mode sur le viseur, appareil
+  photo ailleurs (fondu au rythme du glissé ; `camera.fill` dans l'app iOS).
+- Vérifié : 416 tests, banc site (51 contrôles) et iPhone simulé (58) tout vert avec les nouveaux contrôles
+  (position de la barre, bouton dans la pilule et de la taille des autres, symbole du mode / appareil
+  photo, natif compris) ; [captures](./2026-10-13-barre-0.23.2.jpg). Installée sur l'iPhone d'Eliott.
+
 ## Branche
-`claude/barre-du-bas` (0.23.0 puis 0.23.1). Pas fusionnée dans `main`.
+`claude/barre-du-bas` (0.23.0, 0.23.1, 0.23.2). Pas fusionnée dans `main`.
