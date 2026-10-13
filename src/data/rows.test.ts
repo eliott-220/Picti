@@ -31,6 +31,7 @@ const photo: GeoPhoto = {
   likesCount: 0,
   versionOf: null,
   versionsCount: 0,
+  parentDeleted: false,
 }
 
 const asRow = (p: GeoPhoto): PhotoRow => ({
@@ -43,6 +44,14 @@ const asRow = (p: GeoPhoto): PhotoRow => ({
 })
 
 describe('conversion photo ⇄ ligne', () => {
+  it('originale supprimée (0.24.0) : lue depuis la base, jamais écrite par l’app', () => {
+    expect(rowToPhoto({ ...asRow(photo), version_of: null, parent_deleted: true }).parentDeleted).toBe(true)
+    // Base sans la migration du socle : la colonne n'existe pas encore.
+    const { parent_deleted: _, ...old } = asRow(photo)
+    expect(rowToPhoto(old as PhotoRow).parentDeleted).toBe(false)
+    expect('parent_deleted' in photoToRow({ ...photo, parentDeleted: true })).toBe(false)
+  })
+
   it('fait l’aller-retour d’une photo géocadrée', () => {
     expect(rowToPhoto(asRow(photo))).toEqual(photo)
   })

@@ -4963,3 +4963,247 @@ html.picti-ar .tutorial {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ---------- 0.24.0 : socle avant testeurs (signaler, bloquer, supprimer son compte, conditions) ---------- */
+
+/* Actions sensibles dans les feuilles « ⋯ » et les Paramètres : en rouge. */
+.btn.ghost.danger-text,
+.settings-row.danger strong,
+.settings-row.danger svg {
+  color: var(--red);
+}
+
+/* Feuille « Signaler » : motifs en liste, précisions facultatives, « Bloquer aussi ». */
+.report-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-sheet h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.report-intro {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.report-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.report-reasons legend {
+  margin-bottom: 4px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.report-reason {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--paper-2);
+}
+
+.report-reason.selected {
+  outline: 2px solid var(--red);
+}
+
+.report-reason input {
+  accent-color: var(--red);
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.report-reason span {
+  display: flex;
+  flex-direction: column;
+}
+
+.report-reason small,
+.report-details small {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.report-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.report-details textarea,
+.delete-confirm input {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 16px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.report-details small {
+  align-self: flex-end;
+}
+
+.report-block,
+.legal-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.report-block input,
+.legal-consent input {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--red);
+}
+
+.legal-consent a {
+  color: var(--red);
+}
+
+/* Utilisateurs bloqués. */
+.blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.blocked-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.blocked-list strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Supprimer mon compte. */
+.delete-account .card.white {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delete-list {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.delete-note {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.delete-confirm input {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Conditions d'utilisation et confidentialité. */
+.legal-text {
+  line-height: 1.55;
+  padding-bottom: calc(var(--safe-bottom) + 32px) !important;
+}
+
+.legal-text h2 {
+  margin: 24px 0 6px;
+  font-size: 19px;
+}
+
+.legal-text p,
+.legal-text ul {
+  margin: 0 0 8px;
+}
+
+.legal-text a {
+  color: var(--red);
+}
+
+.legal-draft {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #7a5200;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.legal-links {
+  margin-top: 16px !important;
+}
+
+/* Comptes existants : accord des conditions, une fois. */
+.terms-gate {
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 24px) 16px calc(var(--safe-bottom) + 24px);
+  background: var(--red);
+}
+
+.terms-gate .card.white {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 460px;
+  border-radius: 32px;
+}
+
+.terms-gate h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.terms-gate p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* Première photo publique. */
+.public-notice > svg {
+  color: var(--red);
+}
+
+.public-notice h2 {
+  margin: 0;
+  font-size: 22px;
+}

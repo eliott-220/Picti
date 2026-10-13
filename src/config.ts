@@ -19,3 +19,12 @@ export const APP_URL = 'https://picti.vercel.app'
 
 /** Rayon de recherche des photos à proximité (m). */
 export const NEARBY_RADIUS = 500
+
+/** Contact des conditions d'utilisation et de la confidentialité (choisi par Eliott le 13/10/2026). */
+export const CONTACT_EMAIL = 'devineliott@gmail.com'
+
+/**
+ * Version des conditions d'utilisation (0.24.0) : la même que dans la migration du socle (`accept_terms`,
+ * inscription). La changer redemande l'accord de tous les comptes.
+ */
+export const TERMS_VERSION = '2026-10-13'

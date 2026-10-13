@@ -4,11 +4,13 @@ import type { GeoPoint } from '../geo/geodesy'
 import { SPOT_RADIUS_MAX } from '../geo/spots'
 import { capVisibility, chooseParent, sameView } from '../geo/views'
 import { NEARBY_RADIUS } from '../config'
+import { isHiddenPhoto, useHiddenContent } from './hiddenContent'
 import { forgetImage, primeImage, registerImagePaths } from './imageUrls'
 import { friendState } from './friends'
 import { normalizeFriendCode } from './invite'
+import { confirmPublicPhoto } from './publicPhotoNotice'
 import { viewOf } from './photoSpots'
-import { getShotVisibility } from './shotVisibility'
+import { getShotVisibility, setShotVisibility } from './shotVisibility'
 import type { PhotoDraft } from './pipeline'
 import {
   PHOTO_SELECT,
@@ -212,7 +214,17 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     setLikeCounts((prev) => new Map(prev).set(photoId, Math.max(0, (prev.get(photoId) ?? known) + delta)))
   }, [])
 
-  const photos = useMemo(() => [...photoMap.values()].sort((a, b) => b.addedAt - a.addedAt), [photoMap])
+  // Photo signalée, compte bloqué (0.24.0) : retirés aussitôt, sans attendre que la base les filtre.
+  const hidden = useHiddenContent()
+  const photos = useMemo(
+    () => [...photoMap.values()].filter((p) => !isHiddenPhoto(p, hidden)).sort((a, b) => b.addedAt - a.addedAt),
+    [photoMap, hidden],
+  )
+  const shownFriends = useMemo(() => friends.filter((f) => !hidden.owners.has(f.userId)), [friends, hidden])
+  const shownNotifications = useMemo(
+    () => notifications.filter((n) => !hidden.owners.has(n.actorId) && !hidden.photos.has(n.photoId)),
+    [notifications, hidden],
+  )
   const myPhotos = useMemo(() => photos.filter((p) => p.owner === userId), [photos, userId])
   const isMine = useCallback((p: GeoPhoto) => p.owner === userId, [userId])
 
@@ -283,7 +295,15 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
     ) => {
       // Sans choix explicite : le mode du déclencheur (Public à la première ouverture).
       const chosen = options.visibility ?? getShotVisibility()
-      const { versionOf, visibility } = versionParent(draft, chosen, options.versionOf)
+      const parent = versionParent(draft, chosen, options.versionOf)
+      const versionOf = parent.versionOf
+      let visibility = parent.visibility
+      // Première photo publique (0.24.0) : la feuille d'avertissement, une seule fois ; « Passer en Amis »
+      // change aussi le mode des prochaines photos.
+      if (visibility === 'public') {
+        visibility = await confirmPublicPhoto(userId)
+        if (visibility === 'amis') setShotVisibility('amis')
+      }
       const { imagePath, thumbPath } = storagePaths(userId, draft.id, images.full.type || 'image/jpeg')
       const bucket = supabase.storage.from(PHOTO_BUCKET)
       const [up1, up2] = await Promise.all([
@@ -706,10 +726,10 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       nearby,
       captures,
       hunters,
-      friends,
+      friends: shownFriends,
       likes,
       likeCounts,
-      notifications,
+      notifications: shownNotifications,
       isMine,
       loadPhoto,
       refreshNearby,
@@ -746,10 +766,10 @@ export function StoreProvider({ userId, children }: { userId: string; children: 
       nearby,
       captures,
       hunters,
-      friends,
+      shownFriends,
       likes,
       likeCounts,
-      notifications,
+      shownNotifications,
       isMine,
       loadPhoto,
       refreshNearby,

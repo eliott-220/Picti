@@ -5,6 +5,8 @@ import { usePasswordRecovery, useSession } from './data/auth'
 import { takePendingInvite } from './data/invite'
 import { loadOnboardingDone, markOnboardingDone, onboardingDoneNow } from './data/onboarding'
 import { ArShotRefiner } from './components/ArShotRefiner'
+import { PublicPhotoNotice } from './components/PublicPhotoNotice'
+import { TermsGate } from './components/TermsGate'
 import { StoreProvider } from './data/store'
 import { useStore } from './data/storeContext'
 import { authLinkError, supabase } from './data/supabase'
@@ -12,6 +14,8 @@ import { isNative } from './native'
 import { goBack, navigate, useRoute, type Route } from './router'
 import { ScreenActiveContext, useScreenStack, type SlotTransition } from './screenStack'
 import { Auth, type AuthMode } from './screens/Auth'
+import { BlockedUsers } from './screens/BlockedUsers'
+import { DeleteAccount } from './screens/DeleteAccount'
 import { Gallery } from './screens/Gallery'
 import { Home } from './screens/Home'
 import { Hunt } from './screens/Hunt'
@@ -24,6 +28,7 @@ import { PhotoDetail } from './screens/PhotoDetail'
 import { Recaler } from './screens/Recaler'
 import { Reproduce } from './screens/Reproduce'
 import { Search } from './screens/Search'
+import { Legal } from './screens/Legal'
 import { Settings } from './screens/Settings'
 import { Tutorial } from './screens/Tutorial'
 
@@ -37,6 +42,10 @@ function initialTutorial(): 'pending' | 'show' | 'done' {
 }
 
 export default function App() {
+  const route = useRoute()
+  // Conditions d'utilisation et confidentialité (0.24.0) : lisibles sans compte (liens de l'inscription, du
+  // site pour App Store Connect) ; connecté, ce sont des pages de la pile comme les autres.
+  const legal = route.name === 'cgu' || route.name === 'confidentialite'
   const session = useSession()
   const [recovery, endRecovery] = usePasswordRecovery()
   const [tutorial, setTutorial] = useState(initialTutorial)
@@ -56,6 +65,7 @@ export default function App() {
   }, [session])
 
   if (session === undefined) return <Splash />
+  if (!session && legal) return <Legal privacy={route.name === 'confidentialite'} />
   // Un compte est obligatoire pour utiliser PICTI ; le tutoriel vient avant (une seule fois).
   if (!session) {
     if (tutorial === 'pending') return <Splash />
@@ -77,8 +87,11 @@ export default function App() {
   if (recovery) return <NewPassword onDone={endRecovery} />
   return (
     <StoreProvider key={session.user.id} userId={session.user.id}>
-      <Screens />
-      <ArShotRefiner />
+      <TermsGate userId={session.user.id} reading={legal ? <Legal privacy={route.name === 'confidentialite'} /> : null}>
+        <Screens />
+        <ArShotRefiner />
+        <PublicPhotoNotice />
+      </TermsGate>
     </StoreProvider>
   )
 }
@@ -205,6 +218,13 @@ function RouteScreen({ route }: { route: Route }) {
     case 'photos':
     case 'profil':
       return <Home pane={route.name} />
+    case 'cgu':
+    case 'confidentialite':
+      return <Legal privacy={route.name === 'confidentialite'} />
+    case 'bloques':
+      return <BlockedUsers />
+    case 'supprimer-compte':
+      return <DeleteAccount />
     case 'parametres':
       return <Settings />
     case 'ami':

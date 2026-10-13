@@ -230,6 +230,7 @@ export function PhotoTile({
     <button
       type="button"
       className={`tile tile-${size}${swipe ? ' tile-swipe' : ''}`}
+      data-photo-id={id}
       onClick={onClick}
       aria-label={label}
       style={swipe?.style}

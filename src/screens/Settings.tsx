@@ -28,8 +28,10 @@ function advancedUnlocked(): boolean {
 
 /**
  * Paramètres (0.23.0, Mon profil › ⚙️) : seulement les réglages qui existent déjà — mode par défaut des
- * photos, compte (pseudo, e-mail, Premium, déconnexion), tutoriel, à propos (version, focale, Recharger
- * sur le site) ; « Avancé » (suivi visuel) après 7 appuis sur la version.
+ * photos, compte (pseudo, e-mail, Premium, déconnexion ; « Supprimer mon compte » depuis 0.24.0),
+ * confidentialité (utilisateurs bloqués, 0.24.0), tutoriel, à propos (conditions d'utilisation et
+ * confidentialité, version, focale, Recharger sur le site) ; « Avancé » (suivi visuel) après 7 appuis sur la
+ * version.
  */
 export function Settings() {
   const { profile } = useStore()
@@ -112,6 +114,27 @@ export function Settings() {
           <button type="button" className="btn ghost settings-signout" onClick={() => void supabase.auth.signOut()}>
             Se déconnecter
           </button>
+          {/* 0.24.0 (règle 5.1.1 v d'Apple) : en rouge, en bas du groupe. */}
+          <button type="button" className="settings-row danger" onClick={() => navigate('/supprimer-compte')}>
+            <Icon name="trash" />
+            <span>
+              <strong>Supprimer mon compte</strong>
+              <small>Mes photos, captures, likes et amis sont effacés</small>
+            </span>
+          </button>
+        </div>
+
+        <div className="settings-group" aria-labelledby="reglages-confidentialite">
+          <h2 className="section-title" id="reglages-confidentialite">
+            Confidentialité
+          </h2>
+          <button type="button" className="settings-row" onClick={() => navigate('/bloques')}>
+            <Icon name="lock" />
+            <span>
+              <strong>Utilisateurs bloqués</strong>
+              <small>Débloquer quelqu’un</small>
+            </span>
+          </button>
         </div>
 
         <div className="settings-group" aria-labelledby="reglages-aide">
@@ -131,6 +154,18 @@ export function Settings() {
           <h2 className="section-title" id="reglages-a-propos">
             À propos
           </h2>
+          <button type="button" className="settings-row" onClick={() => navigate('/cgu')}>
+            <Icon name="flag" />
+            <span>
+              <strong>Conditions d’utilisation</strong>
+            </span>
+          </button>
+          <button type="button" className="settings-row" onClick={() => navigate('/confidentialite')}>
+            <Icon name="lock" />
+            <span>
+              <strong>Confidentialité</strong>
+            </span>
+          </button>
           <button type="button" className="settings-version" onClick={tapVersion} aria-label={formatVersion()}>
             {formatVersion()}
           </button>

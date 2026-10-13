@@ -30,6 +30,8 @@ export type Route =
   | { name: 'tutoriel' }
   /** Paramètres (depuis Mon profil › ⚙️). */
   | { name: 'parametres' }
+  /** Conditions d'utilisation, confidentialité, utilisateurs bloqués, supprimer mon compte (0.24.0). */
+  | { name: 'cgu' | 'confidentialite' | 'bloques' | 'supprimer-compte' }
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -62,6 +64,11 @@ export function parseHash(hash: string): Route {
       return id ? { name: head, id } : { name: 'accueil' }
     case 'tutoriel':
       return { name: 'tutoriel' }
+    case 'bloques':
+    case 'supprimer-compte':
+    case 'cgu':
+    case 'confidentialite':
+      return { name: head }
     case 'parametres':
       return { name: 'parametres' }
     case 'ami':

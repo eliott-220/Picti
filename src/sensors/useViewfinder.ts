@@ -166,7 +166,9 @@ export function useViewfinder({
     camera,
     geo,
     orientation,
-    position: arActive && view.fix ? view.fix : webPosition,
+    // Pas encore de relevé GPS calé (précision infinie) : le GPS en attendant — sinon « Position imprécise
+    // (±Infinity m) » à la première photo (vu au banc le 13/10, 0.24.0).
+    position: arActive && view.fix && Number.isFinite(view.fix.accuracy) ? view.fix : webPosition,
     focal35: arFocal != null ? arFocal * arZoom : webFocal,
     zoom: {
       value: zoomValue,

@@ -89,6 +89,7 @@ export function ArPhoto({
     <>
       <img
         className={classes.filter(Boolean).join(' ')}
+        data-photo-id={photo.id}
         src={url}
         alt=""
         {...size}

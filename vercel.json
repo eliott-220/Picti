@@ -3,7 +3,24 @@
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",
-      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/cgu",
+      "destination": "/#/cgu",
+      "permanent": false
+    },
+    {
+      "source": "/confidentialite",
+      "destination": "/#/confidentialite",
+      "permanent": false
     }
   ]
 }

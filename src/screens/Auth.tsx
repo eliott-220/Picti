@@ -5,7 +5,20 @@ import { authErrorMessage, authLinkErrorMessage } from '../data/auth'
 import { rememberInvite } from '../data/invite'
 import { authLinkError, supabase } from '../data/supabase'
 import { authRedirectUrl, isNative, useDarkStatusBar } from '../native'
+import { TERMS_VERSION } from '../config'
+import { ACCOUNT_DELETED_KEY } from './DeleteAccount'
 import { parseHash } from '../router'
+
+/** Le compte vient d'être supprimé (0.24.0) : annoncé une fois sur cet écran. */
+function takeAccountDeleted(): boolean {
+  try {
+    const deleted = sessionStorage.getItem(ACCOUNT_DELETED_KEY) === 'oui'
+    sessionStorage.removeItem(ACCOUNT_DELETED_KEY)
+    return deleted
+  } catch {
+    return false
+  }
+}
 
 const STEPS = [
   {
@@ -49,9 +62,14 @@ export function Auth({ initialMode = 'inscription', onTutorial }: { initialMode?
   const [city, setCity] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(
-    authLinkError ? { text: authLinkErrorMessage(authLinkError), error: true } : null,
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(() =>
+    authLinkError
+      ? { text: authLinkErrorMessage(authLinkError), error: true }
+      : takeAccountDeleted()
+        ? { text: 'Compte supprimé : toutes tes données ont été effacées.', error: false }
+        : null,
   )
 
   function switchMode(next: Mode) {
@@ -65,11 +83,12 @@ export function Auth({ initialMode = 'inscription', onTutorial }: { initialMode?
     setMessage(null)
     try {
       if (mode === 'inscription') {
+        if (!accepted) throw new Error('Coche la case pour accepter les conditions d’utilisation.')
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
-            data: { name: name.trim(), city: city.trim() },
+            data: { name: name.trim(), city: city.trim(), terms_version: TERMS_VERSION, terms_accepted: true },
             emailRedirectTo: authRedirectUrl(),
           },
         })
@@ -181,9 +200,19 @@ export function Auth({ initialMode = 'inscription', onTutorial }: { initialMode?
           </label>
         )}
 
+        {/* 0.24.0 : case obligatoire ; la date d'acceptation est notée par le serveur à l'inscription. */}
+        {signup && (
+          <label className="legal-consent">
+            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} required />
+            <span>
+              J’accepte les <a href="#/cgu">conditions d’utilisation</a> et la{' '}
+              <a href="#/confidentialite">politique de confidentialité</a>.
+            </span>
+          </label>
+        )}
         {message && <p className={`form-message ${message.error ? 'error' : ''}`}>{message.text}</p>}
 
-        <button type="submit" className="btn" disabled={busy}>
+        <button type="submit" className="btn" disabled={busy || (signup && !accepted)}>
           {busy ? 'Un instant…' : signup ? 'Créer mon compte' : forgot ? 'Recevoir le lien' : 'Me connecter'}
         </button>
         {mode === 'connexion' && (

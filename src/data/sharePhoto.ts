@@ -4,6 +4,7 @@
 
 import { APP_URL } from '../config'
 import { isNative } from '../native'
+import { withoutMetadata } from './images'
 import { PHOTO_BUCKET, supabase } from './supabase'
 import type { GeoPhoto } from './types'
 
@@ -53,8 +54,11 @@ function blobToBase64(blob: Blob): Promise<string> {
 export async function sharePhoto(photo: GeoPhoto): Promise<void> {
   const { data, error } = await supabase.storage.from(PHOTO_BUCKET).download(photo.imagePath)
   if (error || !data) throw new Error('Téléchargement de la photo impossible')
-  const name = shareFileName(photo.title, photo.imagePath)
-  const file = new File([data], name, { type: data.type || 'image/jpeg' })
+  // Sans métadonnées (0.24.0) : les photos envoyées avant la 0.24.0 peuvent encore en contenir. Un fichier que
+  // le navigateur ne sait pas relire (HEIC d'un ancien import, hors Safari) part tel quel plutôt que pas du tout.
+  const clean = await withoutMetadata(data).catch(() => data)
+  const name = shareFileName(photo.title, clean === data ? photo.imagePath : 'photo.jpg')
+  const file = new File([clean], name, { type: clean.type || 'image/jpeg' })
   const route = shareRoute(isNative(), !!navigator.canShare?.({ files: [file] }))
   try {
     if (route === 'native') {

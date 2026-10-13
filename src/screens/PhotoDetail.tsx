@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { photoTime } from '../components/arProjection'
+import { ReportSheet } from '../components/ReportSheet'
 import { RemoveCaptureSheet } from '../components/CaptureGrid'
 import { FriendButton } from '../components/FriendButton'
 import { Icon } from '../components/Icon'
@@ -161,8 +162,8 @@ function PhotoDetailView({
   const body = useRef<HTMLElement>(null)
   const [sharing, setSharing] = useState(false)
   const [paywall, setPaywall] = useState(false)
-  // « ⋯ » : autres actions (retirer une capture), puis sa confirmation.
-  const [more, setMore] = useState<'menu' | 'remove' | null>(null)
+  // « ⋯ » : autres actions (signaler — 0.24.0 —, retirer une capture), puis leur feuille.
+  const [more, setMore] = useState<'menu' | 'remove' | 'report' | null>(null)
   const mine = isMine(photo)
   const allowed = mine || canSaveOthersPhotos(profile)
   const captured = captures.some((c) => c.photoId === photo.id)
@@ -205,14 +206,14 @@ function PhotoDetailView({
           />
         )}
         {!sheet && <RoundButton icon="back" label="Retour" onClick={goBack} className="back-btn" />}
-        {/* Capture d'une photo d'un autre : « ⋯ » → « Retirer de mes captures ». */}
-        {!sheet && captured && !mine && <RoundButton icon="more" label="Autres actions" onClick={() => setMore('menu')} className="more-btn" />}
+        {/* Photo d'un autre : « ⋯ » → « Signaler la photo » (0.24.0), et « Retirer de mes captures » si capturée. */}
+        {!sheet && !mine && <RoundButton icon="more" label="Autres actions" onClick={() => setMore('menu')} className="more-btn" />}
         <div className="detail-caption">
           <h1>{mine ? photo.title : photo.ownerName || 'Photo'}</h1>
           <p>{mine ? photoDate(photo) : photoTitleAndDate(photo)}</p>
           <div className="detail-meta">
             <LikeButton photo={photo} className="light" />
-            {photo.versionOf && !deck && <VersionBadge className="light" />}
+            {(photo.versionOf || photo.parentDeleted) && !deck && <VersionBadge className="light" />}
           </div>
         </div>
       </div>
@@ -279,7 +280,7 @@ function PhotoDetailView({
         <AuthorBlock photo={photo} />
         <ShotBlock photo={photo} captured={captured} />
 
-        {photo.versionOf && <ParentSection photo={photo} />}
+        {(photo.versionOf || photo.parentDeleted) && <ParentSection photo={photo} />}
         {/* Une reproduction n'a sa frise que si elle a elle-même été refaite ; une photo privée ne se reproduit pas. */}
         {isGeoframed(photo) && (photo.versionsCount > 0 || (!photo.versionOf && photo.visibility !== 'prive')) && (
           <TimelineSection photo={photo} focus={section === 'fil'} canReproduce={canReproduce} onReproduce={reproduce} />
@@ -293,14 +294,31 @@ function PhotoDetailView({
       {more === 'menu' && (
         <Sheet onClose={() => setMore(null)} label="Autres actions" className="above-panes">
           <div className="shot-sheet">
-            <button type="button" className="btn ghost" onClick={() => setMore('remove')}>
-              <Icon name="flag" /> Retirer de mes captures
+            <button type="button" className="btn ghost danger-text" onClick={() => setMore('report')}>
+              <Icon name="warning" /> Signaler la photo
             </button>
+            {captured && (
+              <button type="button" className="btn ghost" onClick={() => setMore('remove')}>
+                <Icon name="flag" /> Retirer de mes captures
+              </button>
+            )}
             <button type="button" className="btn ghost" onClick={() => setMore(null)}>
               Annuler
             </button>
           </div>
         </Sheet>
+      )}
+      {more === 'report' && (
+        <ReportSheet
+          target={{ kind: 'photo', id: photo.id }}
+          onClose={() => setMore(null)}
+          onDone={() => {
+            // La photo n'apparaît plus pour moi : on quitte sa fiche.
+            setMore(null)
+            toast('Merci : photo signalée. Elle n’apparaît plus pour toi.')
+            goBack()
+          }}
+        />
       )}
       {more === 'remove' && <RemoveCaptureSheet photo={photo} onClose={() => setMore(null)} />}
     </>
@@ -314,7 +332,7 @@ function DetailCard({ photo }: { photo: GeoPhoto }) {
   const inColor = usePhotoInColor(photo.id)
   return (
     <div className={`detail-card ${inColor ? '' : 'mono'}`} style={url ? { backgroundImage: `url(${url})` } : undefined}>
-      {photo.versionOf && <VersionBadge className="light detail-card-version" />}
+      {(photo.versionOf || photo.parentDeleted) && <VersionBadge className="light detail-card-version" />}
     </div>
   )
 }
@@ -383,17 +401,24 @@ function ShotBlock({ photo, captured }: { photo: GeoPhoto; captured: boolean }) 
 /**
  * Reproduction : « D'après la photo de … » — grande vignette de l'originale (auteur, date et heure
  * de prise, likes ; appui → sa fiche), « Avant / après », lien vers ses autres reproductions.
- * Originale supprimée ou devenue invisible : « Reproduction d'une photo qui n'est plus disponible ».
+ * Originale devenue invisible : « Reproduction d'une photo qui n'est plus disponible » ; supprimée (0.24.0,
+ * `parentDeleted`) : « D'après une photo supprimée ».
  */
 function ParentSection({ photo }: { photo: GeoPhoto }) {
   const { isMine } = useStore()
-  const { photo: parent, loading } = usePhoto(photo.versionOf!)
+  const { photo: parent, loading } = usePhoto(photo.versionOf ?? '')
   const [compare, setCompare] = useState(false)
-  if (!parent) {
+  if (!photo.versionOf || !parent) {
     return (
       <section className="related missing">
         <VersionBadge />
-        <span>{loading ? 'Reproduction · chargement de l’originale…' : 'Reproduction d’une photo qui n’est plus disponible'}</span>
+        <span>
+          {!photo.versionOf
+            ? 'D’après une photo supprimée'
+            : loading
+              ? 'Reproduction · chargement de l’originale…'
+              : 'Reproduction d’une photo qui n’est plus disponible'}
+        </span>
       </section>
     )
   }

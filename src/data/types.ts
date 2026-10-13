@@ -110,6 +110,11 @@ export interface GeoPhoto {
   versionOf: string | null
   /** Nombre de versions de cette photo (tenu par la base). */
   versionsCount: number
+  /**
+   * Reproduction dont l'originale a été supprimée (0.24.0, colonne `parent_deleted` de la migration du
+   * socle) : la base a effacé `versionOf`, l'app affiche « D'après une photo supprimée ».
+   */
+  parentDeleted?: boolean
 }
 
 /** Mon like sur une photo : `onSite` = donné par une capture (« aimée sur place »). */

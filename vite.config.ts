@@ -35,6 +35,6 @@ export default defineConfig(({ mode }) => ({
   // Processus de fond de MapLibre (module ES).
   worker: { format: 'es' },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'supabase/functions/**/*.test.ts'],
   },
 }))

@@ -4,7 +4,7 @@ import { exifCompleteness, readExif, type ExifCompleteness } from '../geo/exif'
 import type { GeoFix } from '../geo/geodesy'
 import { DEFAULT_PHONE_FOCAL35 } from '../geo/optics'
 import type { CameraAngles } from '../geo/orientation'
-import { decodeImage, makeThumbnail, type EncodedImage } from './images'
+import { decodeImage, makeThumbnail, withoutMetadata, type EncodedImage } from './images'
 import { DEFAULT_DEPTH, formatDate, newId, SELFIE_DEPTH, type GeoPhoto } from './types'
 
 /**
@@ -72,7 +72,7 @@ export async function createDirectPhoto(
     hintPosition: fix ? { lat: fix.lat, lon: fix.lon, alt: fix.alt ?? null } : null,
     selfie,
   }
-  return { photo, images: { full: frame.blob, thumb: await makeThumbnail(frame.blob) } }
+  return { photo, images: { full: await withoutMetadata(frame.blob), thumb: await makeThumbnail(frame.blob) } }
 }
 
 export interface ImportResult extends NewPhoto {
@@ -115,7 +115,9 @@ export async function importPhotoFile(file: File): Promise<ImportResult> {
       hintPosition: exif.position,
       selfie: false,
     }
-    return { photo, images: { full: file, thumb: await makeThumbnail(bitmap) }, completeness }
+    // Jamais le fichier d'origine : sans sa position GPS, son modèle de téléphone… (0.24.0 ; avant, l'original
+    // partait tel quel au stockage).
+    return { photo, images: { full: await withoutMetadata(file, bitmap), thumb: await makeThumbnail(bitmap) }, completeness }
   } finally {
     bitmap.close()
   }

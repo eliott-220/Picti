@@ -701,6 +701,52 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     `captures_unlike` : efface la notification « capture » — le chasseur n'a pas le droit — et passe le
     like à `on_site = false`), vérifiée sur la vraie base dans une transaction annulée le 12/10.
 
+- **Socle avant testeurs (0.24.0, partie 2, prompt `PROMPT-0.024.0-2.md`)** — ce qu'Apple exige d'une app avec
+  comptes et contenus publiés (règles 1.2 et 5.1.1 v). Migration **`20261013150000_socle_testeurs.sql`, pas
+  appliquée** (vérifiée sur la vraie base dans une transaction annulée le 13/10 ; à appliquer après les deux
+  migrations en attente, avec l'accord d'Eliott — partie 4), Edge Functions **`delete-account`** et
+  **`report-alert`, pas déployées**. Tant que la base ne les a pas, l'app reste utilisable : « Pas encore
+  disponible » (`notDeployed`, `NOT_YET`), pas de page d'accord (colonne inconnue → `termsState` accepté).
+  - **Signaler** (`ReportSheet`, `src/data/moderation.ts`) : fiche › « ⋯ » › « Signaler la photo » (pour toute
+    photo d'un autre ; « Retirer de mes captures » si capturée), profil public › « ⋯ » › « Signaler
+    l'utilisateur » (case « Bloquer aussi »). Six motifs (`REPORT_REASONS`, dont « Vie privée »), précisions
+    facultatives (300 caractères). Table `reports` (RLS : créer et lire les siens seulement ; unique par cible).
+    **Effet immédiat** : la photo disparaît pour moi — registre `src/data/hiddenContent.ts` (store, carte, piles,
+    « À proximité ») et règle restrictive `reported_by_me` côté base. **3 comptes différents** → `photos.hidden_at`
+    (déclencheur `moderate_report`, ligne verrouillée) : masquée pour tous **sauf son auteur** ; `hidden_at` ne
+    s'écrit que par le serveur (`protect_moderation` ; le droit de mise à jour de `photos` est gardé pour la
+    0.19.0). Alerte : `report-alert` (e-mail par Resend si le secret `RESEND_API_KEY` est posé, sinon rien) ;
+    liste de référence : vue `reports_ouverts` (clé de service seulement). Traitement : requêtes SQL de la note
+    de session (pas d'écran d'administration).
+  - **Bloquer** (`blocks`, `blocked_pair`) : dans les deux sens, par des **règles restrictives** sur `photos`,
+    `profiles`, `friendships`, `notifications`, `captures`, `photo_likes` (les fonctions de lecture de l'app sont
+    en droits de l'utilisateur et en profitent) ; `after_block` retire l'amitié et les notifications ;
+    `filter_blocked_notification` empêche les nouvelles ; `nearest_public_photo` (et `public_profile` si elle
+    existe) filtrent eux-mêmes. La personne bloquée n'en sait rien (`blocks` lisible par son auteur seulement).
+    Paramètres › Confidentialité › « Utilisateurs bloqués » (`BlockedUsers`, `#/bloques`, RPC
+    `my_blocked_users`) : Débloquer (l'amitié n'est pas rétablie).
+  - **Supprimer mon compte** (Paramètres › Compte, en rouge ; `DeleteAccount`, `#/supprimer-compte`) : ce qui est
+    effacé / ce qui reste, taper **SUPPRIMER** (`deleteConfirmed`), Edge Function `delete-account` avec le jeton :
+    liste les fichiers (base + dossier du stockage ; échec → rien d'effacé), efface l'utilisateur `auth` (tout
+    part en cascade, **une transaction**), puis les fichiers ; ceux qui résistent sont notés (`storage_cleanup`) et
+    réessayés à l'appel suivant. Logique testée : `supabase/functions/_shared/accountDeletion.ts`. Puis
+    déconnexion, connexion « Compte supprimé ». Les reproductions des autres restent, **« D'après une photo
+    supprimée »** (`photos.parent_deleted`, posé par `mark_versions_orphaned` avant la suppression de
+    l'originale, aussi quand on supprime une seule photo ; `GeoPhoto.parentDeleted`).
+  - **Conditions d'utilisation / Confidentialité** (`Legal.tsx`, **brouillon à faire valider**, contact
+    `CONTACT_EMAIL` = devineliott@gmail.com, choisi par Eliott) : Paramètres › À propos, `#/cgu`,
+    `#/confidentialite` (lisibles sans compte ; le site redirige `/cgu` et `/confidentialite`, `vercel.json`).
+    Inscription : case obligatoire, date notée par le serveur (`handle_new_user`, métadonnées `terms_accepted`).
+    Comptes existants : page d'accord une fois (`TermsGate`, `accept_terms`, `TERMS_VERSION`).
+  - **Métadonnées** : jusqu'en 0.23.3, l'import envoyait **le fichier d'origine** au stockage (EXIF : position GPS,
+    modèle du téléphone ; HEIC tel quel) — trouvé par Codex. Désormais `withoutMetadata` (`src/data/images.ts`,
+    testé) : JPEG nettoyé **sans perte** (segments APP1 EXIF/XMP, IPTC, commentaires retirés), ré-encodé
+    seulement s'il dépend de son orientation EXIF ou n'est pas un JPEG ; prises de vue, imports et partages.
+  - **Première photo publique** : feuille une fois par compte (`publicPhotoNotice.ts`, `PublicPhotoNotice`),
+    Compris / Passer en Amis (fermer = Amis, la photo n'est jamais perdue).
+  - Corrigé en route : la position du suivi visuel avant tout relevé GPS calé avait une précision infinie, et
+    l'app la préférait au GPS (« Position imprécise (±Infinity m) » à la première photo) — `useViewfinder`.
+
 ## App native (Capacitor)
 
 Depuis 0.18.0 (prompt d'Eliott du 07/10) : coque **Capacitor 8** iOS + Android, **web embarqué**
@@ -1018,9 +1064,9 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   Partager passe par `@capacitor/filesystem` (fichier dans le cache) + `@capacitor/share` dans l'app
   (`res/xml/file_paths.xml` a déjà `cache-path`). À vérifier sur appareil : MapLibre (processus de fond servi par
   `capacitor://`), position dans la WebView iOS, import de photos (`<input type="file">`).
-- **Avant l'App Store** : suppression du compte dans l'app (règle 5.1.1), politique de
-  confidentialité et fiche confidentialité, icônes / écran de démarrage (`npx @capacitor/assets
-  generate`, logo 1024 × 1024 ; encore ceux du modèle Capacitor), Apple Developer Program.
+- **Avant l'App Store** : ~~suppression du compte dans l'app (règle 5.1.1), politique de
+  confidentialité~~ codées en 0.24.0 (à mettre en service : migration du socle + Edge Functions ; textes à
+  valider) ; fiche confidentialité d'App Store Connect, Apple Developer Program. Icônes : faites le 13/10.
 
 ## État et suite
 
@@ -1101,7 +1147,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
-- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
+- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 2 — socle avant testeurs : signaler (photo masquée pour moi aussitôt, pour tous à 3), bloquer dans les deux sens, supprimer son compte (Edge Function, tout ou rien), conditions d'utilisation et confidentialité (brouillon), plus aucune métadonnée envoyée (l'import envoyait l'original), avertissement de la première photo publique ; migration et fonctions prêtes, pas appliquées. Partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
 - 0.23.3 : bouton Réglages de Mon profil réparé (l'onglet restait par-dessus les Paramètres, et par-dessus toute page ouverte depuis un onglet) ; hors du viseur, plus de rond rouge : appareil photo seul, comme les autres pictogrammes, avec une petite animation dans les deux sens (au doigt aussi) ; pages qui se poussent entre elles (onglets et pages), sauf vers / depuis le viseur.
 - 0.23.2 : barre plus basse (hauteur d'Instagram) ; bouton rouge dans la pilule, de la taille des autres boutons ; appareil photo hors du viseur, symbole du mode sur le viseur.
 - 0.23.1 : barre à cinq boutons (Carte · Amis · bouton rouge · Mes photos · Profil), cinq écrans côte à côte dans cet ordre (glisser = écran voisin), pas de flèche retour sur eux ; pictogramme du profil au lieu de l'initiale ; onglet Amis avec les notifications au-dessus des amis (plus de cloche au viseur) ; onglet Mes photos ; Menu 4 carrés au-dessus de la barre, sur le viseur seulement ; pile des écrans : retour sans écran blanc.

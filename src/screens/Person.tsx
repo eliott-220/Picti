@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { photoTime } from '../components/arProjection'
 import { FriendButton } from '../components/FriendButton'
-import { Avatar, EmptyState, PhotoTilePile, RoundButton } from '../components/ui'
+import { Icon } from '../components/Icon'
+import { ReportSheet } from '../components/ReportSheet'
+import { useToast } from '../components/toastContext'
+import { Avatar, EmptyState, PhotoTilePile, RoundButton, Sheet } from '../components/ui'
+import { blockUser } from '../data/moderation'
 import { friendState } from '../data/friends'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { useStore } from '../data/storeContext'
@@ -17,6 +21,11 @@ import { goBack, navigate } from '../router'
  */
 export function Person({ id }: { id: string }) {
   const { userId, friends, fetchPublicProfile, loadPersonPhotos, reloadFriends } = useStore()
+  const toast = useToast()
+  // « ⋯ » (0.24.0) : signaler, bloquer (avec confirmation).
+  const [action, setAction] = useState<'menu' | 'report' | 'block' | null>(null)
+  const [blocking, setBlocking] = useState(false)
+  const [blockError, setBlockError] = useState<string | null>(null)
   const self = id === userId
   const [person, setPerson] = useState<PublicProfile | null | undefined>(undefined)
   const [photos, setPhotos] = useState<GeoPhoto[] | null>(null)
@@ -100,6 +109,7 @@ export function Person({ id }: { id: string }) {
             <FriendButton person={{ id, name: person.name }} className="on-red" />
           </>
         )}
+        {person && <RoundButton icon="more" label="Autres actions" onClick={() => setAction('menu')} className="more-btn" />}
       </header>
 
       <section className="card white">
@@ -123,6 +133,75 @@ export function Person({ id }: { id: string }) {
           <p className="person-note">Ses photos réservées aux amis apparaîtront quand vous serez amis.</p>
         )}
       </section>
+      {action === 'menu' && (
+        <Sheet onClose={() => setAction(null)} label="Autres actions" className="above-panes">
+          <div className="shot-sheet">
+            <button type="button" className="btn ghost danger-text" onClick={() => setAction('report')}>
+              <Icon name="warning" /> Signaler l’utilisateur
+            </button>
+            <button type="button" className="btn ghost danger-text" onClick={() => setAction('block')}>
+              <Icon name="close" /> Bloquer
+            </button>
+            <button type="button" className="btn ghost" onClick={() => setAction(null)}>
+              Annuler
+            </button>
+          </div>
+        </Sheet>
+      )}
+      {action === 'report' && (
+        <ReportSheet
+          target={{ kind: 'user', id, name }}
+          onClose={() => setAction(null)}
+          onDone={({ blocked }) => {
+            setAction(null)
+            if (blocked) {
+              void reloadFriends().catch(() => undefined)
+              toast(`${name} est signalé et bloqué`)
+              goBack()
+            } else toast('Merci : utilisateur signalé')
+          }}
+        />
+      )}
+      {action === 'block' && (
+        <Sheet onClose={() => !blocking && setAction(null)} label={`Bloquer ${name}`} className="above-panes">
+          <div className="shot-sheet">
+            <h2>Bloquer {name} ?</h2>
+            <p>
+              Vous ne verrez plus vos photos l’un de l’autre, plus de notifications ni de demande d’ami entre vous ; votre
+              amitié sera retirée. {name} n’en sera pas prévenu. Vous pourrez débloquer dans Paramètres › Confidentialité.
+            </p>
+            {blockError && (
+              <p className="form-message error" role="alert">
+                {blockError}
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={blocking}
+              onClick={() => {
+                setBlocking(true)
+                setBlockError(null)
+                blockUser(id)
+                  .then(() => {
+                    void reloadFriends().catch(() => undefined)
+                    toast(`${name} est bloqué`)
+                    goBack()
+                  })
+                  .catch((e: unknown) => {
+                    setBlockError(e instanceof Error ? e.message : 'Blocage impossible')
+                    setBlocking(false)
+                  })
+              }}
+            >
+              {blocking ? 'Un instant…' : 'Bloquer'}
+            </button>
+            <button type="button" className="btn ghost" disabled={blocking} onClick={() => setAction(null)}>
+              Annuler
+            </button>
+          </div>
+        </Sheet>
+      )}
     </main>
   )
 }

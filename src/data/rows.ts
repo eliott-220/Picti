@@ -39,6 +39,8 @@ export interface PhotoRow {
   likes_count: number
   version_of: string | null
   versions_count: number
+  /** Originale supprimée (0.24.0) ; absente tant que la migration du socle n'est pas appliquée. */
+  parent_deleted?: boolean
   owner_profile?: { name: string } | null
 }
 
@@ -83,6 +85,7 @@ export function rowToPhoto(r: PhotoRow): GeoPhoto {
     likesCount: r.likes_count ?? 0,
     versionOf: r.version_of ?? null,
     versionsCount: r.versions_count ?? 0,
+    parentDeleted: r.parent_deleted === true,
   }
 }
 

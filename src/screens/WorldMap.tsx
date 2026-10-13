@@ -11,6 +11,7 @@ import { EmptyState, IconButton, PhotoTile, RoundButton } from '../components/ui
 import { ImportSheet } from './ImportSheet'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
+import { isHiddenPhoto, useHiddenContent } from '../data/hiddenContent'
 import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
 import { formatDateTime } from '../data/types'
@@ -300,15 +301,17 @@ export default function WorldMap({
 
   // Photos d'un même lieu (`sameSpot`), empilées, la tête de pile devant : elles ne se séparent
   // jamais, même au zoom maximal.
+  // Photo signalée, compte bloqué (0.24.0) : retirés de la carte aussitôt.
+  const hidden = useHiddenContent()
   const spots = useMemo(() => {
     const list = groupBySpot(
-      [...photos.values()],
+      [...photos.values()].filter((p) => !isHiddenPhoto(p, hidden)),
       (p) => ({ position: p, accuracy: p.accuracy, heading: p.heading }),
       (p) => p.time,
       (a, b) => order(lead(a, likesOf), lead(b, likesOf)),
     )
     return new Map(list.map((s) => [s.items[0].id, s]))
-  }, [photos, likesOf, order])
+  }, [photos, likesOf, order, hidden])
 
   // Index de regroupement : chaque groupe retient la tête de pile de ses lieux.
   const index = useMemo(() => {
