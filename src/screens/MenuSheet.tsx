@@ -33,7 +33,7 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
   ]
 
   return (
-    <Sheet onClose={onClose} label="Explorer" className="explorer">
+    <Sheet onClose={onClose} label="Explorer" className="explorer" inPlace>
       <div className="explorer-head">
         <h2>Explorer</h2>
         <IconButton icon="close" label="Fermer" onClick={onClose} />

@@ -146,12 +146,18 @@ export function Sheet({
   children,
   label,
   className = '',
+  inPlace = false,
 }: {
   onClose: () => void
   children: ReactNode
   label: string
   /** Classe de la couche (ex. `explorer` : au-dessus de la carte et du profil, sous la barre du bas). */
   className?: string
+  /**
+   * Rendue dans l'écran plutôt qu'à la racine : seul moyen de passer sous un élément de l'écran (le menu
+   * Explorer, sous la barre du bas), chaque écran de la pile étant un calque à part depuis la 0.23.3.
+   */
+  inPlace?: boolean
 }) {
   // Écran caché sous un autre de la pile (0.23.1) : sa feuille aussi (elle est rendue à la racine).
   const active = useScreenActive()
@@ -172,7 +178,7 @@ export function Sheet({
       </section>
     </div>
   )
-  const root = document.getElementById('root')
+  const root = inPlace ? null : document.getElementById('root')
   return root ? createPortal(layer, root) : layer
 }
 

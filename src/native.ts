@@ -41,6 +41,20 @@ export interface GlassBarItemSpec {
   badge: string | null
   /** Écran affiché (anneau autour de l'avatar). */
   active: boolean
+  /**
+   * Opacité, échelle et rotation (degrés) du symbole : 1, 1, 0 sauf pour l'appareil photo, qui n'apparaît
+   * que hors du viseur (0.23.3, `awayLook`).
+   */
+  alpha: number
+  scale: number
+  angle: number
+}
+
+/** Aspect d'un calque du bouton rouge (0.23.3) : opacité, échelle, rotation (degrés). */
+export interface GlassLook {
+  alpha: number
+  scale: number
+  angle: number
 }
 
 export interface GlassButtonSpec {
@@ -54,6 +68,12 @@ export interface GlassButtonSpec {
   items: GlassBarItemSpec[] | null
   /** Bouton rouge : pastille ⚠ (Reproduire, hors de la vue de l'originale). */
   warn: boolean
+  /**
+   * Bouton rouge de la barre (0.23.3) : le rond rouge et le symbole du mode s'effacent hors du viseur
+   * (l'appareil photo est alors un élément de la pilule). Null : toujours pleins.
+   */
+  disc: GlassLook | null
+  look: GlassLook | null
   /** Nom du symbole SF (ex. « bell »), null pour une pastille à texte. */
   symbol: string | null
   /** Texte d'une pastille (« Tout le monde »). */

@@ -101,10 +101,17 @@ const depthOf = (state: unknown) => (state as { pictiDepth?: number } | null)?.p
 /** Vrai pendant `location.hash = …` : un `popstate` émis à ce moment ne dit rien de la profondeur. */
 let navigating = false
 
-/** Comment on est arrivé sur l'écran affiché : `pop` = retour (bouton, geste d'iOS), sans animation à rejouer. */
-let lastNavigation: 'push' | 'replace' | 'pop' = 'push'
+/**
+ * Comment on est arrivé sur l'écran affiché : `push` (en avançant), `replace`, `back` (flèche retour de
+ * l'app, `goBack`) ou `pop` (retour du système : geste d'iOS, bouton du navigateur ou d'Android — iOS a
+ * déjà fait glisser les écrans, rien à rejouer).
+ */
+export type NavigationKind = 'push' | 'replace' | 'back' | 'pop'
+let lastNavigation: NavigationKind = 'push'
+/** `goBack` en cours : le `popstate` qui suit est un retour de l'app, pas du système. */
+let backFromApp = false
 
-export function navigationKind(): 'push' | 'replace' | 'pop' {
+export function navigationKind(): NavigationKind {
   return lastNavigation
 }
 
@@ -146,6 +153,7 @@ export function historyMark(key: string): unknown {
 export function goBack() {
   if (depth > 0) {
     depth--
+    backFromApp = true
     history.back()
   } else {
     navigate('/', { replace: true })
@@ -181,8 +189,9 @@ if (typeof window !== 'undefined') {
     // Profondeur de l'entrée retrouvée, quel que soit le chemin du retour.
     if (!navigating) {
       depth = depthOf(history.state)
-      lastNavigation = 'pop'
+      lastNavigation = backFromApp ? 'back' : 'pop'
     }
+    backFromApp = false
   })
 }
 

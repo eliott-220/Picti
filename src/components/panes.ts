@@ -1,7 +1,8 @@
 // Les cinq écrans de la barre du bas (0.23.1), côte à côte dans l'ordre de la barre :
 // [ Carte ] [ Amis ] [ Viseur ] [ Mes photos ] [ Profil ]. Glisser le doigt mène à l'écran voisin.
 // Le viseur ne bouge jamais : les autres écrans glissent par-dessus lui (ceux des bords par-dessus
-// ceux du milieu), comme des feuilles posées de chaque côté.
+// ceux du milieu), comme des feuilles posées de chaque côté. Entre deux écrans qui ne sont pas le
+// viseur (0.23.3), le nouveau pousse l'ancien : les deux glissent ensemble, collés l'un à l'autre.
 
 import type { SwipeDirection } from './swipeOpen'
 
@@ -32,21 +33,36 @@ export interface PaneMove {
   pane: SidePane
   /** Vrai : il arrive par son côté, par-dessus ; faux : il repart vers son côté et découvre `under`. */
   arriving: boolean
-  /** Écran visible sous celui qui glisse (avant d'arriver, ou découvert en repartant). */
+  /** Écran visible sous celui qui glisse (avant d'arriver, ou découvert en repartant) ; poussé s'il y a `push`. */
   under: Pane
   /** Écran affiché à la fin. */
   to: Pane
+  /**
+   * Entre deux écrans qui ne sont pas le viseur (0.23.3) : `pane` arrive en poussant `under`, les deux
+   * glissent ensemble dans le sens de la barre (`pushOffsets`).
+   */
+  push: boolean
 }
 
 /**
- * Vers le viseur, ou vers un écran plus proche du viseur du même côté : l'écran actuel repart et découvre
- * le suivant ; sinon (plus loin, ou de l'autre côté), le suivant arrive par-dessus.
+ * Depuis le viseur, le nouvel écran arrive par-dessus lui ; vers le viseur, l'écran actuel repart et le
+ * découvre (comme avant la 0.23.3). Entre deux autres écrans, le nouveau pousse l'ancien.
  */
 export function paneMove(from: Pane, to: Pane): PaneMove | null {
   if (from === to) return null
-  const backward = to === 'viseur' || (sideOf(to) === sideOf(from) && distanceOf(to) < distanceOf(from))
-  if (backward && from !== 'viseur') return { pane: from, arriving: false, under: to, to }
-  return { pane: to as SidePane, arriving: true, under: from, to }
+  if (to === 'viseur') return { pane: from as SidePane, arriving: false, under: to, to, push: false }
+  return { pane: to as SidePane, arriving: true, under: from, to, push: from !== 'viseur' }
+}
+
+/**
+ * Translations (%) des deux écrans d'une poussée de `from` vers `to`, `shown` de 0 (départ) à 1 (`to` en
+ * place) : vers la droite de la barre, `to` arrive par la droite et pousse `from` vers la gauche ; l'inverse
+ * vers la gauche. Toujours collés : `to − from` vaut ±100.
+ */
+export function pushOffsets(from: SidePane, to: SidePane, shown: number): { from: number; to: number } {
+  const s = Math.min(1, Math.max(0, shown))
+  const dir = Math.sign(indexOf(to) - indexOf(from))
+  return { from: -dir * s * 100 + 0, to: dir * (1 - s) * 100 + 0 }
 }
 
 /** Translation (%) d'un écran qui glisse, `shown` de 0 (caché sur son côté) à 1 (en place). */

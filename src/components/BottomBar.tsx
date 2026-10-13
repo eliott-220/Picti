@@ -2,6 +2,7 @@ import { useRef, type Ref, type RefObject } from 'react'
 import type { Visibility } from '../data/types'
 import { useGlassButton } from '../glassButtons'
 import { haptic } from '../native'
+import { readAway } from './awayLook'
 import { Icon, type IconName } from './Icon'
 import type { Pane } from './panes'
 import { Shutter } from './Shutter'
@@ -19,10 +20,11 @@ const TABS: { pane: Exclude<Pane, 'viseur'>; icon: IconName; label: string; symb
  * côtés, à la hauteur de celle d'Instagram (0.23.2), sur les cinq écrans qu'elle ouvre — Carte · Amis ·
  * bouton rouge (viseur) · Mes photos · Profil, dans l'ordre où ils sont côte à côte (on passe de l'un au
  * voisin en glissant). Le bouton rouge reste dans la pilule, de la taille des autres boutons (0.23.2) :
- * sur le viseur, symbole du mode, appui = photo (appui long : choix du mode) ; ailleurs (`away`),
- * appareil photo, appui = retour au viseur — les deux symboles se relaient en fondu au rythme de
- * `--away` (0 → 1), animé ou posé par le glissé des écrans (`usePanes`). Dans l'app iOS 26+ : vraie
- * pilule Liquid Glass, pictogrammes dessinés dedans (l'écran affiché en plein, en rouge).
+ * sur le viseur, rond rouge et symbole du mode, appui = photo (appui long : choix du mode) ; ailleurs
+ * (`away`), plus de rond rouge (0.23.3) : un appareil photo seul, comme les autres pictogrammes, appui =
+ * retour au viseur — le passage suit `--away` (0 → 1), animé ou posé par le glissé des écrans
+ * (`usePanes`). Dans l'app iOS 26+ : vraie pilule Liquid Glass, pictogrammes dessinés dedans (l'écran
+ * affiché en plein, en rouge ; l'appareil photo aussi, au rythme de `--away`).
  */
 export function BottomBar({
   ref,
@@ -53,6 +55,8 @@ export function BottomBar({
   friendsBadge: number
 }) {
   const navRef = useRef<HTMLElement | null>(null)
+  // Place du bouton rouge : l'appareil photo y est dessiné dans la pilule native hors du viseur (0.23.3).
+  const shutterSlot = useRef<HTMLDivElement>(null)
   const tabRefs = {
     carte: useRef<HTMLButtonElement>(null),
     amis: useRef<HTMLButtonElement>(null),
@@ -62,13 +66,18 @@ export function BottomBar({
   const native = useGlassButton(navRef, {
     label: 'Navigation',
     bar: {
-      items: TABS.map((t) => ({
-        ref: tabRefs[t.pane] as RefObject<HTMLElement | null>,
-        symbol: pane === t.pane ? t.activeSymbol : t.symbol,
-        active: pane === t.pane,
-        badge: t.pane === 'amis' ? friendsBadge : undefined,
-      })),
+      items: [
+        ...TABS.map((t) => ({
+          ref: tabRefs[t.pane] as RefObject<HTMLElement | null>,
+          symbol: pane === t.pane ? t.activeSymbol : t.symbol,
+          active: pane === t.pane,
+          badge: t.pane === 'amis' ? friendsBadge : undefined,
+        })),
+        // Hors du viseur : appareil photo comme les autres pictogrammes (même taille, même couleur).
+        { ref: shutterSlot as RefObject<HTMLElement | null>, symbol: 'camera', away: true },
+      ],
     },
+    away: () => readAway(navRef.current),
   })
   const setRefs = (el: HTMLElement | null) => {
     navRef.current = el
@@ -99,7 +108,7 @@ export function BottomBar({
     <nav ref={setRefs} className={`bottom-nav${away ? ' away' : ''}${native ? ' glass-native' : ''}`} aria-label="Navigation">
       {tab(TABS[0])}
       {tab(TABS[1])}
-      <div className="nav-shutter">
+      <div ref={shutterSlot} className="nav-shutter">
         <Shutter
           visibility={visibility}
           onVisibility={onVisibility}
@@ -110,6 +119,7 @@ export function BottomBar({
           reduced={away}
           iconSize={24}
           awayIcon="camera"
+          awayIconSize={26}
           onHome={() => {
             haptic('tick')
             onHome()

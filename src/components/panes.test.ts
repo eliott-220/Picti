@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { awayOf, neighborPane, paneMove, paneOffset, PANES } from './panes'
+import { awayOf, neighborPane, paneMove, paneOffset, PANES, pushOffsets } from './panes'
 
 describe('les cinq écrans de la barre, dans l’ordre de la barre (0.23.1)', () => {
   it('Carte · Amis · Viseur · Mes photos · Profil', () => {
@@ -17,19 +17,35 @@ describe('les cinq écrans de la barre, dans l’ordre de la barre (0.23.1)', ()
     expect(neighborPane('profil', 'right')).toBe('photos')
   })
 
-  it('en s’éloignant du viseur, l’écran suivant arrive par-dessus ; en revenant, l’écran actuel repart', () => {
-    expect(paneMove('viseur', 'amis')).toEqual({ pane: 'amis', arriving: true, under: 'viseur', to: 'amis' })
-    expect(paneMove('amis', 'carte')).toEqual({ pane: 'carte', arriving: true, under: 'amis', to: 'carte' })
-    expect(paneMove('carte', 'amis')).toEqual({ pane: 'carte', arriving: false, under: 'amis', to: 'amis' })
-    expect(paneMove('amis', 'viseur')).toEqual({ pane: 'amis', arriving: false, under: 'viseur', to: 'viseur' })
-    expect(paneMove('profil', 'photos')).toEqual({ pane: 'profil', arriving: false, under: 'photos', to: 'photos' })
+  it('depuis le viseur, l’écran arrive par-dessus ; vers le viseur, l’écran actuel repart (inchangé)', () => {
+    expect(paneMove('viseur', 'amis')).toEqual({ pane: 'amis', arriving: true, under: 'viseur', to: 'amis', push: false })
+    expect(paneMove('amis', 'viseur')).toEqual({ pane: 'amis', arriving: false, under: 'viseur', to: 'viseur', push: false })
     // Bouton de la barre : la carte depuis le viseur arrive directement ; le bouton rouge la renvoie.
-    expect(paneMove('viseur', 'carte')).toEqual({ pane: 'carte', arriving: true, under: 'viseur', to: 'carte' })
-    expect(paneMove('carte', 'viseur')).toEqual({ pane: 'carte', arriving: false, under: 'viseur', to: 'viseur' })
-    // D'un côté à l'autre : le nouvel écran arrive par-dessus.
-    expect(paneMove('amis', 'profil')).toEqual({ pane: 'profil', arriving: true, under: 'amis', to: 'profil' })
-    expect(paneMove('photos', 'carte')).toEqual({ pane: 'carte', arriving: true, under: 'photos', to: 'carte' })
+    expect(paneMove('viseur', 'carte')).toEqual({ pane: 'carte', arriving: true, under: 'viseur', to: 'carte', push: false })
+    expect(paneMove('carte', 'viseur')).toEqual({ pane: 'carte', arriving: false, under: 'viseur', to: 'viseur', push: false })
     expect(paneMove('amis', 'amis')).toBeNull()
+  })
+
+  it('entre deux autres écrans, le nouveau pousse l’ancien (0.23.3)', () => {
+    expect(paneMove('amis', 'carte')).toEqual({ pane: 'carte', arriving: true, under: 'amis', to: 'carte', push: true })
+    expect(paneMove('carte', 'amis')).toEqual({ pane: 'amis', arriving: true, under: 'carte', to: 'amis', push: true })
+    expect(paneMove('profil', 'photos')).toEqual({ pane: 'photos', arriving: true, under: 'profil', to: 'photos', push: true })
+    expect(paneMove('amis', 'profil')).toEqual({ pane: 'profil', arriving: true, under: 'amis', to: 'profil', push: true })
+    expect(paneMove('photos', 'carte')).toEqual({ pane: 'carte', arriving: true, under: 'photos', to: 'carte', push: true })
+  })
+
+  it('poussée : vers la droite de la barre, le nouvel écran arrive de droite et l’ancien part à gauche, collés', () => {
+    expect(pushOffsets('carte', 'profil', 0)).toEqual({ from: 0, to: 100 })
+    expect(pushOffsets('carte', 'profil', 0.25)).toEqual({ from: -25, to: 75 })
+    expect(pushOffsets('carte', 'profil', 1)).toEqual({ from: -100, to: 0 })
+    // Vers la gauche : l'inverse.
+    expect(pushOffsets('profil', 'photos', 0.4)).toEqual({ from: 40, to: -60 })
+    expect(pushOffsets('amis', 'carte', 2)).toEqual({ from: 100, to: 0 })
+    // Toujours collés l'un à l'autre.
+    for (const s of [0, 0.1, 0.5, 0.9, 1]) {
+      const o = pushOffsets('photos', 'amis', s)
+      expect(Math.abs(o.to - o.from)).toBe(100)
+    }
   })
 
   it('chaque écran glisse depuis son côté', () => {

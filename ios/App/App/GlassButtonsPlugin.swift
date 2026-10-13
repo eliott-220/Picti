@@ -163,6 +163,33 @@ struct GlassButtonSpec {
         let initial: String?
         let badge: String?
         let active: Bool
+        /// Aspect du symbole (0.23.3) : l'appareil photo n'apparaît que hors du viseur.
+        let look: Look
+    }
+
+    /// Opacité, échelle et rotation (degrés) d'un calque (0.23.3, `awayLook` du JS).
+    struct Look: Equatable {
+        static let plain = Look(alpha: 1, scale: 1, angle: 0)
+        let alpha: CGFloat
+        let scale: CGFloat
+        let angle: CGFloat
+
+        init(alpha: CGFloat, scale: CGFloat, angle: CGFloat) {
+            self.alpha = alpha
+            self.scale = scale
+            self.angle = angle
+        }
+
+        init(_ object: JSObject?) {
+            func value(_ name: String, _ fallback: CGFloat) -> CGFloat {
+                (object?[name] as? NSNumber).map { CGFloat($0.doubleValue) } ?? fallback
+            }
+            self.init(alpha: value("alpha", 1), scale: value("scale", 1), angle: value("angle", 0))
+        }
+
+        var transform: CGAffineTransform {
+            CGAffineTransform(rotationAngle: angle * .pi / 180).scaledBy(x: scale, y: scale)
+        }
     }
 
     /// Zone qui défile autour du bouton : sa clé et sa partie visible à l'écran.
@@ -197,6 +224,9 @@ struct GlassButtonSpec {
     let visible: Bool
     let items: [BarItem]
     let warn: Bool
+    /// Bouton rouge de la barre (0.23.3) : rond rouge et symbole du mode, qui s'effacent hors du viseur.
+    let disc: Look
+    let look: Look
 
     init?(_ object: JSObject) {
         guard let id = object["id"] as? String else { return nil }
@@ -233,10 +263,13 @@ struct GlassButtonSpec {
                 symbol: item["symbol"] as? String,
                 initial: item["initial"] as? String,
                 badge: item["badge"] as? String,
-                active: item["active"] as? Bool ?? false
+                active: item["active"] as? Bool ?? false,
+                look: Look(item)
             )
         } ?? []
         warn = object["warn"] as? Bool ?? false
+        disc = Look(object["disc"] as? JSObject)
+        look = Look(object["look"] as? JSObject)
     }
 }
 
@@ -481,8 +514,12 @@ final class GlassBarItemView: UIView {
 
     func update(_ item: GlassButtonSpec.BarItem) {
         if frame != item.frame { frame = item.frame }
-        // Mise en page à chaque fois (la pilule peut changer de taille) ; contenu seulement s'il change.
-        symbolView.frame = bounds
+        // Mise en page à chaque fois (la pilule peut changer de taille) ; contenu seulement s'il change. Le
+        // symbole est placé par son centre : il peut tourner et changer d'échelle (appareil photo, 0.23.3).
+        symbolView.bounds = CGRect(origin: .zero, size: bounds.size)
+        symbolView.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        symbolView.transform = item.look.transform
+        alpha = item.look.alpha
         let side = min(bounds.width, bounds.height, 38)
         avatar.frame = CGRect(x: (bounds.width - side) / 2, y: (bounds.height - side) / 2, width: side, height: side)
         avatar.layer.cornerRadius = side / 2
@@ -511,7 +548,9 @@ final class GlassBarItemView: UIView {
 
 /// Bouton rouge de la barre (0.23.0) : cercle rouge PICTI, symbole blanc du mode (Public, Amis, Privé),
 /// lueur rouge ; sa taille suit celle du bouton web (grand sur le viseur, réduit ailleurs, grossi pendant
-/// le choix du mode). Pastille orange ⚠ en « Reproduire » hors de la vue de l'originale.
+/// le choix du mode). Pastille orange ⚠ en « Reproduire » hors de la vue de l'originale. Hors du viseur
+/// (0.23.3), le cercle rétrécit et s'efface, le symbole s'efface en tournant (`disc`, `look`, au rythme
+/// du JS) : l'appareil photo est alors un élément de la pilule.
 @available(iOS 26.0, *)
 final class GlassShutter: UIView, GlassControlUpdating {
     let kind = GlassButtonSpec.Kind.shutter
@@ -548,14 +587,22 @@ final class GlassShutter: UIView, GlassControlUpdating {
         let target = spec.frame(embedded: embedded)
         if frame != target {
             frame = target
-            circle.frame = bounds
+            // Cercle et symbole placés par leur centre : ils changent d'échelle et tournent (0.23.3).
+            let middle = CGPoint(x: bounds.midX, y: bounds.midY)
+            circle.bounds = CGRect(origin: .zero, size: bounds.size)
+            circle.center = middle
             circle.layer.cornerRadius = bounds.width / 2
             circle.layer.shadowRadius = bounds.width * 0.16
-            symbolView.frame = bounds
+            symbolView.bounds = CGRect(origin: .zero, size: bounds.size)
+            symbolView.center = middle
             let side = max(18, bounds.width * 0.34)
             warnView.frame = CGRect(x: bounds.width - side + 2, y: -2, width: side, height: side)
             warnView.layer.cornerRadius = side / 2
         }
+        circle.transform = spec.disc.transform
+        circle.alpha = spec.disc.alpha
+        symbolView.transform = spec.look.transform
+        symbolView.alpha = spec.look.alpha
         // Symbole à 40 % du diamètre, comme l'icône de 36 px dans le bouton web de 76 px.
         let size = (bounds.width * 0.4).rounded()
         if shownSymbol?.name != spec.symbol || shownSymbol?.size != size {

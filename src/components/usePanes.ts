@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from 'react'
-import { awayOf, neighborPane, paneMove, paneOffset, type Pane, type PaneMove, type SidePane } from './panes'
+import { awayOf, neighborPane, paneMove, paneOffset, pushOffsets, type Pane, type PaneMove, type SidePane } from './panes'
 import {
   freeToSwipe,
   inRightEdge,
   opensOnRelease,
+  PUSH_EASING,
+  PUSH_MS,
   releaseSpeed,
   SLIDE_MS,
   SPEED_WINDOW_MS,
@@ -40,9 +42,13 @@ function clearPaneStyles(panes: (HTMLElement | null)[], bar: HTMLElement | null)
   }
 }
 
+/** Durée de la course d'un mouvement : poussée entre deux écrans (0.23.3), sinon glissé du viseur. */
+const moveMs = (m: PaneMove) => (m.push ? PUSH_MS : SLIDE_MS)
+
 /**
  * Glissés entre les cinq écrans de la barre (0.23.1 ; `panes.ts`) : sur un écran, glisser le doigt fait
  * venir l'écran voisin sous le doigt (vers la gauche celui de droite, vers la droite celui de gauche) ;
+ * entre deux écrans qui ne sont pas le viseur, le nouveau pousse l'ancien (0.23.3, les deux sous le doigt) ;
  * sur la carte, le doigt la déplace et seul un glissé partant de la bande du bord droit mène à l'écran
  * voisin. Lâché au-delà d'un tiers de l'écran (ou d'un geste vif), l'écran finit sa course puis `onCommit`
  * change d'adresse ; sinon il repart. Pendant le geste rien n'est redessiné par React : les écrans bougent
@@ -81,23 +87,28 @@ export function usePanes({
   const all = () => [panes.carte.current, panes.amis.current, panes.photos.current, panes.profil.current]
   const elOf = (p: Pane) => (p === 'viseur' ? null : panes[p].current)
 
-  /** Place l'écran qui glisse (`shown` 0 → 1), l'écran dessous et la barre, directement dans leur style. */
+  /**
+   * Place l'écran qui glisse (`shown` 0 → 1), l'écran dessous (poussé, s'il y a lieu) et la barre, directement
+   * dans leur style.
+   */
   function place(m: PaneMove, shown: number, animate: boolean) {
     lastShown.current = shown
+    const transition = animate ? (m.push ? `transform ${PUSH_MS}ms ${PUSH_EASING}` : `transform ${SLIDE_MS}ms ease-out`) : 'none'
+    const push = m.push && m.under !== 'viseur' ? pushOffsets(m.under, m.pane, shown) : null
     const el = elOf(m.pane)
     if (el) {
-      el.style.transition = animate ? `transform ${SLIDE_MS}ms ease-out` : 'none'
+      el.style.transition = transition
       el.style.display = 'block'
       el.style.visibility = 'visible'
       el.style.zIndex = m.arriving ? '27' : ''
-      el.style.transform = `translateX(${paneOffset(m.pane, shown)}%)`
+      el.style.transform = `translateX(${push ? push.to : paneOffset(m.pane, shown)}%)`
     }
     const under = elOf(m.under)
     if (under) {
-      under.style.transition = 'none'
+      under.style.transition = push ? transition : 'none'
       under.style.display = 'block'
       under.style.visibility = 'visible'
-      under.style.transform = 'none'
+      under.style.transform = push ? `translateX(${push.from}%)` : 'none'
     }
     const b = bar.current
     if (b) {
@@ -123,7 +134,7 @@ export function usePanes({
       onCommitRef.current(m.to)
       // L'écran affiché change avec l'adresse (effet plus bas) ; sinon, filet de sécurité.
       timer.current = window.setTimeout(end, 600)
-    }, SLIDE_MS)
+    }, moveMs(m))
   }
 
   // Nouvel écran affiché (adresse changée) : ses styles de classe prennent le relais, avant d'être peints.

@@ -18,6 +18,13 @@ export const SLOP = 10
 /** Durée de l'arrivée de l'écran, ou de son retour (ms). */
 export const SLIDE_MS = 240
 /**
+ * Passage entre deux écrans qui ne sont pas le viseur (0.23.3) : le nouveau pousse l'ancien, collés l'un à
+ * l'autre — onglets de la barre comme pages (Paramètres, fiche…). Même durée et même courbe partout : départ
+ * franc, arrivée amortie comme un ressort léger, sans dépasser (rien ne doit apparaître entre les deux).
+ */
+export const PUSH_MS = 300
+export const PUSH_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+/**
  * Délai (ms) avant de préparer l'écran à ouvrir, caché : son premier affichage coûte 100 à 300 ms,
  * que le doigt ne doit pas attendre. Après le démarrage de la caméra, pour ne pas le ralentir.
  */

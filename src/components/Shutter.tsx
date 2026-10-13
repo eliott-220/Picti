@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import { VISIBILITY_SHORT, VISIBLE_BY, type Visibility } from '../data/types'
 import { useGlassButton } from '../glassButtons'
 import { haptic } from '../native'
+import { readAway } from './awayLook'
 import { Icon, type IconName } from './Icon'
 import {
   columnLift,
@@ -57,6 +58,7 @@ export function Shutter({
   onHome,
   iconSize = 36,
   awayIcon,
+  awayIconSize = iconSize,
 }: {
   visibility: Visibility
   /** Mode choisi, une fois le doigt relâché (seulement s'il a changé). */
@@ -72,9 +74,12 @@ export function Shutter({
   iconSize?: number
   /**
    * Barre du bas (0.23.2) : symbole du bouton hors du viseur (appareil photo) ; il remplace celui du mode
-   * en fondu, au rythme de `--away` (posé par la barre, et par le glissé des écrans).
+   * au rythme de `--away` (posé par la barre, et par le glissé des écrans) — depuis 0.23.3 sans rond
+   * rouge, de la taille des autres pictogrammes (`awayIconSize`). Dans l'app iOS 26+, il est dessiné dans
+   * la pilule (`BottomBar`) ; le natif du bouton n'y garde que le rond et le symbole du mode, qui s'effacent.
    */
   awayIcon?: IconName
+  awayIconSize?: number
 }) {
   const ref = useRef<HTMLButtonElement>(null)
   const press = useRef<Press | null>(null)
@@ -110,10 +115,11 @@ export function Shutter({
   const centered = pick ? visibilityAtLift(pick.from, pick.lift) : visibility
   const fullLabel = reduced ? 'Revenir au viseur' : `${label} · visible par ${VISIBLE_BY[centered]}`
   const native = useGlassButton(ref, {
-    icon: reduced && awayIcon ? awayIcon : VISIBILITY_ICON[centered],
+    icon: VISIBILITY_ICON[centered],
     label: fullLabel,
-    disabled,
+    disabled: disabled && !reduced,
     shutter: { warn: warn && !reduced },
+    away: awayIcon ? () => readAway(ref.current) : undefined,
   })
 
   function open(p: Press, lift = 0) {
@@ -211,7 +217,7 @@ export function Shutter({
           <>
             <span className="shutter-icon mode">{!pick && <Icon name={VISIBILITY_ICON[visibility]} size={iconSize} />}</span>
             <span className="shutter-icon away">
-              <Icon name={awayIcon} size={iconSize} />
+              <Icon name={awayIcon} size={awayIconSize} />
             </span>
           </>
         ) : (

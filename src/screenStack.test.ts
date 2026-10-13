@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_SCREENS, nextStack, slotsOf } from './screenStack'
+import { MAX_SCREENS, nextStack, slotsOf, slotTransition } from './screenStack'
 
 describe('pile des écrans : l’écran quitté reste monté, il réapparaît tel quel au retour (0.23.1)', () => {
   it('avancer empile, revenir dépile, remplacer remplace', () => {
@@ -51,5 +51,45 @@ describe('pile des écrans : l’écran quitté reste monté, il réapparaît te
     for (let d = 1; d <= 8; d++) s = nextStack(s, d, `#/photo/${d}`)
     expect(s).toHaveLength(MAX_SCREENS)
     expect(s[0].hash).toBe(`#/photo/${8 - MAX_SCREENS + 1}`)
+  })
+})
+
+describe('passage d’un écran à l’autre : le nouveau pousse l’ancien, sauf vers ou depuis l’accueil (0.23.3)', () => {
+  const profil = [{ depth: 0, hash: '' }, { depth: 1, hash: '#/profil' }]
+  const parametres = nextStack(profil, 2, '#/parametres')
+
+  it('Mon profil › Paramètres : les Paramètres arrivent de droite et poussent le profil, gardé dessous', () => {
+    const t = slotTransition(slotsOf(profil), slotsOf(parametres), 'push')
+    expect(t).toEqual({ motion: 'forward', incoming: '2:#/parametres', outgoing: slotsOf(profil)[0], ghost: false })
+  })
+
+  it('retour par la flèche de l’app : le profil revient de gauche, les Paramètres repartent à droite puis sont démontés', () => {
+    const back = nextStack(parametres, 1, '#/profil')
+    const t = slotTransition(slotsOf(parametres), slotsOf(back), 'back')
+    expect(t).toMatchObject({ motion: 'back', incoming: slotsOf(profil)[0].key, ghost: true })
+    expect(t?.outgoing.route).toEqual({ name: 'parametres' })
+  })
+
+  it('retour du système (geste d’iOS, bouton du navigateur) : rien à rejouer', () => {
+    const back = nextStack(parametres, 1, '#/profil')
+    expect(slotTransition(slotsOf(parametres), slotsOf(back), 'pop')).toBeNull()
+  })
+
+  it('remplacement entre deux pages : le nouvel écran pousse l’ancien, qui quitte la pile', () => {
+    const fiche = nextStack(profil, 2, '#/photo/a')
+    const chasse = nextStack(fiche, 2, '#/chasse/a')
+    expect(slotTransition(slotsOf(fiche), slotsOf(chasse), 'replace')).toMatchObject({ motion: 'forward', ghost: true })
+  })
+
+  it('vers l’accueil ou depuis lui : comportement d’avant (la page passe par-dessus le viseur)', () => {
+    const viseur = [{ depth: 0, hash: '' }]
+    const fromHome = nextStack(viseur, 1, '#/parametres')
+    expect(slotTransition(slotsOf(viseur), slotsOf(fromHome), 'push')).toBeNull()
+    expect(slotTransition(slotsOf(fromHome), slotsOf(nextStack(fromHome, 0, '')), 'back')).toBeNull()
+  })
+
+  it('entre deux onglets de la barre : même écran, ils glissent entre eux dans Home', () => {
+    const carte = nextStack([{ depth: 0, hash: '' }], 1, '#/carte')
+    expect(slotTransition(slotsOf(carte), slotsOf(nextStack(carte, 1, '#/profil')), 'replace')).toBeNull()
   })
 })

@@ -647,7 +647,9 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
                 key={p}
                 ref={paneRefs[p]}
                 className={`shell-pane pane-${p}${paneClass(p)}`}
-                inert={pane !== p}
+                // Pendant un glissé, les écrans qui bougent ne sont pas `inert` : ils cachent bien ce qu'ils
+                // recouvrent (sinon les boutons en verre natif du viseur se dessinaient par-dessus, 0.23.3).
+                inert={pane !== p && panes.move?.pane !== p && panes.move?.under !== p}
                 aria-hidden={pane !== p && !panes.move}
               >
                 {paneContent[p]}

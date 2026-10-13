@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type SyntheticEvent } from 'react'
 import { Logo } from './components/Icon'
+import { PUSH_EASING, PUSH_MS } from './components/swipeOpen'
 import { usePasswordRecovery, useSession } from './data/auth'
 import { takePendingInvite } from './data/invite'
 import { loadOnboardingDone, markOnboardingDone, onboardingDoneNow } from './data/onboarding'
@@ -9,7 +10,7 @@ import { useStore } from './data/storeContext'
 import { authLinkError, supabase } from './data/supabase'
 import { isNative } from './native'
 import { goBack, navigate, useRoute, type Route } from './router'
-import { ScreenActiveContext, useScreenStack } from './screenStack'
+import { ScreenActiveContext, useScreenStack, type SlotTransition } from './screenStack'
 import { Auth, type AuthMode } from './screens/Auth'
 import { Gallery } from './screens/Gallery'
 import { Home } from './screens/Home'
@@ -91,12 +92,61 @@ function Splash({ message }: { message?: string }) {
   )
 }
 
+/**
+ * Fait glisser les deux écrans d'un passage (0.23.3) : le nouveau pousse l'ancien, collés l'un à l'autre
+ * (« Réduire les animations » : simple fondu). Renvoie les animations, à annuler à la fin.
+ */
+function slide(incoming: HTMLElement | undefined, outgoing: HTMLElement | undefined, t: SlotTransition): Animation[] {
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  // En avançant, le nouvel écran arrive de droite ; au retour, de gauche (et l'ancien repart à droite).
+  const side = t.motion === 'forward' ? 1 : -1
+  const timing: KeyframeAnimationOptions = reduce
+    ? { duration: 200, easing: 'ease-out', fill: 'forwards' }
+    : { duration: PUSH_MS, easing: PUSH_EASING, fill: 'forwards' }
+  const frames = (from: number, to: number) =>
+    reduce ? [] : [{ transform: `translateX(${from}%)` }, { transform: `translateX(${to}%)` }]
+  const anims: Animation[] = []
+  if (incoming) anims.push(incoming.animate(reduce ? [{ opacity: 0 }, { opacity: 1 }] : frames(100 * side, 0), timing))
+  // Fondu : l'ancien écran reste dessous, sauf s'il est au-dessus (retour) — il s'efface alors.
+  if (outgoing && (!reduce || t.ghost)) {
+    anims.push(outgoing.animate(reduce ? [{ opacity: 1 }, { opacity: 0 }] : frames(0, -100 * side), timing))
+  }
+  return anims
+}
+
+/** Écran qui part en glissant : il reste visible, mais n'est plus touché (le passage dure 300 ms). */
+const swallow = (e: SyntheticEvent) => {
+  e.stopPropagation()
+  e.preventDefault()
+}
+const SWALLOW_INPUT = {
+  onPointerDownCapture: swallow,
+  onClickCapture: swallow,
+  onTouchStartCapture: (e: SyntheticEvent) => e.stopPropagation(),
+}
+
 function Screens() {
   const route = useRoute()
   const { ready, error } = useStore()
   // Écrans gardés montés : celui qu'on quitte en avançant reste caché dessous, et réapparaît tel quel au
   // retour (flèche, geste d'iOS, bouton du navigateur) — pas d'écran blanc le temps de le recharger.
-  const slots = useScreenStack(route)
+  const { slots, transition, endTransition } = useScreenStack(route)
+  const slotEls = useRef(new Map<string, HTMLDivElement>())
+  // Passage d'un écran à l'autre (0.23.3) : les deux glissent avant d'être peints ; à la fin, l'ancien
+  // est caché (ou démonté s'il a quitté la pile) et les animations retirées dans le même rendu.
+  useLayoutEffect(() => {
+    if (!transition) return
+    const anims = slide(slotEls.current.get(transition.incoming), slotEls.current.get(transition.outgoing.key), transition)
+    if (!anims.length) {
+      endTransition(transition.id)
+      return
+    }
+    void Promise.all(anims.map((a) => a.finished)).then(
+      () => endTransition(transition.id),
+      () => {},
+    )
+    return () => anims.forEach((a) => a.cancel())
+  }, [transition, endTransition])
 
   // Lien d'invitation ouvert avant la connexion (ou confirmation du compte par e-mail, qui
   // ramène à l'accueil) : on y revient une fois connecté.
@@ -119,10 +169,23 @@ function Screens() {
     )
   }
 
-  return slots.map((slot, i) => {
-    const active = i === slots.length - 1
+  return slots.map((slot) => {
+    const active = slot.key === (transition?.incoming ?? slots.at(-1)?.key)
+    // Écran qui part (pendant le passage) : visible et pas `inert` — ses boutons en verre natif suivent
+    // la page (`glassButtons.ts` ne voit que ce qu'on peut toucher) —, mais il n'est plus touché.
+    const leaving = !active && slot.key === transition?.outgoing.key
     return (
-      <div key={slot.key} className={`screen-slot${active ? '' : ' covered'}`} inert={!active}>
+      <div
+        key={slot.key}
+        ref={(el) => {
+          if (el) slotEls.current.set(slot.key, el)
+          else slotEls.current.delete(slot.key)
+        }}
+        className={`screen-slot${active ? '' : leaving ? ' leaving' : ' covered'}`}
+        inert={!active && !leaving}
+        aria-hidden={leaving || undefined}
+        {...(leaving ? SWALLOW_INPUT : {})}
+      >
         <ScreenActiveContext.Provider value={active}>
           <RouteScreen route={slot.route} />
         </ScreenActiveContext.Provider>

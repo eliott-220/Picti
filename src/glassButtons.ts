@@ -6,6 +6,7 @@
 // la porte et défile avec le texte sans attendre le JS. Ailleurs (site, Android, iOS < 26) : rien.
 
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
+import { awayLook, type Look } from './components/awayLook'
 import type { IconName } from './components/Icon'
 import { GlassButtons, platform, type GlassBarItemSpec, type GlassButtonSpec } from './native'
 
@@ -59,6 +60,8 @@ export interface GlassBarItem {
   initial?: string
   badge?: number
   active?: boolean
+  /** Appareil photo du bouton rouge (0.23.3) : n'apparaît que hors du viseur, au rythme de `away`. */
+  away?: boolean
 }
 
 export interface GlassOptions {
@@ -81,6 +84,17 @@ export interface GlassOptions {
   bar?: { items: GlassBarItem[] }
   /** Bouton rouge (0.23.0) : cercle rouge et symbole du mode ; `warn` : pastille ⚠. */
   shutter?: { warn?: boolean }
+  /**
+   * Barre du bas (0.23.3) : éloignement du viseur (`--away`, 0 → 1), lu à chaque image pour suivre
+   * l'animation ou le doigt — le rond rouge s'efface, l'appareil photo de la pilule arrive.
+   */
+  away?: () => number
+}
+
+/** Éloignement du viseur et « Réduire les animations », lus à chaque image. */
+export interface GlassMotion {
+  away: number
+  reduce: boolean
 }
 
 type Rect = { x: number; y: number; width: number; height: number }
@@ -102,9 +116,20 @@ export function glassable(options: GlassOptions): boolean {
   return !!options.segments?.length || !!options.title || (!!options.icon && !!glassSymbol(options.icon))
 }
 
+/** Aspect envoyé au natif : au centième (opacité, échelle) et au demi-degré. */
+function roundLook(look: Look): Look {
+  const cent = (v: number) => Math.round(v * 100) / 100
+  return { alpha: cent(look.alpha), scale: cent(look.scale), angle: Math.round(look.angle * 2) / 2 + 0 }
+}
+
 /** Éléments de la barre, cadres relatifs à la pilule (au demi-point) ; ceux sans cadre sont omis. */
-export function barItemSpecs(bar: Rect, items: readonly MeasuredBarItem[]): GlassBarItemSpec[] {
+export function barItemSpecs(
+  bar: Rect,
+  items: readonly MeasuredBarItem[],
+  motion: GlassMotion = { away: 0, reduce: false },
+): GlassBarItemSpec[] {
   const half = (v: number) => Math.round(v * 2) / 2
+  const camera = roundLook(awayLook(motion.away, motion.reduce).camera)
   return items.flatMap((it) =>
     it.rect && it.rect.width > 0 && it.rect.height > 0
       ? [
@@ -117,6 +142,7 @@ export function barItemSpecs(bar: Rect, items: readonly MeasuredBarItem[]): Glas
             initial: it.symbol || it.icon ? null : (it.initial ?? '?'),
             badge: badgeText(it.badge),
             active: !!it.active,
+            ...(it.away ? camera : { alpha: 1, scale: 1, angle: 0 }),
           },
         ]
       : [],
@@ -134,16 +160,21 @@ export function toSpec(
   onTop: boolean,
   scroller: ScrollerPort | null = null,
   items: readonly MeasuredBarItem[] = [],
+  motion: GlassMotion = { away: 0, reduce: false },
 ): GlassButtonSpec | null {
   if (!glassable(options)) return null
   const half = (v: number) => Math.round(v * 2) / 2
   const segments = options.segments?.length ? options.segments : null
   const kind = options.bar ? 'bar' : options.shutter ? 'shutter' : segments ? 'segmented' : 'button'
+  // Bouton rouge de la barre : rond et symbole du mode selon l'éloignement du viseur.
+  const look = options.shutter && options.away ? awayLook(motion.away, motion.reduce) : null
   return {
     id,
     kind,
-    items: options.bar ? barItemSpecs(rect, items) : null,
+    items: options.bar ? barItemSpecs(rect, items, motion) : null,
     warn: !!options.shutter?.warn,
+    disc: look && roundLook(look.disc),
+    look: look && roundLook(look.mode),
     symbol: !segments && options.icon ? glassSymbol(options.icon) : null,
     title: !segments ? (options.title ?? null) : null,
     segments,
@@ -254,6 +285,9 @@ let sent = ''
  * Testé en son centre, ramené dans l'écran : une pastille à moitié sortie de l'écran reste affichée.
  * (Un bouton posé dans une vue de défilement d'iOS est, lui, recouvert et coupé comme la page.)
  */
+/** « Réduire les animations » (iOS le transmet à la page). */
+const reducedMotion = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-reduced-motion: reduce)') : undefined
+
 function onTop(el: HTMLElement, rect: Rect): boolean {
   const w = window.innerWidth
   const h = window.innerHeight
@@ -276,7 +310,8 @@ function tick() {
       ...item,
       rect: ref.current?.getBoundingClientRect() ?? null,
     }))
-    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect), activeScroller(parents), items)
+    const motion = { away: current.away?.() ?? 0, reduce: !!reducedMotion?.matches }
+    const spec = toSpec(id, rect, current, pageVisible && onTop(el, rect), activeScroller(parents), items, motion)
     if (spec) specs.push(spec)
   }
   // La pilule de la barre sous ses boutons : le natif empile dans l'ordre reçu.
