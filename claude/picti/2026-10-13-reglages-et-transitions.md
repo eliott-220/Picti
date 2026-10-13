@@ -57,5 +57,11 @@ les clics à travers un écran `inert`, et les contrôles lisaient le texte de l
   répond ; le mode choisi est gardé après relance.
 - Captures : [planche](./2026-10-13-reglages-et-transitions.jpg).
 
+## Installée
+Sur l'iPhone d'Eliott le 13/10 à 15 h 08 : version de test 0.23.3 (avec les journaux de trajets), à la
+place de la 0.23.2 ; les 24 journaux restent sur l'iPhone (copie de secours dans le dossier temporaire
+de la session). Ces journaux ne notent que position, suivi visuel et boussole : rien sur les écrans, d'où
+la reproduction au banc et au simulateur.
+
 ## Branche
 `claude/barre-du-bas` (0.23.0 → 0.23.3). Pas fusionnée dans `main`.
