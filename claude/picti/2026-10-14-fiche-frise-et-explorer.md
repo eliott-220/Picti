@@ -27,3 +27,7 @@ La 0.24.2 a été retrouvée dans le dossier temporaire de la session précéden
 - Aucun serveur localhost, aucun push, aucune publication Vercel, aucune modification de la base réelle, aucune installation sur l'iPhone physique dans cette session.
 
 Sauvegardes, captures et bilan dans le dossier de notes Picti, via `PICTI-0.024.3-REALISATION.md`.
+
+## Installation sur l'iPhone — 14/10 à 11 h 26 (Paris)
+
+À la demande d'Eliott, compilation Debug arm64 avec `VITE_PICTI_TRACE=1`, équipe Xcode `DH3DNS54X3`, puis installation en remplacement de la 0.24.2 sur son iPhone 15 Pro Max (sans désinstallation). `xcodebuild` : BUILD SUCCEEDED ; `devicectl` confirme la version 0.24.3 et le lancement. Code normal, sans fixtures du banc. Les 39 journaux existants restent sur l'appareil et une copie est conservée dans `/private/tmp/picti-0243-traces-before-install`. Pas de push ni de déploiement. Le test tactile / terrain de l'utilisateur reste à faire.

@@ -6,6 +6,8 @@ Mémoire de projet pour Claude. Lire aussi `README.md` (fonctionnalités, archit
 
 ## Le projet
 
+**14/10/2026 à 11 h 26 (Paris)** : 0.24.3 installée et lancée sur l'iPhone 15 Pro Max d'Eliott à sa demande, à la place de la 0.24.2 ; build Debug avec journaux (`VITE_PICTI_TRACE=1`), 39 journaux anciens conservés et sauvegardés. Version confirmée par `devicectl`. Test tactile / terrain restant, pas publiée. Voir la [note de session](claude/picti/2026-10-14-fiche-frise-et-explorer.md).
+
 **PICTI** = application de **géocadrage** : ancrer une photo à la position GPS et à
 l'orientation exactes (cap, inclinaison, roulis) de sa prise de vue, pour la redécouvrir
 *in situ* en réalité augmentée. Concept de Yannick Devin et Denis Servais (2018, La Rochelle).
