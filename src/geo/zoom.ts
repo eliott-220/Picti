@@ -27,13 +27,15 @@ export const ZOOM = {
   digitalMax: 5,
   /** Zoom matériel maximal demandé (WebKit ne va pas plus loin). */
   hardwareMax: 10,
-  /** Relâché à moins de 4 % d'un repère (1, 2…), le zoom s'y range. */
+  /** À moins de 4 % d'un repère (1, 2…), c'est son bouton qui porte le zoom (« 1,97 » → bouton « 2 »). */
   snap: 0.04,
   /**
-   * Caméra d'ARKit (arrêtée à 1 en pinçant vers l'intérieur) : un pincement qui aurait mené sous
-   * 0,8 passe au grand angle au relâcher, comme sur l'iPhone.
+   * Caméra d'ARKit (arrêtée à 1 en pinçant vers l'intérieur) : un pincement qui mène sous 0,8 passe au
+   * grand angle aussitôt, doigts posés (0.24.1 ; au relâcher avant), puis continue sur lui.
    */
   pinchToWide: 0.8,
+  /** Appui sur un bouton : le zoom glisse jusqu'au repère en … ms (comme l'appareil photo de l'iPhone). */
+  rampMs: 320,
 }
 
 /** Zoom ramené dans les limites de la caméra. */
@@ -93,10 +95,33 @@ export function zoomName(preset: number): string {
   return `Zoom ${decimal(preset)}${name}`
 }
 
-/** Relâché près d'un repère, le zoom s'y range. */
-export function settleZoom(zoom: number, presets: readonly number[]): number {
-  for (const p of presets) if (Math.abs(zoom / p - 1) <= ZOOM.snap) return p
-  return Math.round(zoom * 100) / 100
+/**
+ * Zoom gardé au relâcher d'un pincement : celui des doigts, borné à la caméra (0.24.1 : plus rangé sur un
+ * repère proche, comme sur l'iPhone).
+ */
+export const pinchedZoom = (raw: number, range: ZoomRange): number => Math.round(clampZoom(raw, range) * 100) / 100
+
+/**
+ * Repère atteint ou dépassé en passant du zoom `from` à `to` (le plus proche de `to`), null sinon — pas
+ * celui qu'on quitte : une petite vibration le marque pendant un pincement, comme sur l'iPhone.
+ */
+export function crossedPreset(from: number, to: number, presets: readonly number[]): number | null {
+  const lo = Math.min(from, to)
+  const hi = Math.max(from, to)
+  const crossed = presets.filter((p) => (from < to ? p > lo && p <= hi : p >= lo && p < hi))
+  if (!crossed.length) return null
+  return from < to ? crossed[crossed.length - 1] : crossed[0]
+}
+
+/**
+ * Zoom pendant le glissement d'un repère à l'autre, à l'instant `t` (0 → 1) : progression géométrique
+ * (de 1 à 5, autant de temps de 1 à 2,2 que de 2,2 à 5) qui ralentit en arrivant.
+ */
+export function rampZoom(from: number, to: number, t: number): number {
+  const k = Math.min(1, Math.max(0, t))
+  const eased = 1 - (1 - k) ** 3
+  if (!(from > 0) || !(to > 0)) return to
+  return from * (to / from) ** eased
 }
 
 /** Rectangle central (px entiers) gardé d'une image `width` × `height` agrandie `zoom` fois. */

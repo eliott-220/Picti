@@ -42,6 +42,11 @@ export interface ViewfinderZoom {
   videoScale: number
   /** Focale équivalente de cette caméra à 1 (Reproduire en part pour retrouver un cadrage). */
   baseFocal35: number
+  /**
+   * Zoom où l'on change de caméra (app iOS : 1, ARKit au-dessus, caméra web du grand angle en dessous) ;
+   * null si une seule caméra sert. Le glissement d'un bouton à l'autre ne le traverse pas : il saute.
+   */
+  switchAt: number | null
 }
 
 export interface Viewfinder {
@@ -177,6 +182,7 @@ export function useViewfinder({
       route: plan.route,
       videoScale: arCamera ? 1 : webScale,
       baseFocal35: arFocal ?? webWide,
+      switchAt: arUsable && plan.range.min < 1 ? 1 : null,
     },
     ar: { active: arActive, oriented: arActive && view.basis != null, state: arState },
   }

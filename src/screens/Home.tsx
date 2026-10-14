@@ -17,6 +17,7 @@ import { useTyping } from '../components/useTyping'
 import { usePinchZoom } from '../components/usePinchZoom'
 import { WarmColdGuide } from '../components/WarmColdGuide'
 import { ZoomLenses } from '../components/ZoomLenses'
+import { useZoomRamp } from '../components/useZoomRamp'
 import { DirectionArrow, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { CELEBRATION_MS } from '../components/useCapture'
@@ -35,7 +36,7 @@ import { coverViewport, focalPx, FRONT_PHONE_FOCAL35 } from '../geo/optics'
 import { anglesFromBasis, frontCameraBasis, type CameraAngles } from '../geo/orientation'
 import { reproduceStatus, type ReproduceState } from '../geo/reproduce'
 import { GPS_GOOD_ACCURACY } from '../geo/tracking'
-import { reproduceZoom, settleZoom, ZOOM, type ZoomRoute } from '../geo/zoom'
+import { clampZoom, crossedPreset, pinchedZoom, reproduceZoom, ZOOM, type ZoomRoute } from '../geo/zoom'
 import { useNearbyRefresh } from '../data/useNearbyRefresh'
 import { goBack, historyMark, navigate } from '../router'
 import type { CameraFacing } from '../sensors/useCamera'
@@ -284,8 +285,8 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
     setZoomWanted(reproduceZoom(reproduce.focal35, zoom.baseFocal35, zoom.range))
   }, [reproduce, selfie, cameraStatus, zoom.presets.length, zoom.baseFocal35, zoom.range])
 
-  // Pincer pour zoomer (caméra arrière) ; relâché près d'un repère, le zoom s'y range. Avec la caméra
-  // d'ARKit, arrêtée à 1, un pincement poussé vers l'intérieur passe au grand angle.
+  // Pincer pour zoomer (caméra arrière). Avec la caméra d'ARKit, arrêtée à 1, un pincement poussé vers
+  // l'intérieur passe au grand angle.
   const canZoom = !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !sheet && !frozen && !held && !captureSheet?.open
   // Boutons du zoom : sur le viseur seulement (pas sur la carte, les onglets ni en selfie), gardés pendant
   // l'ouverture du menu pour s'effacer en douceur.
@@ -293,15 +294,40 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
     !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !frozen && !held && !captureSheet?.open && pane === 'viseur'
   // Chaud / froid (0.24.0) : sur le viseur, caméra arrière ; pas en Reproduire (ni pendant le tutoriel, autre écran).
   const warmColdShown = !selfie && !reproduce && onViewfinder && pane === 'viseur' && !frozen && !held && !captureSheet?.open
+  // Comme l'appareil photo de l'iPhone (0.24.1) : appui sur un bouton = le zoom y glisse (sauf s'il faut
+  // changer de caméra : il saute) ; pincement = zoom exact, gardé tel quel au relâcher, une petite vibration
+  // à chaque repère atteint ; avec ARKit, pincer sous 0,8 passe au grand angle tout de suite.
+  const zoomRamp = useZoomRamp(setZoomWanted)
+  function selectLens(target: number) {
+    const from = zoom.value
+    const at = zoom.switchAt
+    if (at != null && from < at !== target < at) {
+      zoomRamp.cancel()
+      setZoomWanted(target)
+    } else zoomRamp.ramp(from, target)
+  }
+  const pinchShown = useRef(1)
   const pinch = usePinchZoom({
     enabled: canZoom,
     zoom: zoom.value,
-    onStart: () => setPinchRoute(zoom.route),
-    onChange: setZoomWanted,
+    onStart: () => {
+      zoomRamp.cancel()
+      pinchShown.current = zoom.value
+      setPinchRoute(zoom.route)
+    },
+    onChange: (raw) => {
+      const toWide = pinchRoute === 'ar' && raw < ZOOM.pinchToWide && zoom.range.min < 1
+      if (toWide) setPinchRoute('web')
+      const route = toWide ? 'web' : pinchRoute
+      const shown = route === 'ar' ? Math.max(1, clampZoom(raw, zoom.range)) : clampZoom(raw, zoom.range)
+      if (crossedPreset(pinchShown.current, shown, zoom.presets) != null) haptic('tick')
+      pinchShown.current = shown
+      setZoomWanted(raw)
+    },
     onEnd: (raw) => {
       setPinchRoute(null)
-      const wide = zoom.route === 'ar' && raw < ZOOM.pinchToWide && zoom.range.min < 1
-      setZoomWanted(wide ? zoom.range.min : settleZoom(Math.min(Math.max(raw, zoom.range.min), zoom.range.max), zoom.presets))
+      // Resté sur ARKit (pas assez pincé pour le grand angle) : il ne descend pas sous 1.
+      setZoomWanted(pinchedZoom(pinchRoute === 'ar' ? Math.max(1, raw) : raw, zoom.range))
     },
   })
 
@@ -611,7 +637,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
       {/* Zoom (0.22.1) : depuis 0.24.0, petite rangée centrée juste au-dessus de la barre du bas, sur le viseur
           seulement ; elle s'efface pendant le choix du mode (colonne au-dessus du bouton rouge) et quand le
           menu est ouvert : les deux ne se superposent jamais. */}
-      {zoomShown && <ZoomLenses presets={zoom.presets} zoom={zoom.value} onSelect={setZoomWanted} faded={!!sheet} />}
+      {zoomShown && <ZoomLenses presets={zoom.presets} zoom={zoom.value} onSelect={selectLens} faded={!!sheet} />}
       {shell && <WarmColdGuide fix={geo.fix} shown={warmColdShown} faded={!!sheet} wide={zoom.value < 1} />}
 
       {reproduce && (

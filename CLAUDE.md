@@ -1054,12 +1054,22 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
   angle et de zoomer » ; partout, viseur de l'accueil et « Reproduire ») : boutons d'objectif au-dessus du
   déclencheur comme sur l'iPhone (**depuis 0.24.0 : rangée centrée juste au-dessus de la barre du bas**, voir « 0.24.0 ») (`ZoomLenses` : « 0,5 · 1× · 2 · 5 », celui qui porte le zoom actuel
   l'affiche, « 1,4× » ; vrais boutons Liquid Glass dans l'app iOS 26+) et **pincer à deux doigts**
-  (`usePinchZoom`, phase de capture sur le `<main>` du viseur ; relâché à moins de 4 % d'un repère, il s'y
-  range ; pas depuis le déclencheur, la frise, les feuilles ni les boutons du zoom ; les glissés entre écrans
+  (`usePinchZoom`, phase de capture sur le `<main>` du viseur ; ~~relâché à moins de 4 % d'un repère, il s'y
+  range~~ depuis 0.24.1 gardé tel quel, voir ci-dessous ; pas depuis le déclencheur, la frise, les feuilles ni les boutons du zoom ; les glissés entre écrans
   et les piles cèdent au second doigt : `usePanes` depuis 0.24.0 (avant : `useSwipeOpen`), `useCardSwipe` ; l'appui qui suit est
   avalé). Pas en selfie, ni pendant une feuille ou une prise figée ; boutons masqués pendant le
   carrousel des modes (`:has(.shutter.picking)`), frise remontée au-dessus d'eux. Retour à 1× à chaque
   ouverture du viseur ; chasse et recalage restent à 1×.
+  - **Comme l'appareil photo de l'iPhone** (0.24.1, demande d'Eliott du 14/10 : « zoomer et dézoomer avec les
+    2 doigts et les bulles en bas qui s'animent suivant le zoom ») : **pincement exact** (`pinchedZoom`, plus
+    de rangement sur un repère), **petite vibration** (`haptic('tick')`) à chaque repère atteint
+    (`crossedPreset`) ; avec ARKit, pincer sous 0,8 passe au **grand angle pendant le geste** (avant : au
+    relâcher), puis le pincement continue sur lui ; sinon ARKit ne descend pas sous 1. **Appui sur une
+    bulle** : le zoom **glisse** jusqu'au repère en 320 ms (`useZoomRamp`, `rampZoom` géométrique qui ralentit
+    en arrivant) — le chiffre défile (« 1,4× », « 1,7× »…) et la bulle active passe d'un repère à l'autre ;
+    s'il faut changer de caméra (`zoom.switchAt` = 1 dans l'app), il saute. **Bulles** : celle qui porte le
+    zoom grossit (40 px au lieu de 32) avec un petit rebond (transition CSS, suivie par le verre natif dont
+    le cadre est relu à chaque image) ; « Réduire les animations » : ni glissement ni rebond.
   - **Le zoom multiplie la focale équivalente** de l'image affichée et de la photo prise : les photos du
     décor restent calées à tous les grossissements (banc : à 2×, chaque photo s'écarte deux fois plus du
     centre et grandit deux fois, ARKit et caméra web), et une photo prise au 0,5 a sa vraie focale (≈ 13 mm)
@@ -1195,6 +1205,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
+- 0.24.1 (même branche) : zoom comme l'appareil photo de l'iPhone — pincement exact avec une vibration à chaque repère, grand angle pendant le geste, appui sur une bulle = le zoom glisse et le chiffre défile, la bulle active grossit avec un rebond.
 - 0.24.0 (codée, branche `claude/version-0.24`, version de test sur l'iPhone d'Eliott le 14/10 ; production après son test à pied et son accord, migrations comprises) : partie 4 — vibrations sur iPhone partout (alignement qui se sent en chasse et en Reproduire, capture, réglage « Vibrations ») et guidage chaud / froid de 500 à 20 m (pastille du viseur, trait sur la carte, paliers qui vibrent, « Y aller »). Partie 3 — import : le sélecteur d'iOS garde la position (mesuré), cap en nord vrai converti en magnétique (déclinaison WMM), bilan en liste (placée / à orienter sur place · distance / sans position / illisible + raison, « Recaler »), photos « à recaler » sur ma carte en pointillés. Partie 2 — socle avant testeurs : signaler (photo masquée pour moi aussitôt, pour tous à 3), bloquer dans les deux sens, supprimer son compte (Edge Function, tout ou rien), conditions d'utilisation et confidentialité (brouillon), plus aucune métadonnée envoyée (l'import envoyait l'original), avertissement de la première photo publique ; migration et fonctions prêtes, pas appliquées. Partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
 - 0.23.3 : bouton Réglages de Mon profil réparé (l'onglet restait par-dessus les Paramètres, et par-dessus toute page ouverte depuis un onglet) ; hors du viseur, plus de rond rouge : appareil photo seul, comme les autres pictogrammes, avec une petite animation dans les deux sens (au doigt aussi) ; pages qui se poussent entre elles (onglets et pages), sauf vers / depuis le viseur.
 - 0.23.2 : barre plus basse (hauteur d'Instagram) ; bouton rouge dans la pilule, de la taille des autres boutons ; appareil photo hors du viseur, symbole du mode sur le viseur.

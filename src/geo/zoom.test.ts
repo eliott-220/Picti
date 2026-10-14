@@ -5,7 +5,9 @@ import {
   hardwareRange,
   presetFor,
   reproduceZoom,
-  settleZoom,
+  crossedPreset,
+  pinchedZoom,
+  rampZoom,
   ZOOM,
   zoomLabel,
   zoomPlan,
@@ -39,9 +41,36 @@ describe('zoom du viseur et grand angle', () => {
     expect(zoomLabel(2, 2, true)).toBe('2×')
   })
 
-  it('range le zoom sur un repère proche au relâcher', () => {
-    expect(settleZoom(1.03, [0.5, 1, 2])).toBe(1)
-    expect(settleZoom(1.5, [0.5, 1, 2])).toBe(1.5)
+  it('au relâcher, le zoom des doigts est gardé tel quel (borné à la caméra)', () => {
+    expect(pinchedZoom(1.03, { min: 0.5, max: 5 })).toBe(1.03)
+    expect(pinchedZoom(1.4567, { min: 0.5, max: 5 })).toBe(1.46)
+    expect(pinchedZoom(9, { min: 0.5, max: 5 })).toBe(5)
+    expect(pinchedZoom(0.2, { min: 0.5, max: 5 })).toBe(0.5)
+  })
+
+  it('repère franchi en pinçant (une vibration), dans les deux sens', () => {
+    const presets = [0.5, 1, 2, 5]
+    expect(crossedPreset(1.4, 2.1, presets)).toBe(2)
+    expect(crossedPreset(1, 1.3, presets)).toBeNull()
+    expect(crossedPreset(1.3, 1, presets)).toBe(1)
+    // On marque l'arrivée sur un repère (ou son passage), pas le départ : il a déjà vibré en y arrivant.
+    expect(crossedPreset(1, 0.9, presets)).toBeNull()
+    expect(crossedPreset(1.1, 0.9, presets)).toBe(1)
+    expect(crossedPreset(0.6, 0.5, presets)).toBe(0.5)
+    expect(crossedPreset(1.5, 5, presets)).toBe(5)
+    expect(crossedPreset(4, 1.2, presets)).toBe(2)
+  })
+
+  it('appui sur un bouton : glissement géométrique qui ralentit en arrivant', () => {
+    expect(rampZoom(1, 5, 0)).toBe(1)
+    expect(rampZoom(1, 5, 1)).toBeCloseTo(5, 9)
+    expect(rampZoom(1, 5, 2)).toBeCloseTo(5, 9)
+    const steps = [0.1, 0.3, 0.5, 0.7, 0.9].map((t) => rampZoom(1, 5, t))
+    for (let i = 1; i < steps.length; i++) expect(steps[i]).toBeGreaterThan(steps[i - 1])
+    // Plus de chemin au début qu'à la fin (il ralentit).
+    expect(steps[1] / steps[0]).toBeGreaterThan(steps[4] / steps[3])
+    expect(rampZoom(2, 1, 0.5)).toBeLessThan(2)
+    expect(rampZoom(2, 1, 0.5)).toBeGreaterThan(1)
   })
 
   it('recadre au centre en gardant les proportions', () => {
