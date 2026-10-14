@@ -54,28 +54,34 @@ function requestMotion() {
   void api?.requestPermission?.().catch(() => undefined)
 }
 
+/**
+ * Réponse d'iOS à une demande d'accès. « gesture » : la question n'a pas été posée, faute d'appui
+ * (`NotAllowedError`) — ce n'est pas un refus de l'utilisateur, la boussole reste à activer.
+ */
+type CompassAnswer = 'granted' | 'denied' | 'gesture'
+
 // Accordée une fois par session (iOS), valable pour tous les écrans.
 let permissionGranted = false
-let pendingRequest: Promise<boolean> | null = null
+let pendingRequest: Promise<CompassAnswer> | null = null
 const grantListeners = new Set<() => void>()
 
 /** iOS (navigateur) : l'accès aux capteurs de mouvement doit être demandé sur un geste. */
 export const orientationNeedsPermission = (): boolean => needsPermission() && !permissionGranted
 
 /** Demande (unique à la fois) l'accès à la boussole ; mémorise la réponse. */
-export function requestCompass(): Promise<boolean> {
+function askCompass(): Promise<CompassAnswer> {
   const api = permissionApi()
-  if (!api?.requestPermission) return Promise.resolve(true)
+  if (!api?.requestPermission) return Promise.resolve('granted')
   if (pendingRequest) return pendingRequest
   pendingRequest = api
     .requestPermission()
-    .then((answer) => {
+    .then((answer): CompassAnswer => {
       permissionGranted = answer === 'granted'
       remember('boussole', permissionGranted)
       if (permissionGranted) grantListeners.forEach((l) => l())
-      return permissionGranted
+      return permissionGranted ? 'granted' : 'denied'
     })
-    .catch(() => false)
+    .catch((): CompassAnswer => 'gesture')
     .finally(() => {
       pendingRequest = null
     })
@@ -83,17 +89,29 @@ export function requestCompass(): Promise<boolean> {
   return pendingRequest
 }
 
+export const requestCompass = (): Promise<boolean> => askCompass().then((answer) => answer === 'granted')
+
 /**
  * iOS redemande l'accès à la boussole à chaque ouverture. Si l'utilisateur
  * l'a déjà accordé, on le réactive sans bouton : aussitôt si le système
  * l'accepte, sinon au premier appui n'importe où dans l'app.
+ *
+ * 0.24.4 : un glissé (changer de page, ouvrir Explorer, pincer pour zoomer) n'est pas un appui pour iOS —
+ * la demande faite à la fin du geste est rejetée (vu au simulateur : `touchend` sans activation). Les
+ * écouteurs restaient retirés dès ce premier geste : plus rien ne réessayait, seul le bouton marchait.
+ * Ils restent maintenant en place jusqu'à une vraie réponse (accordé ou refusé).
  */
 function restoreCompass() {
   if (!needsPermission() || permissionGranted || !isRemembered('boussole')) return
-  const onGesture = () => {
+  const stop = () => {
     document.removeEventListener('touchend', onGesture, true)
     document.removeEventListener('click', onGesture, true)
-    if (!permissionGranted) void requestCompass()
+  }
+  const onGesture = () => {
+    if (permissionGranted) return stop()
+    void askCompass().then((answer) => {
+      if (answer !== 'gesture') stop()
+    })
   }
   permissionApi()!
     .requestPermission!()
@@ -211,21 +229,24 @@ export function useOrientation(enabled = true): OrientationState {
     }
 
     window.addEventListener(type, onEvent)
-    // Ordinateur sans capteurs : aucun événement exploitable n'arrive.
-    const timeout = setTimeout(() => {
-      if (!basis) setStatus((s) => (s === 'waiting' ? 'unsupported' : s))
-    }, 4000)
     return () => {
       window.removeEventListener(type, onEvent)
       cancelAnimationFrame(frame)
-      clearTimeout(timeout)
     }
   }, [listening])
 
+  // Ordinateur sans capteurs : aucun événement exploitable n'arrive. Compté à partir de l'accès accordé
+  // (0.24.4) : accordé plus de 4 s après l'ouverture, la pastille restait à « Boussole… ».
+  useEffect(() => {
+    if (!enabled || status !== 'waiting') return
+    const timeout = setTimeout(() => setStatus((s) => (s === 'waiting' ? 'unsupported' : s)), 4000)
+    return () => clearTimeout(timeout)
+  }, [enabled, status])
+
   const requestPermission = useCallback(async () => {
-    const granted = await requestCompass()
-    setStatus(granted ? 'waiting' : 'denied')
-    return granted
+    const answer = await askCompass()
+    setStatus(answer === 'granted' ? 'waiting' : answer === 'denied' ? 'denied' : 'needs-permission')
+    return answer === 'granted'
   }, [])
 
   const angles = useMemo(() => (snapshot ? anglesFromBasis(snapshot.basis) : null), [snapshot])
