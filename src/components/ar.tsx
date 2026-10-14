@@ -2,19 +2,20 @@
 // et la chasse : photo superposée, capture par agrandissement, frise des
 // photos prises au même endroit.
 
-import { useEffect, useState, type CSSProperties, type HTMLAttributes } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes } from 'react'
 import { useImageUrl } from '../data/imageUrls'
+import { usePhotoInColor } from '../data/photoColor'
 import { formatDayTime, type GeoPhoto } from '../data/types'
 import { ALIGN_TOLERANCE, type Alignment } from '../geo/alignment'
 import { CAPTURE } from '../geo/capture'
 import { formatDistance } from '../geo/geodesy'
 import { OVERLAY_W, overlayHeight, photoTime } from './arProjection'
 import { Dots } from './Dots'
-import { Icon } from './Icon'
 import { LikeButton } from './LikeButton'
+import { canStepTo } from './timelineGesture'
 import { DirectionArrow, PhotoTile } from './ui'
 import type { CaptureState } from './useCapture'
-import { useSwipe } from './useSwipe'
+import { useTimelineGesture, type TimelineCollapse } from './useTimelineGesture'
 
 /** Opacité d'une photo vue de dos : imprimée sur une vitre dépolie. */
 export const GLASS_OPACITY = 0.45
@@ -215,9 +216,10 @@ export function CaptureHint({ text }: { text: string | null }) {
 }
 
 /**
- * Frise des photos d'un même lieu, dans l'ordre de la pile (les plus aimées d'abord) : flèches
- * (ou glissement) pour passer de l'une à l'autre, cœur de la photo affichée, points pour le
- * nombre (appui : galerie du lieu).
+ * Frise des photos d'un même lieu, dans l'ordre de la pile (les plus aimées d'abord) : cœur de la photo
+ * affichée, points pour le nombre (appui : galerie du lieu). Depuis 0.24.2, plus de flèches : on passe de
+ * l'une à l'autre en glissant le doigt dessus (vers la gauche : la suivante) ; sur le viseur (`collapse`),
+ * glisser vers le bas la range en vignette en bas à droite (`TimelineMini`). Voir `useTimelineGesture`.
  */
 export function SpotTimeline({
   items,
@@ -228,6 +230,7 @@ export function SpotTimeline({
   dots = true,
   distance,
   onGallery,
+  collapse,
 }: {
   items: GeoPhoto[]
   index: number
@@ -240,67 +243,124 @@ export function SpotTimeline({
   distance?: number | null
   /** Galerie de toutes les photos du lieu (appui sur les points). */
   onGallery?: () => void
+  /** Viseur : la frise se range en vignette (glisser vers le bas). */
+  collapse?: TimelineCollapse
 }) {
   const photo = items[index]
-  const step = (s: 1 | -1) => onChange(Math.min(items.length - 1, Math.max(0, index + s)))
-  const swipe = useSwipe(step)
+  const root = useRef<HTMLDivElement>(null)
+  const gesture = useTimelineGesture({
+    root,
+    index,
+    count: items.length,
+    // La pile a pu changer pendant l'animation (autre lieu visé) : le pas reste dans la pile.
+    onStep: (s) => {
+      if (canStepTo(index, items.length, s)) onChange(index + s)
+    },
+    collapse,
+  })
+  const url = useImageUrl(gesture.shrink ? photo.id : null, 'thumb')
+  const inColor = usePhotoInColor(photo.id)
   const author = isMine(photo) ? 'Moi' : photo.ownerName || 'Quelqu’un'
   const where = distance != null ? ` · à ${formatDistance(distance)}` : ''
   return (
     <div
-      className="timeline"
-      onPointerDown={(e) => {
-        // La frise gère son propre glissement (pas celui du mode démo de la chasse).
-        e.stopPropagation()
-        swipe.onPointerDown(e)
-      }}
-      onPointerUp={swipe.onPointerUp}
+      ref={root}
+      className={`timeline${collapse ? ' collapsible' : ''}`}
+      style={gesture.rootStyle}
+      {...gesture.handlers}
+      tabIndex={items.length > 1 ? 0 : undefined}
       role="group"
-      aria-label="Photos prises à cet endroit"
+      aria-label={
+        items.length > 1
+          ? `Photos prises à cet endroit (${index + 1} sur ${items.length}) — glisser à gauche ou à droite pour changer de photo`
+          : 'Photo prise à cet endroit'
+      }
     >
-      <button
-        type="button"
-        className="timeline-step"
-        onClick={() => step(-1)}
-        disabled={index === 0}
-        aria-label="Photo précédente de la pile"
-      >
-        <Icon name="back" size={20} />
-      </button>
-      <PhotoTile id={photo.id} size="mini" />
-      <div className="timeline-text">
-        <strong>{formatDayTime(photoTime(photo))}</strong>
-        <span>{author + where}</span>
-        <div className="timeline-meta">
-          <LikeButton photo={photo} className="light compact" />
-          {photo.versionOf && <span className="timeline-version">↻</span>}
-          {dots && (
-            <Dots
-              count={items.length}
-              index={index}
-              rings={items.map((p) => p.versionOf != null)}
-              onOpen={onGallery}
-              className="light"
-            />
-          )}
+      <div className="timeline-slide" style={gesture.slideStyle}>
+        <PhotoTile id={photo.id} size="mini" />
+        <div className="timeline-text">
+          <strong>{formatDayTime(photoTime(photo))}</strong>
+          <span>{author + where}</span>
+          <div className="timeline-meta">
+            <LikeButton photo={photo} className="light compact" />
+            {photo.versionOf && <span className="timeline-version">↻</span>}
+            {dots && (
+              <Dots
+                count={items.length}
+                index={index}
+                rings={items.map((p) => p.versionOf != null)}
+                onOpen={onGallery}
+                className="light"
+              />
+            )}
+          </div>
         </div>
+        {action && (
+          <button type="button" className="btn small" onClick={action.onClick} disabled={action.disabled}>
+            {action.label}
+          </button>
+        )}
       </div>
-      {action && (
-        <button type="button" className="btn small" onClick={action.onClick} disabled={action.disabled}>
-          {action.label}
-        </button>
+      {/* Plus de flèches à l'écran ; gardées pour les lecteurs d'écran (VoiceOver). */}
+      {items.length > 1 && (
+        <>
+          <button type="button" className="sr-only" onClick={() => gesture.go(-1)} disabled={index === 0}>
+            Photo précédente de la pile
+          </button>
+          <button type="button" className="sr-only" onClick={() => gesture.go(1)} disabled={index >= items.length - 1}>
+            Photo suivante de la pile
+          </button>
+        </>
       )}
-      <button
-        type="button"
-        className="timeline-step next"
-        onClick={() => step(1)}
-        disabled={index >= items.length - 1}
-        aria-label="Photo suivante de la pile"
-      >
-        <Icon name="back" size={20} />
-      </button>
+      {/* Réduction : l'image de la photo visée remplit peu à peu la partie visible. */}
+      {gesture.shrink && (
+        <span className="timeline-shrink" style={gesture.shrink} aria-hidden>
+          {url && <img src={url} alt="" className={inColor ? undefined : 'mono'} draggable={false} />}
+        </span>
+      )}
     </div>
   )
+}
+
+/**
+ * Frise réduite (0.24.2, viseur) : la seule image de la photo visée, en bas à droite, symétrique du Menu
+ * 4 carrés ; un appui fait revenir la frise. Elle change d'image (fondu court) si l'on vise une autre photo, et
+ * s'efface quand plus aucune n'est visée (`photo` null) — en gardant la dernière image le temps du fondu.
+ */
+export function TimelineMini({ photo, onOpen }: { photo: GeoPhoto | null; onOpen: () => void }) {
+  const id = photo?.id ?? null
+  // Images empilées : la nouvelle apparaît en fondu par-dessus l'ancienne, retirée ensuite.
+  const [layers, setLayers] = useState<string[]>(() => (id ? [id] : []))
+  if (id && id !== layers[layers.length - 1]) setLayers([...layers.slice(-1), id])
+  useEffect(() => {
+    if (layers.length < 2) return
+    const t = setTimeout(() => setLayers((l) => l.slice(-1)), MINI_FADE_MS)
+    return () => clearTimeout(t)
+  }, [layers])
+  return (
+    <button
+      type="button"
+      className={`timeline-mini${photo ? '' : ' hidden'}`}
+      onClick={onOpen}
+      disabled={!photo}
+      aria-hidden={!photo}
+      aria-label="Photo visée — rouvrir la frise"
+    >
+      {layers.map((l, i) => (
+        <MiniImage key={l} id={l} fresh={i > 0} />
+      ))}
+    </button>
+  )
+}
+
+/** Fondu (ms) entre deux images de la vignette. */
+const MINI_FADE_MS = 180
+
+function MiniImage({ id, fresh }: { id: string; fresh: boolean }) {
+  const url = useImageUrl(id, 'thumb')
+  const inColor = usePhotoInColor(id)
+  if (!url) return null
+  return <img src={url} alt="" className={[fresh && 'fresh', !inColor && 'mono'].filter(Boolean).join(' ') || undefined} draggable={false} />
 }
 
 /** Jauges d'alignement sur le point de vue d'une photo : distance, cap, inclinaison (chasse, reproduction). */

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useColorRule } from '../data/photoColor'
 import { withinCaptureRadius } from '../geo/alignment'
 import type { GeoPhoto } from '../data/types'
@@ -7,7 +7,7 @@ import type { ViewportCamera } from '../geo/optics'
 import { anglesFromBasis, type CameraBasis } from '../geo/orientation'
 import { cycle, groupBySpot } from '../geo/spots'
 import { photoPileOrder, spotPointOf } from '../data/photoSpots'
-import { ArPhoto, CaptureCard, CaptureHint, SpotTimeline } from './ar'
+import { ArPhoto, CaptureCard, CaptureHint, SpotTimeline, TimelineMini } from './ar'
 import {
   coverTransform,
   overlayScale,
@@ -19,6 +19,7 @@ import {
 import { Dots } from './Dots'
 import { CELEBRATION_MS, useCapture } from './useCapture'
 import { useCardSwipe } from './useCardSwipe'
+import { setTimelineCollapsed, useTimelineCollapsed } from './timelineCollapsed'
 import { haptic } from '../native'
 
 /** Distance maximale (m) à laquelle les photos apparaissent dans le viseur. */
@@ -96,6 +97,11 @@ export function ArSpotsLayer({
   })
   /** Saturation d'une photo du viseur. */
   const color = (p: GeoPhoto) => ({ saturation: inColor(p) || justCaptured.has(p.id) ? 1 : 0 })
+  // Frise réduite en vignette (0.24.2), gardée d'une ouverture du viseur à l'autre ; `opening` : elle remonte
+  // depuis la vignette ; `slot` : place de la vignette, où la frise se range.
+  const collapsed = useTimelineCollapsed()
+  const [opening, setOpening] = useState(false)
+  const slot = useRef<HTMLSpanElement>(null)
 
   const spots = useMemo(() => {
     if (!fix) return []
@@ -157,6 +163,8 @@ export function ArSpotsLayer({
   const captured = capture.active ? photos.find((p) => p.id === capture.active) ?? null : null
   const capturedCard = captured && cardOf(captured.id)
   const focusTop = focus && focus.cards[focus.index]
+  // Plus de photo visée pendant la remontée : la prochaine frise s'affiche à sa place, sans animation.
+  if (opening && !focusTop) setOpening(false)
 
   return (
     <>
@@ -198,7 +206,21 @@ export function ArSpotsLayer({
         />
       )}
       <CaptureHint text={capture.state.phase === 'captured' ? 'Capturée !' : capture.hint} />
-      {focus && focusTop && (
+      {/* Frise réduite (0.24.2) : l'image seule de la photo visée, en bas à droite ; un appui la rouvre. */}
+      {collapsed ? (
+        <TimelineMini
+          photo={focusTop?.photo ?? null}
+          onOpen={() => {
+            haptic('tick')
+            setOpening(true)
+            setTimelineCollapsed(false)
+          }}
+        />
+      ) : (
+        // Place de la vignette (cachée) : la frise s'y range en suivant le doigt.
+        <span ref={slot} className="timeline-mini slot" aria-hidden />
+      )}
+      {!collapsed && focus && focusTop && (
         <div className="home-timeline">
           <SpotTimeline
             items={focus.cards.map((c) => c.photo)}
@@ -220,6 +242,18 @@ export function ArSpotsLayer({
             }
             dots={false}
             distance={focusTop.ar.distance}
+            collapse={{
+              target: () => {
+                const r = slot.current?.getBoundingClientRect()
+                return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null
+              },
+              onCollapse: () => {
+                haptic('tick')
+                setTimelineCollapsed(true)
+              },
+              opening,
+              onOpened: () => setOpening(false),
+            }}
           />
         </div>
       )}

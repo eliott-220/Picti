@@ -2419,16 +2419,133 @@ button.avatar-item {
   cursor: pointer;
 }
 
+/*
+ * Frise de la photo visée (viseur, chasse). Depuis 0.24.2, plus de flèches : on change de photo en glissant le
+ * doigt dessus (le contenu `.timeline-slide` suit le doigt) ; sur le viseur, glisser vers le bas la range en
+ * vignette (`.timeline-mini`) — elle descend et se resserre (décalage et découpe posés par
+ * `useTimelineGesture`), l'image de la photo la remplit (`.timeline-shrink`). Arrondi : `TIMELINE_RADIUS`.
+ */
 .timeline {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 10px;
   padding: 8px;
   border-radius: 28px;
+  overflow: hidden;
   background: var(--glass);
   color: #fff;
   backdrop-filter: blur(10px);
-  touch-action: pan-y;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.timeline:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.timeline-slide {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Image de la photo visée pendant la réduction : à la fin, exactement la vignette (liseré compris). */
+.timeline-shrink {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.timeline-shrink img,
+.timeline-mini img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.timeline-shrink::after,
+.timeline-mini::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgb(255 255 255 / var(--edge, 1));
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/*
+ * Frise réduite (0.24.2) : symétrique du Menu 4 carrés (`.menu-fab`) — même hauteur, même marge à droite,
+ * même taille ; l'image seule de la photo visée, coins arrondis (`MINI_RADIUS`), liseré blanc et ombre pour
+ * la détacher de la caméra. Elle s'efface quand plus aucune photo n'est visée ; une nouvelle image arrive en
+ * fondu. `.slot` : sa place, cachée, mesurée pour y ranger la frise.
+ */
+.timeline-mini {
+  position: absolute;
+  right: 24px;
+  bottom: calc(var(--bar-space) + 14px);
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #222;
+  box-shadow: var(--shadow);
+  transition: opacity 0.2s ease-out, visibility 0s linear 0s, transform 0.15s;
+  -webkit-touch-callout: none;
+}
+
+.timeline-mini:active {
+  transform: scale(0.92);
+}
+
+.timeline-mini.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out, visibility 0s linear 0.2s;
+}
+
+.timeline-mini.slot {
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.timeline-mini img.fresh {
+  animation: timeline-mini-in 0.18s ease-out;
+}
+
+@keyframes timeline-mini-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* « Réduire les animations » : la frise s'efface au lieu de se ranger, la vignette apparaît en fondu. */
+@media (prefers-reduced-motion: reduce) {
+  .timeline-mini:not(.slot) {
+    animation: timeline-mini-in 0.15s ease-out;
+  }
+}
+
+/* Pour les lecteurs d'écran seulement (ex. photo précédente / suivante de la frise). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .timeline-text {
@@ -2454,27 +2571,6 @@ button.avatar-item {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.timeline-step {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.15);
-  color: #fff;
-}
-
-.timeline-step.next svg {
-  transform: rotate(180deg);
-}
-
-.timeline-step:disabled {
-  opacity: 0.3;
 }
 
 .home-timeline {
