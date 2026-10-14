@@ -4,6 +4,7 @@ import { PremiumCard } from '../components/PremiumCard'
 import { Chip, RoundButton } from '../components/ui'
 import { useToast } from '../components/toastContext'
 import { formatVersion, reloadApp } from '../data/appUpdate'
+import { setDeviceSetting, useDeviceSetting } from '../data/deviceSettings'
 import { setShotVisibility, useShotVisibility } from '../data/shotVisibility'
 import { useStore } from '../data/storeContext'
 import { supabase } from '../data/supabase'
@@ -28,7 +29,7 @@ function advancedUnlocked(): boolean {
 
 /**
  * Paramètres (0.23.0, Mon profil › ⚙️) : seulement les réglages qui existent déjà — mode par défaut des
- * photos, compte (pseudo, e-mail, Premium, déconnexion ; « Supprimer mon compte » depuis 0.24.0),
+ * photos, vibrations et guidage chaud / froid (0.24.0), compte (pseudo, e-mail, Premium, déconnexion ; « Supprimer mon compte » depuis 0.24.0),
  * confidentialité (utilisateurs bloqués, 0.24.0), tutoriel, à propos (conditions d'utilisation et
  * confidentialité, version, focale, Recharger sur le site) ; « Avancé » (suivi visuel) après 7 appuis sur la
  * version.
@@ -37,6 +38,8 @@ export function Settings() {
   const { profile } = useStore()
   const toast = useToast()
   const visibility = useShotVisibility()
+  const vibrations = useDeviceSetting('vibrations')
+  const guidage = useDeviceSetting('guidage')
   const { focal35, measured } = useCameraFocal()
   const [email, setEmail] = useState<string | null>(null)
   useEffect(() => {
@@ -94,6 +97,28 @@ export function Settings() {
               bouton rouge et glisse vers le haut) ou après coup, dans la fiche de la photo.
             </small>
           </div>
+          <button type="button" className="settings-row" aria-pressed={vibrations} onClick={() => setDeviceSetting('vibrations', !vibrations)}>
+            <Icon name="bell" />
+            <span>
+              <strong>Vibrations : {vibrations ? 'activées' : 'coupées'}</strong>
+              <small>
+                {vibrations
+                  ? 'En t’alignant sur une photo, en la capturant, en t’en approchant'
+                  : 'Seul le déclencheur vibre encore'}
+              </small>
+            </span>
+          </button>
+          <button type="button" className="settings-row" aria-pressed={guidage} onClick={() => setDeviceSetting('guidage', !guidage)}>
+            <Icon name="compass" />
+            <span>
+              <strong>Guidage chaud / froid : {guidage ? 'activé' : 'coupé'}</strong>
+              <small>
+                {guidage
+                  ? 'Sur le viseur et la carte, entre 500 et 20 m de la photo la plus proche à capturer'
+                  : 'Plus de flèche vers la photo la plus proche sur le viseur'}
+              </small>
+            </span>
+          </button>
         </div>
 
         <div className="settings-group" aria-labelledby="reglages-compte">

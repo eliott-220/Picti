@@ -1,4 +1,5 @@
 import { useEffect, useRef, type MouseEvent, type PointerEvent } from 'react'
+import { haptic } from '../native'
 
 /** Appui maintenu sur une vignette de capture avant le choix « Retirer de mes captures » (ms). */
 export const LONG_PRESS_MS = 500
@@ -29,7 +30,7 @@ export function useLongPress(onLong: (() => void) | null) {
         timer: window.setTimeout(() => {
           fired.current = true
           start.current = null
-          navigator.vibrate?.(12)
+          haptic('tick')
           onLong()
         }, LONG_PRESS_MS),
       }

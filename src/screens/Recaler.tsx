@@ -14,6 +14,8 @@ import { bearingDeg, compassPoint, distanceMeters, formatDistance } from '../geo
 import { angleDiffDeg } from '../geo/math'
 import { coverViewport, focalPx } from '../geo/optics'
 import { goBack, navigate } from '../router'
+import { haptic } from '../native'
+import { releaseGuideTarget } from '../data/guideTarget'
 
 const FOCAL_MIN = 13
 const FOCAL_MAX = 200
@@ -111,7 +113,8 @@ function RecalerView({ photo }: { photo: GeoPhoto }) {
       toast(err instanceof Error ? err.message : 'Enregistrement impossible')
       return
     }
-    navigator.vibrate?.(40)
+    haptic('success')
+    releaseGuideTarget(photo.id)
     toast('Photo géocadrée en différé')
     navigate(`/photo/${photo.id}`, { replace: true })
   }

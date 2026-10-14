@@ -19,6 +19,7 @@ import {
 import { Dots } from './Dots'
 import { CELEBRATION_MS, useCapture } from './useCapture'
 import { useCardSwipe } from './useCardSwipe'
+import { haptic } from '../native'
 
 /** Distance maximale (m) à laquelle les photos apparaissent dans le viseur. */
 export const AR_RANGE = 150
@@ -82,7 +83,7 @@ export function ArSpotsLayer({
   const capture = useCapture((id) => {
     const p = photos.find((photo) => photo.id === id)
     if (!p || !onCapture) return
-    navigator.vibrate?.([60, 40, 120])
+    haptic('clac')
     setJustCaptured((done) => new Set(done).add(id))
     void onCapture(p).then((saved) => {
       if (saved) return

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { GeoFix } from '../geo/geodesy'
 import { reproduceStatus, type ReproduceState } from '../geo/reproduce'
 import type { ViewPoint } from '../geo/views'
+import { haptic } from '../native'
 
 /** Recalcul de l'état (ms) : le délai avant « hors de la vue » s'écoule même sans nouvelle mesure. */
 const TICK_MS = 200
@@ -39,13 +40,13 @@ export function useReproduceStatus(
     }
   }, [parent])
 
-  // Vibration courte en sortant de la vue (Android ; l'iPhone n'a pas `navigator.vibrate`).
+  // Vibration en sortant de la vue (iPhone compris depuis 0.24.0 : `haptic`).
   const view = state?.view
   const shown = useRef(view)
   useEffect(() => {
     const was = shown.current
     shown.current = view
-    if (view === 'out' && (was === 'in-view' || was === 'drifting')) navigator.vibrate?.(80)
+    if (view === 'out' && (was === 'in-view' || was === 'drifting')) haptic('strong')
   }, [view])
 
   return state

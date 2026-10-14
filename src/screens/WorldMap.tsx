@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
 import { SwipeDeck } from '../components/SwipeDeck'
 import { EmptyState, IconButton, PhotoTile, RoundButton } from '../components/ui'
+import { useWarmCold } from '../components/useWarmCold'
 import { ImportSheet } from './ImportSheet'
 import { registerThumbs, useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
@@ -397,6 +398,11 @@ export default function WorldMap({
   )
   const near = (view?.zoom ?? 0) >= PENDING_ZOOM
 
+  // Chaud / froid (0.24.0) : la photo vers laquelle guide le viseur — trait pointillé depuis ma position,
+  // distance au milieu, photo entourée.
+  const guide = useWarmCold(fix)
+  const guidePt = guide && map ? map.project([guide.position.lon, guide.position.lat]) : null
+
   // Orientation de la carte (°) : relue à chaque image, comme la position des vignettes.
   const bearing = map?.getBearing() ?? 0
 
@@ -408,6 +414,25 @@ export default function WorldMap({
       {map &&
         createPortal(
           <div className="map-markers">
+            {guide && guidePt && me && (
+              <>
+                <svg className="map-guide" width="1" height="1" aria-hidden="true">
+                  <line x1={me.x} y1={me.y} x2={guidePt.x} y2={guidePt.y} />
+                </svg>
+                <span
+                  className="map-guide-ring"
+                  data-lon={guide.position.lon}
+                  data-lat={guide.position.lat}
+                  style={{ transform: `translate(${guidePt.x}px, ${guidePt.y}px)` }}
+                />
+                <span
+                  className={`map-guide-distance ${guide.warmth}`}
+                  style={{ transform: `translate(${(me.x + guidePt.x) / 2}px, ${(me.y + guidePt.y) / 2}px)` }}
+                >
+                  {formatDistance(guide.distance)}
+                </span>
+              </>
+            )}
             {/* Sous les photos géocadrées : de loin, un simple point en pointillés. */}
             {pending.map((p) => {
               const pt = map.project([p.hintPosition!.lon, p.hintPosition!.lat])

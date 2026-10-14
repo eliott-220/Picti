@@ -4,6 +4,7 @@ import { DEG, dot, norm } from './math'
 import type { ViewportCamera } from './optics'
 import type { CameraBasis } from './orientation'
 import { projectPoint } from './projection'
+import { alignmentLevel } from './tutorial'
 
 export interface OrientationGuide {
   kind: 'unavailable' | 'behind' | 'edge' | 'visible'
@@ -13,6 +14,8 @@ export interface OrientationGuide {
   roll: number
   direction: number
   message: string
+  /** Alignement de 0 (loin) à 1 (dessus), pour le rythme des vibrations (0.24.0, `alignmentLevel`). */
+  level: number
 }
 
 function validBasis(b: CameraBasis | null): b is CameraBasis {
@@ -28,7 +31,7 @@ export function reproduceOrientation(
   mirror = false,
 ): OrientationGuide {
   const unavailable: OrientationGuide = {
-    kind: 'unavailable', aligned: false, x: 0, y: 0, roll: 0, direction: 0,
+    kind: 'unavailable', aligned: false, x: 0, y: 0, roll: 0, direction: 0, level: 0,
     message: 'Alignez la photo à l’œil',
   }
   if (!validBasis(target) || !validBasis(viewer) || !cam
@@ -65,7 +68,7 @@ export function reproduceOrientation(
   const aligned = kind === 'visible' && axesAligned && Math.abs(roll) <= ALIGN_TOLERANCE.roll
   return {
     kind, aligned, x: cam.width / 2 + dx / bound, y: cam.height / 2 + dy / bound,
-    roll, direction,
+    roll, direction, level: alignmentLevel({ heading: headingError, pitch: pitchError }),
     message: aligned ? 'Orientation alignée' : axesAligned && Math.abs(roll) > ALIGN_TOLERANCE.roll
       ? 'Alignez les deux croix · faites pivoter le téléphone'
       : kind === 'edge' ? 'Alignez les deux croix · suivez la flèche' : 'Alignez les deux croix',

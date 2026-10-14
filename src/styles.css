@@ -542,6 +542,98 @@ html.picti-ar .camera-video {
   background: none;
 }
 
+/*
+ * Chaud / froid (0.24.0) : pastille au-dessus de la rangée de zoom ; bleu loin (> 300 m), orange, rouge près
+ * (< 80 m). Appui = fiche ; croix = ignorer une heure.
+ */
+.warm-cold {
+  --warm: #1f6fd1;
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bar-space) + 19px + 52px);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  max-width: calc(100% - 32px);
+  border-radius: 999px;
+  background: var(--warm);
+  color: #fff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: opacity 0.15s ease-out, background-color 0.6s ease-out, visibility 0s linear 0s;
+}
+
+.warm-cold.tiede {
+  --warm: #e46c0a;
+}
+
+.warm-cold.chaud {
+  --warm: var(--red);
+}
+
+.warm-cold.imprecise {
+  --warm: rgb(20 20 20 / 0.6);
+  gap: 6px;
+  padding: 8px 14px;
+  backdrop-filter: blur(8px);
+}
+
+.warm-cold.almost {
+  padding: 9px 16px;
+  font-weight: 600;
+}
+
+.warm-cold.faded,
+.viewfinder:has(.shutter.picking) .warm-cold {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out, visibility 0s linear 0.15s;
+}
+
+.warm-cold-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 4px 0 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.warm-cold-main strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.warm-cold-north {
+  margin-left: -4px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.warm-cold-trend {
+  font-size: 13px;
+  opacity: 0.92;
+}
+
+.warm-cold-ignore {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  opacity: 0.8;
+}
+
 /* Reproduire : entre le curseur d'opacité et le déclencheur. */
 .reproduce-viewfinder .zoom-lenses {
   bottom: calc(var(--safe-bottom) + 116px);
@@ -2428,6 +2520,68 @@ button.avatar-item {
   border: 3px dashed var(--red);
   background-color: #fff;
   opacity: 0.92;
+}
+
+/* Chaud / froid sur la carte (0.24.0) : trait pointillé de ma position à la photo, qui est entourée. */
+.map-guide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.map-guide line {
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
+}
+
+.map-guide-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.map-guide-ring::before {
+  content: '';
+  position: absolute;
+  left: -46px;
+  top: -46px;
+  width: 92px;
+  height: 92px;
+  border: 3px solid var(--red);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.8);
+}
+
+.map-guide-distance {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #1f6fd1;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  translate: -50% -50%;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+  pointer-events: none;
+}
+
+.map-guide-distance.tiede {
+  background: #e46c0a;
+}
+
+.map-guide-distance.chaud {
+  background: var(--red);
 }
 
 .map-pending-dot {

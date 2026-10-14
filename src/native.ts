@@ -310,8 +310,9 @@ export function appLinkHash(url: string, app = APP_URL): string | null {
 }
 
 /**
- * Retours haptiques : `tick` (léger, en s'alignant), `strong` (dessus), `clac` (déclencheur),
- * `success` (capture).
+ * Retours haptiques : `tick` (léger : en s'alignant, paliers du chaud / froid), `strong` (presque aligné, à 20 m
+ * de la photo, sortie de la vue), `clac` (déclencheur, capture), `success` (reproduction enregistrée,
+ * « Orientation alignée », photo recalée).
  */
 export type HapticKind = 'tick' | 'strong' | 'clac' | 'success'
 
@@ -325,12 +326,23 @@ export const WEB_VIBRATION: Record<HapticKind, number | number[]> = {
 
 let hapticsPlugin: Promise<typeof import('@capacitor/haptics')> | null = null
 
+// Réglage « Vibrations » (Paramètres › Prise de vue, 0.24.0) : posé par `src/data/deviceSettings.ts`.
+let vibrations = true
+
+/** Coupe ou rétablit les vibrations (sauf le retour du déclencheur). */
+export function setVibrations(on: boolean): void {
+  vibrations = on
+}
+
 /**
- * Retour haptique : moteur du téléphone par Capacitor Haptics dans l'app (iOS, Android) ;
+ * Retour haptique — le seul chemin des vibrations de l'app (0.24.0 : plus aucun `navigator.vibrate` direct, qui
+ * ne fait rien sur iPhone) : moteur du téléphone par Capacitor Haptics dans l'app (iOS, Android) ;
  * `navigator.vibrate` dans un navigateur Android ; rien dans Safari sur iPhone (il ne vibre pas).
- * `@capacitor/haptics` n'est chargé que dans la coque.
+ * `@capacitor/haptics` n'est chargé que dans la coque. `shutter` : retour du déclencheur, gardé même
+ * « Vibrations » coupées.
  */
-export function haptic(kind: HapticKind, native = isNative()): void {
+export function haptic(kind: HapticKind, { shutter = false, native = isNative() }: { shutter?: boolean; native?: boolean } = {}): void {
+  if (!vibrations && !shutter) return
   if (!native) {
     navigator.vibrate?.(WEB_VIBRATION[kind])
     return

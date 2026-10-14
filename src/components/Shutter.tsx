@@ -128,7 +128,7 @@ export function Shutter({
     clearTimeout(p.timer)
     swallowClick.current = true
     update({ from: p.from, lift, closing: false })
-    haptic('tick')
+    haptic('tick', { shutter: true })
   }
 
   function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
@@ -158,7 +158,7 @@ export function Shutter({
     const current = pickRef.current
     if (!current) return
     const lift = columnLift(dy)
-    if (visibilityAtLift(p.from, lift) !== visibilityAtLift(p.from, current.lift)) haptic('tick')
+    if (visibilityAtLift(p.from, lift) !== visibilityAtLift(p.from, current.lift)) haptic('tick', { shutter: true })
     update({ ...current, lift })
   }
 

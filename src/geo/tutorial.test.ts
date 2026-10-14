@@ -9,6 +9,7 @@ import {
   plateInView,
   plateOffset,
   plateOffView,
+  alignmentPulse,
   pulseInterval,
   relativeError,
   TUTORIAL,
@@ -101,6 +102,14 @@ describe('niveau d’alignement (netteté, opacité, vibrations)', () => {
     const intervals = [0.1, 0.3, 0.5, 0.7, 0.9].map((l) => pulseInterval(l)!)
     for (let i = 1; i < intervals.length; i++) expect(intervals[i]).toBeLessThan(intervals[i - 1])
     expect(intervals[0]).toBeLessThanOrEqual(TUTORIAL.pulseSlow)
+  })
+
+  it('impulsions plafonnées : jamais moins de 120 ms entre deux ; tick loin, strong au-delà de la moitié', () => {
+    expect(alignmentPulse(0)).toBeNull()
+    for (let l = 0.08; l <= 2; l += 0.01) expect(alignmentPulse(l)!.gap).toBeGreaterThanOrEqual(120)
+    expect(alignmentPulse(0.3)!.kind).toBe('tick')
+    expect(alignmentPulse(0.5)!.kind).toBe('strong')
+    expect(alignmentPulse(1)).toEqual({ gap: 120, kind: 'strong' })
   })
 })
 

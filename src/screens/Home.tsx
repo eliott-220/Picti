@@ -15,6 +15,7 @@ import { usePanes, type Pane } from '../components/usePanes'
 import type { SidePane } from '../components/panes'
 import { useTyping } from '../components/useTyping'
 import { usePinchZoom } from '../components/usePinchZoom'
+import { WarmColdGuide } from '../components/WarmColdGuide'
 import { ZoomLenses } from '../components/ZoomLenses'
 import { DirectionArrow, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
@@ -290,6 +291,8 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
   // l'ouverture du menu pour s'effacer en douceur.
   const zoomShown =
     !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !frozen && !held && !captureSheet?.open && pane === 'viseur'
+  // Chaud / froid (0.24.0) : sur le viseur, caméra arrière ; pas en Reproduire (ni pendant le tutoriel, autre écran).
+  const warmColdShown = !selfie && !reproduce && onViewfinder && pane === 'viseur' && !frozen && !held && !captureSheet?.open
   const pinch = usePinchZoom({
     enabled: canZoom,
     zoom: zoom.value,
@@ -351,6 +354,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
     setBusy(true)
     setFlash(true)
     setTimeout(() => setFlash(false), 160)
+    haptic('clac', { shutter: true })
     let kept = false
     try {
       const frame = await capture()
@@ -394,9 +398,9 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
   async function save({ photo, images }: NewPhoto, { classic = false, pose }: { classic?: boolean; pose?: NativeArPose } = {}) {
     const saved = await addPhoto(photo, images, { visibility, versionOf: classic ? null : reproduce?.id })
     if (pose && saved.geoframe) trackArShot(saved.id, pose, saved.geoframe)
-    navigator.vibrate?.(30)
     const kind = selfie ? 'Selfie' : 'Photo'
     if (reproduce && saved.versionOf === reproduce.id) {
+      haptic('success')
       // Reproduction réussie : sa fiche montre l'originale et le curseur avant / après.
       toast(`Reproduction enregistrée · visible par ${VISIBLE_BY[saved.visibility]}`)
       navigate(`/photo/${saved.id}`, { replace: true })
@@ -608,6 +612,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
           seulement ; elle s'efface pendant le choix du mode (colonne au-dessus du bouton rouge) et quand le
           menu est ouvert : les deux ne se superposent jamais. */}
       {zoomShown && <ZoomLenses presets={zoom.presets} zoom={zoom.value} onSelect={setZoomWanted} faded={!!sheet} />}
+      {shell && <WarmColdGuide fix={geo.fix} shown={warmColdShown} faded={!!sheet} wide={zoom.value < 1} />}
 
       {reproduce && (
         <div className="bottom-bar">

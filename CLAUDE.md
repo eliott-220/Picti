@@ -152,7 +152,7 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     testée) ; l'état affiché est amorti sans horloge cachée (heure et état précédent en paramètres) :
     `out` seulement après `REPRODUCE_OUT_DELAY_MS` (2 s) d'écart, retour seulement
     `REPRODUCE_HYSTERESIS_M` (1 m) à l'intérieur du rayon (et de 50 m). Hook `useReproduceStatus`
-    (recalcul toutes les 200 ms, vibration courte au passage à `out`). Textes : `src/data/shotWarnings.ts`
+    (recalcul toutes les 200 ms, vibration `strong` au passage à `out`, iPhone compris depuis 0.24.0). Textes : `src/data/shotWarnings.ts`
     (testés). UI : bandeau orange « Revenez de 2 m » / rouge « Trop loin de la photo d'origine (14 m) »,
     « Tournez-vous vers la gauche », « Levez le téléphone » + flèche (`.reproduce-alert`), calque à
     35 % hors de la vue, ⚠ sur le déclencheur (`.shutter-warn`) ; `lost` : calque masqué, carte « Vous
@@ -458,7 +458,8 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     (`plateOffView` : écart > demi-champ + 10° sur un axe, et carte projetée hors de l'écran) ;
     3. « Retrouve-la » : flèche de bord d'écran (`EdgeArrow` / `edgeArrowDeg`, extraits de la chasse),
     `alignmentLevel` (1 dessus, ½ à la limite des tolérances) → plaque plus nette et plus opaque
-    (`plateLook`), vibrations de plus en plus rapprochées (`pulseInterval`, géométrique de 900 à 110 ms ;
+    (`plateLook`), vibrations de plus en plus rapprochées (`pulseInterval`, géométrique de 900 à 120 ms — 110
+    avant 0.24.0 ; `useAlignmentPulses`, partagé avec la chasse et Reproduire depuis 0.24.0 ;
     `haptic('tick' | 'strong')`) et un « tic » sonore discret (Web Audio, plus aigu en s'alignant,
     débloqué par le geste du déclencheur) ; « Capturer » actif à cap ±20° et inclinaison ±15° (les
     tolérances d'une même vue, `VIEW_*_TOLERANCE`) **et** le centre de la plaque à l'écran
@@ -495,7 +496,9 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     « Personne n'a encore posé de photo près de toi. Sois le premier ! » ; position refusée, ou base
     sans la fonction : « Crée ton compte pour voir les photos autour de toi ».
   - **Retours haptiques** : `haptic(kind)` (`src/native.ts`) — `@capacitor/haptics` dans l'app (chargé à
-    la demande), `navigator.vibrate` dans un navigateur Android, rien dans Safari sur iPhone.
+    la demande), `navigator.vibrate` dans un navigateur Android, rien dans Safari sur iPhone. **Depuis 0.24.0,
+    seul chemin des vibrations** (plus aucun `navigator.vibrate` direct : contrôlé par `src/haptics.test.ts`) ;
+    coupé par le réglage « Vibrations » sauf `{ shutter: true }` (déclencheur et sa colonne de modes).
     `loadPreference` / `savePreference` : `@capacitor/preferences` dans l'app.
 
 - **Navigation (0.23.0, prompt `PROMPT-0.023.0.md` du dossier d'Eliott ; conception
@@ -768,7 +771,29 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
     vignette à bord rouge **en pointillés** + étiquette « à recaler » à partir du zoom 12 (`PENDING_ZOOM`),
     simple point en pointillés en deçà ; sous les autres vignettes. Appui → fiche.
   - Fiche : « Géocadrer sur place » devient **« Recaler »** ; « Prise le … · ajoutée à PICTI le … » existait déjà
-    (`shotDateText`).
+    (`shotDateText`). **« Y aller »** (partie 4) à côté de « Recaler » : la photo devient la cible du chaud /
+    froid, retour au viseur (au-delà de 500 m ou guidage coupé : un toast le dit).
+
+- **Haptique et chaud / froid (0.24.0, partie 4, prompt `PROMPT-0.024.0-4.md`)**
+  - **Vibrations** : tout passe par `haptic()` — capture (chasse, viseur) `clac` ; capture interrompue et sortie
+    de la vue de l'originale `strong` ; appui long `tick` ; déclencheur `clac` (`shutter`) ; reproduction
+    enregistrée, photo recalée, « Orientation alignée » `success`. **Alignement qui se sent** en chasse
+    (`al.score`) et en Reproduire (`OrientationGuide.level`, même `alignmentLevel` que le tutoriel) :
+    `useAlignmentPulses` — `tick` puis `strong` au-delà de 0,5, jamais moins de 120 ms entre deux
+    (`alignmentPulse`). Paramètres › Prise de vue › **« Vibrations »** (`src/data/deviceSettings.ts`,
+    `localStorage` + Preferences, activé par défaut ; chargé dès `App.tsx`).
+  - **Chaud / froid** (`src/geo/warmCold.ts`, testé ; `useWarmCold`, `WarmColdGuide`) : de 500 à 20 m d'une
+    photo. Cible : la photo **choisie** (`src/data/guideTarget.ts` : chasse ouverte — `Hunt`, relâchée à la
+    capture —, « Y aller », relâchée une fois recalée), sinon la plus proche **à capturer** (d'un autre,
+    géocadrée, pas capturée, non masquée) parmi les photos du store (`refreshNearby`, aucune requête de plus).
+    **Viseur** : pastille au-dessus du zoom — flèche selon le cap du téléphone (`useGuideHeading` ; sans cap :
+    nord en haut, « N »), distance, bleu > 300 m, orange 300–80, rouge < 80 ; « Plus chaud / Plus froid » si la
+    distance a changé d'au moins 10 m (ou la précision) depuis 10 s ; appui = fiche ; croix = ignorée 1 h
+    (gardé sur l'appareil), on passe à la suivante. Paliers 200, 100, 50 m `tick`, 20 m `strong` + « Tu y es
+    presque : lève le téléphone » (5 s), puis plus rien (viseur RA) ; un palier ne revibre qu'après s'en être
+    éloigné de 15 m. Cachée : selfie, Reproduire, tutoriel (autre écran), feuilles, 0,5 sans cap ; GPS moins
+    précis que la distance → « Position imprécise ». **Carte** : trait pointillé de ma position à la cible,
+    distance au milieu, cible entourée. Paramètres › Prise de vue › **« Guidage chaud / froid »**.
 
 ## App native (Capacitor)
 
@@ -1170,7 +1195,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
-- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 3 — import : le sélecteur d'iOS garde la position (mesuré), cap en nord vrai converti en magnétique (déclinaison WMM), bilan en liste (placée / à orienter sur place · distance / sans position / illisible + raison, « Recaler »), photos « à recaler » sur ma carte en pointillés. Partie 2 — socle avant testeurs : signaler (photo masquée pour moi aussitôt, pour tous à 3), bloquer dans les deux sens, supprimer son compte (Edge Function, tout ou rien), conditions d'utilisation et confidentialité (brouillon), plus aucune métadonnée envoyée (l'import envoyait l'original), avertissement de la première photo publique ; migration et fonctions prêtes, pas appliquées. Partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
+- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 4 — vibrations sur iPhone partout (alignement qui se sent en chasse et en Reproduire, capture, réglage « Vibrations ») et guidage chaud / froid de 500 à 20 m (pastille du viseur, trait sur la carte, paliers qui vibrent, « Y aller »). Partie 3 — import : le sélecteur d'iOS garde la position (mesuré), cap en nord vrai converti en magnétique (déclinaison WMM), bilan en liste (placée / à orienter sur place · distance / sans position / illisible + raison, « Recaler »), photos « à recaler » sur ma carte en pointillés. Partie 2 — socle avant testeurs : signaler (photo masquée pour moi aussitôt, pour tous à 3), bloquer dans les deux sens, supprimer son compte (Edge Function, tout ou rien), conditions d'utilisation et confidentialité (brouillon), plus aucune métadonnée envoyée (l'import envoyait l'original), avertissement de la première photo publique ; migration et fonctions prêtes, pas appliquées. Partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
 - 0.23.3 : bouton Réglages de Mon profil réparé (l'onglet restait par-dessus les Paramètres, et par-dessus toute page ouverte depuis un onglet) ; hors du viseur, plus de rond rouge : appareil photo seul, comme les autres pictogrammes, avec une petite animation dans les deux sens (au doigt aussi) ; pages qui se poussent entre elles (onglets et pages), sauf vers / depuis le viseur.
 - 0.23.2 : barre plus basse (hauteur d'Instagram) ; bouton rouge dans la pilule, de la taille des autres boutons ; appareil photo hors du viseur, symbole du mode sur le viseur.
 - 0.23.1 : barre à cinq boutons (Carte · Amis · bouton rouge · Mes photos · Profil), cinq écrans côte à côte dans cet ordre (glisser = écran voisin), pas de flèche retour sur eux ; pictogramme du profil au lieu de l'initiale ; onglet Amis avec les notifications au-dessus des amis (plus de cloche au viseur) ; onglet Mes photos ; Menu 4 carrés au-dessus de la barre, sur le viseur seulement ; pile des écrans : retour sans écran blanc.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import { ArPhoto, CaptureCard, EdgeArrow } from '../components/ar'
 import { coverTransform, edgeArrowDeg, overlayScale, projectGeoPhoto, viewportCamera, type GeoframedPhoto } from '../components/arProjection'
 import { Icon, Logo } from '../components/Icon'
+import { useAlignmentPulses } from '../components/useAlignmentPulses'
 import { useCapture } from '../components/useCapture'
 import { useElementSize } from '../components/useElementSize'
 import { registerLocalImage, registerThumbs, useImageUrl } from '../data/imageUrls'
@@ -16,7 +17,6 @@ import {
   plateLook,
   plateOffset,
   plateOffView,
-  pulseInterval,
   relativeError,
 } from '../geo/tutorial'
 import { haptic, useDarkStatusBar } from '../native'
@@ -203,26 +203,8 @@ function TutorialCamera({
     capture.active == null
 
   // Pendant l'approche, l'alignement se sent (vibrations de plus en plus rapprochées) et s'entend.
-  const levelRef = useRef(level)
-  useEffect(() => {
-    levelRef.current = level
-  })
   const hunting = step === 'find' && capture.active == null
-  useEffect(() => {
-    if (!hunting) return
-    let timer: ReturnType<typeof setTimeout>
-    const beat = () => {
-      const l = levelRef.current
-      const interval = pulseInterval(l)
-      if (interval != null) {
-        haptic(l >= 0.5 ? 'strong' : 'tick')
-        tick(l)
-      }
-      timer = setTimeout(beat, interval ?? 250)
-    }
-    timer = setTimeout(beat, 300)
-    return () => clearTimeout(timer)
-  }, [hunting])
+  useAlignmentPulses(level, hunting, { onBeat: tick })
   useEffect(() => () => closeAudio(), [])
 
   async function shoot() {
@@ -237,7 +219,7 @@ function TutorialCamera({
       const at = basisRef.current
       setFlash(true)
       setTimeout(() => setFlash(false), 160)
-      haptic('clac')
+      haptic('clac', { shutter: true })
       const frame = await grab()
       // Suivi visuel : la pose exacte de l'image ; sinon l'orientation au déclenchement.
       const shotBasis = frame.pose ? nativePoseBasis(frame.pose) : (at ?? basisRef.current ?? basisFromAngles(look))

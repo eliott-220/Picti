@@ -12,9 +12,11 @@ import {
 import { Icon } from '../components/Icon'
 import { PreciseLocationNotice } from '../components/PreciseLocationNotice'
 import { DirectionArrow, RoundButton } from '../components/ui'
+import { useAlignmentPulses } from '../components/useAlignmentPulses'
 import { useElementSize } from '../components/useElementSize'
 import { CELEBRATION_MS, useCapture } from '../components/useCapture'
 import { useSpotCalibration } from '../components/useSpotCalibration'
+import { chooseGuideTarget, releaseGuideTarget } from '../data/guideTarget'
 import { useStore } from '../data/storeContext'
 import { huntSaturation, usePhotoInColor } from '../data/photoColor'
 import { usePhoto } from '../data/usePhoto'
@@ -28,6 +30,8 @@ import { photoPileOrder, spotPointOf } from '../data/photoSpots'
 import { goBack, navigate } from '../router'
 import { useViewfinder } from '../sensors/useViewfinder'
 import { PhotoSheet } from './PhotoDetail'
+import { haptic } from '../native'
+import { useScreenActive } from '../screenStack'
 
 /**
  * Alignement tenu (ms) au bout duquel la capture se lance d'elle-même (même déroulé qu'un appui
@@ -149,9 +153,18 @@ function HuntView({
   const capture = useCapture((id) => {
     if (id !== photo.id) return
     setPhaseState({ id, phase: 'captured', first: !alreadyCaptured })
-    navigator.vibrate?.([60, 40, 120])
+    haptic('clac')
+    // Chasse finie : le chaud / froid du viseur passe à la photo suivante.
+    releaseGuideTarget(id)
     if (!alreadyCaptured) void addCapture(id, scoreRef.current).catch(() => undefined)
   })
+  // L'alignement se sent (0.24.0, comme le tutoriel) : impulsions de plus en plus rapprochées.
+  const screenActive = useScreenActive()
+  useAlignmentPulses(al.score, screenActive && phase === 'hunting' && capture.active == null)
+  // Chasse en cours : de retour au viseur, le chaud / froid guide vers cette photo.
+  useEffect(() => {
+    if (phase === 'hunting') chooseGuideTarget(photo.id)
+  }, [photo.id, phase])
   useEffect(() => {
     capture.sync({ angles: viewerAngles, place: (id) => (id === photo.id ? transform : null) })
   })

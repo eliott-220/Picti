@@ -14,9 +14,12 @@ export const TUTORIAL = {
   /** Écarts tolérés pour capturer (°) : ceux d'une même vue (`sameView`), comme une vraie photo. */
   heading: VIEW_HEADING_TOLERANCE,
   pitch: VIEW_PITCH_TOLERANCE,
-  /** Rythme des vibrations (ms entre deux) : lent loin de la plaque, rapide dessus. */
+  /**
+   * Rythme des vibrations (ms entre deux) : lent loin de la plaque, rapide dessus ; jamais moins de 120 ms
+   * (0.24.0 : mêmes impulsions en chasse et en Reproduire ; 110 ms avant).
+   */
   pulseSlow: 900,
-  pulseFast: 110,
+  pulseFast: 120,
   /** Sous ce niveau d'alignement, pas de vibration. */
   pulseFrom: 0.08,
   /** Plaque loin de l'alignement : floue (px à l'écran) et pâle ; dessus : nette et presque opaque. */
@@ -94,4 +97,14 @@ export function pulseInterval(level: number): number | null {
   if (!(level >= TUTORIAL.pulseFrom)) return null
   const l = Math.min(1, level)
   return Math.round(TUTORIAL.pulseSlow * (TUTORIAL.pulseFast / TUTORIAL.pulseSlow) ** l)
+}
+
+/**
+ * Prochaine impulsion d'alignement (tutoriel, chasse, Reproduire) : intervalle (ms, jamais sous
+ * `TUTORIAL.pulseFast`) et force — `tick` loin, `strong` au-delà de la moitié ; null : pas de vibration.
+ */
+export function alignmentPulse(level: number): { gap: number; kind: 'tick' | 'strong' } | null {
+  const interval = pulseInterval(level)
+  if (interval == null) return null
+  return { gap: Math.max(TUTORIAL.pulseFast, interval), kind: level >= 0.5 ? 'strong' : 'tick' }
 }

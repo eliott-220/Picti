@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ViewportCamera } from '../geo/optics'
 import { basisFromAngles, frontCameraBasis, type CameraAngles } from '../geo/orientation'
 import { reproduceOrientation } from '../geo/reproduceOrientation'
+import { useAlignmentPulses } from './useAlignmentPulses'
 import type { OrientationState } from '../sensors/useOrientation'
 
 /** Calque sans interaction ; démonté dès que la caméra est masquée par une feuille. */
@@ -33,6 +34,8 @@ export function ReproduceCrosshairs({ target, orientation, cam, selfie }: {
   // Le hook lisse la base en 40 ms. Seule la position visuelle l'utilise ; statut et limites
   // viennent de la mesure non lissée, pour ne jamais rester « aligné » après un mouvement.
   const visual = reproduceOrientation(targetBasis, fresh ? optical(orientation.basis) : null, cam, selfie)
+  // L'alignement se sent (0.24.0) : impulsions de plus en plus rapprochées, `success` à « Orientation alignée ».
+  useAlignmentPulses(measured.level, visible && !!cam, { aligned: measured.aligned })
   if (!visible || !cam) return null
   const moving = measured.kind === 'visible' || measured.kind === 'edge'
   const point = visual.kind === measured.kind ? visual : measured

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CAPTURE, checkCapture, type CaptureSample } from '../geo/capture'
 import type { CameraAngles } from '../geo/orientation'
 import { walkedSteps } from '../sensors/motion'
+import { haptic } from '../native'
 
 /**
  * Célébration d'une capture (ms) : la photo capturée couvre l'écran, puis sa fiche monte en
@@ -84,7 +85,7 @@ export function useCapture(onCaptured: (id: string) => void) {
       if (check.status === 'cancelled') {
         setState({ phase: 'back', id, to: view.current.place(id) ?? from, cancelled: true })
         setNotice('Capture interrompue : restez immobile')
-        navigator.vibrate?.(80)
+        haptic('strong')
         return
       }
       if (check.status === 'complete') {

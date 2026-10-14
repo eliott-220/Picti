@@ -8,6 +8,8 @@ import { Icon } from '../components/Icon'
 import { LikeButton, VersionBadge } from '../components/LikeButton'
 import { Avatar, Chip, IconButton, PhotoTile, RoundButton, Sheet } from '../components/ui'
 import { useToast } from '../components/toastContext'
+import { deviceSetting } from '../data/deviceSettings'
+import { chooseGuideTarget } from '../data/guideTarget'
 import { useImageUrl } from '../data/imageUrls'
 import { usePhotoInColor } from '../data/photoColor'
 import { PremiumCard } from '../components/PremiumCard'
@@ -39,6 +41,7 @@ import {
 } from '../data/types'
 import { clamp } from '../geo/math'
 import { compassPoint, distanceMeters, formatDistance } from '../geo/geodesy'
+import { WARM_COLD } from '../geo/warmCold'
 import { useGeolocation } from '../sensors/useGeolocation'
 import { goBack, navigate, useBackCloses } from '../router'
 
@@ -171,6 +174,16 @@ function PhotoDetailView({
   const shareable = mine || captured
   const canReproduce = captured && isGeoframed(photo) && photo.visibility !== 'prive'
   const reproduce = () => navigate(`/reproduire/${photo.id}`, { replace: sheet })
+  // « Y aller » (0.24.0) : ma photo à recaler, le chaud / froid du viseur guide jusqu'à elle (de 500 à 20 m).
+  const { fix } = useGeolocation()
+  function goThere() {
+    chooseGuideTarget(photo.id)
+    const far = fix && photo.hintPosition ? distanceMeters(fix, photo.hintPosition) : null
+    if (!deviceSetting('guidage')) toast('Guidage chaud / froid coupé : Paramètres › Prise de vue')
+    else if (far != null && far > WARM_COLD.max)
+      toast(`À ${formatDistance(far)} : le guidage commence à ${formatDistance(WARM_COLD.max)}`)
+    navigate('/')
+  }
 
   async function share() {
     if (!allowed) {
@@ -247,9 +260,16 @@ function PhotoDetailView({
                   </button>
                 ) : (
                   mine && (
-                    <button type="button" className="btn" onClick={() => navigate(`/recaler/${photo.id}`)}>
-                      <Icon name="scan" /> Recaler
-                    </button>
+                    <>
+                      <button type="button" className="btn" onClick={() => navigate(`/recaler/${photo.id}`)}>
+                        <Icon name="scan" /> Recaler
+                      </button>
+                      {photo.hintPosition && (
+                        <button type="button" className="btn ghost go-there-btn" onClick={goThere}>
+                          <Icon name="arrow" /> Y aller
+                        </button>
+                      )}
+                    </>
                   )
                 )}
                 {canReproduce && (

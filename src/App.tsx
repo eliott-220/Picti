@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type SyntheticEvent } fro
 import { Logo } from './components/Icon'
 import { PUSH_EASING, PUSH_MS } from './components/swipeOpen'
 import { usePasswordRecovery, useSession } from './data/auth'
+// Réglages de l'appareil (Vibrations…) appliqués dès le lancement.
+import './data/deviceSettings'
 import { takePendingInvite } from './data/invite'
 import { loadOnboardingDone, markOnboardingDone, onboardingDoneNow } from './data/onboarding'
 import { ArShotRefiner } from './components/ArShotRefiner'
