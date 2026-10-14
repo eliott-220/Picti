@@ -231,6 +231,7 @@ export function SpotTimeline({
   distance,
   onGallery,
   collapse,
+  onPhotoOpen,
 }: {
   items: GeoPhoto[]
   index: number
@@ -245,6 +246,8 @@ export function SpotTimeline({
   onGallery?: () => void
   /** Viseur : la frise se range en vignette (glisser vers le bas). */
   collapse?: TimelineCollapse
+  /** Appui sur la miniature d'une photo déjà capturée : sa fiche. */
+  onPhotoOpen?: (photo: GeoPhoto) => void
 }) {
   const photo = items[index]
   const root = useRef<HTMLDivElement>(null)
@@ -277,7 +280,12 @@ export function SpotTimeline({
       }
     >
       <div className="timeline-slide" style={gesture.slideStyle}>
-        <PhotoTile id={photo.id} size="mini" />
+        <PhotoTile
+          id={photo.id}
+          size="mini"
+          onClick={onPhotoOpen && (() => onPhotoOpen(photo))}
+          label={onPhotoOpen ? 'Ouvrir la fiche de la photo' : undefined}
+        />
         <div className="timeline-text">
           <strong>{formatDayTime(photoTime(photo))}</strong>
           <span>{author + where}</span>

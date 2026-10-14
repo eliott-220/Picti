@@ -12,6 +12,7 @@ import { useElementSize } from '../components/useElementSize'
 import { useReproduceStatus } from '../components/useReproduceStatus'
 import { PREPARE_MS } from '../components/swipeOpen'
 import { usePanes, type Pane } from '../components/usePanes'
+import { useExplorerGesture } from '../components/useExplorerGesture'
 import type { SidePane } from '../components/panes'
 import { useTyping } from '../components/useTyping'
 import { usePinchZoom } from '../components/usePinchZoom'
@@ -123,6 +124,11 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
     onCommit: commitPane,
     panes: paneRefs,
     bar: barRef,
+  })
+  const explorer = useExplorerGesture({
+    open: sheet === 'menu',
+    enabled: screenActive && shell && pane === 'viseur' && !panes.move && !captureSheet?.open && !frozen && !held && !waitGps && !busy && !typing,
+    onChange: (open) => setSheet(open ? 'menu' : null),
   })
   // Le viseur est visible (affiché, ou découvert par un glissé) : sinon la caméra se met en pause.
   const onViewfinder = screenActive && (pane === 'viseur' || panes.move?.under === 'viseur')
@@ -270,7 +276,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
         return
       }
       lastTap.current = null
-      if (busy || held || frozen || !onViewfinder) return
+      if (busy || held || frozen || explorer.visible || !onViewfinder) return
       haptic('tick')
       setFlip((n) => n + 1)
       setFacing((f) => (f === 'user' ? 'environment' : 'user'))
@@ -287,7 +293,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
 
   // Pincer pour zoomer (caméra arrière). Avec la caméra d'ARKit, arrêtée à 1, un pincement poussé vers
   // l'intérieur passe au grand angle.
-  const canZoom = !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !sheet && !frozen && !held && !captureSheet?.open
+  const canZoom = !selfie && zoom.presets.length > 1 && cameraStatus === 'ready' && !explorer.visible && !frozen && !held && !captureSheet?.open
   // Boutons du zoom : sur le viseur seulement (pas sur la carte, les onglets ni en selfie), gardés pendant
   // l'ouverture du menu pour s'effacer en douceur.
   const zoomShown =
@@ -494,7 +500,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
           : null
 
   // Barre du bas : cachée pendant une fiche, un choix de prise, une feuille de la carte, la saisie.
-  const barShown = shell && !captureSheet?.open && !held && !frozen && !mapSheet && !typing
+  const barShown = shell && !explorer.visible && !captureSheet?.open && !held && !frozen && !mapSheet && !typing
   const shutterLabel = selfie ? 'Prendre un selfie' : 'Prendre une photo'
   const paneClass = (p: SidePane) =>
     pane === p ? ' shown' : panes.move?.pane === p ? ' moving' : panes.move?.under === p ? ' under' : ''
@@ -503,12 +509,17 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
     <main
       className={`screen viewfinder ${reproduce ? 'reproduce-viewfinder' : ''}`}
       {...(shell ? panes.handlers : {})}
-      onPointerDownCapture={pinch.onPointerDownCapture}
+      onPointerDown={(e) => { if (shell) { if (!explorer.visible) panes.handlers.onPointerDown(e); explorer.handlers.onPointerDown(e) } }}
+      onPointerMove={(e) => { if (shell) { if (!explorer.visible) panes.handlers.onPointerMove(e); explorer.handlers.onPointerMove(e) } }}
+      onPointerUp={(e) => { if (shell) { panes.handlers.onPointerUp(e); explorer.handlers.onPointerUp(e) } }}
+      onPointerCancel={(e) => { if (shell) { panes.handlers.onPointerCancel(e); explorer.handlers.onPointerCancel(e) } }}
+      onPointerDownCapture={(e) => { pinch.onPointerDownCapture(e); if (shell && !e.isPrimary) explorer.handlers.onPointerDown(e) }}
       onPointerMoveCapture={pinch.onPointerMoveCapture}
       onPointerUpCapture={pinch.onPointerUpCapture}
       onPointerCancelCapture={pinch.onPointerCancelCapture}
       onClickCapture={(e) => {
         pinch.onClickCapture(e)
+        if (shell && !e.isPropagationStopped()) explorer.handlers.onClickCapture(e)
         if (shell && !e.isPropagationStopped()) panes.handlers.onClickCapture(e)
       }}
     >
@@ -518,7 +529,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
         {...stageTaps}
         role={shell ? 'region' : undefined}
         aria-label={
-          shell ? 'Viseur — glisser vers la droite : carte ; vers la gauche : Mon profil ; double appui : caméra avant ou arrière' : undefined
+          shell ? 'Viseur — glisser vers le haut : Explorer ; vers la droite : carte ; vers la gauche : Mon profil ; double appui : caméra avant ou arrière' : undefined
         }
       >
         {/* Monde en couleur ; les photos des autres restent en noir et blanc jusqu'à leur capture.
@@ -549,7 +560,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
             mirror={selfie}
           />
         )}
-        {reproduce && cameraStatus === 'ready' && !sheet && !held && !frozen && !lostCard && !captureSheet?.open && (
+        {reproduce && cameraStatus === 'ready' && !explorer.visible && !held && !frozen && !lostCard && !captureSheet?.open && (
           <ReproduceCrosshairs
             target={reproduce.geoframe}
             orientation={orientation}
@@ -559,25 +570,31 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
         )}
         {/* Image figée au déclenchement, le temps de choisir. */}
         {frozen && <img className={`frozen-shot ${selfie ? 'mirror' : ''}`} src={frozen} alt="" />}
-        {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie ; rien à
-            calculer quand le viseur est recouvert par la carte ou le profil. */}
-        {!sheet && !selfie && !reproduce && onViewfinder && (
-          <ArSpotsLayer
-            photos={arPhotos}
-            fix={position}
-            basis={orientation.absolute ? orientation.basis : null}
-            cam={viewportCamera(stage, cameraSize, focal35)}
-            isMine={isMine}
-            onOpen={(p) => navigate(`/photo/${p.id}`)}
-            onHunt={(p) => navigate(`/chasse/${p.id}`)}
-            onGallery={(p) => navigate(`/galerie/${p.id}`)}
-            onCapture={captureHere}
-            actionFor={(p) =>
-              captureSheet?.id === p.id && !captureSheet.open
-                ? { label: 'Fiche', onClick: () => setCaptureSheet({ id: p.id, open: true }) }
-                : null
-            }
-          />
+        {/* Les photos flottent dans le décor vu par la caméra principale, pas dans le selfie. Garder
+            la couche montée sous les pages et Explorer pour retrouver la photo sélectionnée au retour. */}
+        {!selfie && !reproduce && (
+          <div
+            style={{ visibility: explorer.visible || !onViewfinder ? 'hidden' : undefined }}
+            inert={explorer.visible || !onViewfinder}
+            aria-hidden={explorer.visible || !onViewfinder || undefined}
+          >
+            <ArSpotsLayer
+              photos={arPhotos}
+              fix={position}
+              basis={orientation.absolute ? orientation.basis : null}
+              cam={viewportCamera(stage, cameraSize, focal35)}
+              isMine={isMine}
+              onOpen={(p) => navigate(`/photo/${p.id}`)}
+              onHunt={(p) => navigate(`/chasse/${p.id}`)}
+              onGallery={(p) => navigate(`/galerie/${p.id}`)}
+              onCapture={captureHere}
+              actionFor={(p) =>
+                captureSheet?.id === p.id && !captureSheet.open
+                  ? { label: 'Fiche', onClick: () => setCaptureSheet({ id: p.id, open: true }) }
+                  : null
+              }
+            />
+          </div>
         )}
         {flash && <div className="flash" />}
         {/* Passage caméra arrière ↔ avant (double appui) : court fondu de l'image. */}
@@ -606,7 +623,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
 
       {/* Viseur allégé : les photos à chasser (les notifications sont dans l'onglet Amis depuis 0.23.1) ; la
           caméra avant se prend d'un double appui, la recherche dans le menu. */}
-      {!reproduce && (
+      {!reproduce && !explorer.visible && (
         <nav className="rail" aria-label="Explorer">
           <RoundButton
             icon="flag"
@@ -618,7 +635,7 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
         </nav>
       )}
 
-      {selfie && !sheet && !reproduce && (
+      {selfie && !explorer.visible && !reproduce && (
         <p className="selfie-hint"><strong>Selfie</strong> · on le retrouvera en visant, depuis la place du téléphone, l’endroit où tu te tiens · double appui pour revenir</p>
       )}
 
@@ -637,8 +654,8 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
       {/* Zoom (0.22.1) : depuis 0.24.0, petite rangée centrée juste au-dessus de la barre du bas, sur le viseur
           seulement ; elle s'efface pendant le choix du mode (colonne au-dessus du bouton rouge) et quand le
           menu est ouvert : les deux ne se superposent jamais. */}
-      {zoomShown && <ZoomLenses presets={zoom.presets} zoom={zoom.value} onSelect={selectLens} faded={!!sheet} />}
-      {shell && <WarmColdGuide fix={geo.fix} shown={warmColdShown} faded={!!sheet} wide={zoom.value < 1} />}
+      {zoomShown && !explorer.visible && <ZoomLenses presets={zoom.presets} zoom={zoom.value} onSelect={selectLens} />}
+      {shell && <WarmColdGuide fix={geo.fix} shown={warmColdShown && !explorer.visible} wide={zoom.value < 1} />}
 
       {reproduce && (
         <div className="bottom-bar">
@@ -752,10 +769,10 @@ export function Home({ reproduce, pane: route = 'viseur' }: { reproduce?: Geofra
 
       {/* Menu (4 carrés) : juste au-dessus de la barre, sur le viseur seulement (0.23.1). */}
       {shell && pane === 'viseur' && !panes.move && barShown && (
-        <RoundButton icon="grid" label="Menu" onClick={() => setSheet(sheet === 'menu' ? null : 'menu')} className="menu-fab" />
+        <RoundButton icon="grid" label="Menu" onClick={() => explorer.toggle(true)} className="menu-fab" />
       )}
 
-      {shell && sheet === 'menu' && <MenuSheet onClose={() => setSheet(null)} />}
+      {shell && explorer.visible && <MenuSheet onClose={() => explorer.toggle(false)} style={explorer.style} />}
 
       {barShown && (
         <BottomBar

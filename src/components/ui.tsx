@@ -148,17 +148,19 @@ export function Sheet({
   label,
   className = '',
   inPlace = false,
+  style,
 }: {
   onClose: () => void
   children: ReactNode
   label: string
-  /** Classe de la couche (ex. `explorer` : au-dessus de la carte et du profil, sous la barre du bas). */
+  /** Classe de la couche (ex. `explorer`). */
   className?: string
   /**
-   * Rendue dans l'écran plutôt qu'à la racine : seul moyen de passer sous un élément de l'écran (le menu
-   * Explorer, sous la barre du bas), chaque écran de la pile étant un calque à part depuis la 0.23.3.
+   * Rendue dans l'écran plutôt qu'à la racine : Explorer partage les gestes du viseur.
+   * Chaque écran de la pile est un calque à part depuis la 0.23.3.
    */
   inPlace?: boolean
+  style?: CSSProperties
 }) {
   // Écran caché sous un autre de la pile (0.23.1) : sa feuille aussi (elle est rendue à la racine).
   const active = useScreenActive()
@@ -172,7 +174,7 @@ export function Sheet({
   // Rendue à la racine de l'app : une feuille ouverte depuis la carte ou le profil (écrans déplacés par
   // les glissés, chacun sur son propre plan) passe bien au-dessus d'eux.
   const layer = (
-    <div className={`sheet-layer ${className}`}>
+    <div className={`sheet-layer ${className}`} style={style}>
       <button type="button" className="sheet-backdrop" aria-label="Fermer" onClick={onClose} />
       <section className="sheet" role="dialog" aria-modal="true" aria-label={label}>
         {children}

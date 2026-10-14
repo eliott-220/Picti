@@ -5056,9 +5056,7 @@ html.picti-ar .tutorial {
   }
 }
 
-/* Feuilles (rendues à la racine) : au-dessus des écrans voisins. Le menu Explorer reste sous la barre
-   du bas (bouton rouge réduit pour revenir au viseur) : rendu dans l'écran (`Sheet inPlace`), au-dessus
-   des onglets (25-26) ; les autres passent au-dessus. */
+/* Feuilles au-dessus des écrans voisins. Explorer masque les contrôles du viseur (0.24.3). */
 .sheet-layer {
   z-index: 35;
 }
@@ -5068,7 +5066,34 @@ html.picti-ar .tutorial {
 }
 
 .sheet-layer.explorer .sheet {
-  padding-bottom: calc(var(--bar-space) + 20px);
+  display: flex;
+  flex-direction: column;
+  min-height: min(60%, 480px);
+  padding-bottom: calc(12px + var(--safe-bottom));
+  overflow: hidden;
+  animation: none;
+  touch-action: none;
+  transform: translateY(calc((1 - var(--explorer-progress, 1)) * 100%));
+  transition: transform var(--explorer-duration, 240ms) ease-out;
+}
+
+.sheet-layer.explorer .sheet-backdrop {
+  opacity: var(--explorer-progress, 1);
+  transition: opacity var(--explorer-duration, 240ms) ease-out;
+}
+
+.explorer .explorer-grid {
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-layer.explorer .sheet {
+    transform: none;
+    opacity: var(--explorer-progress, 1);
+    transition: opacity var(--explorer-duration, 240ms) ease-out;
+  }
 }
 
 .explorer-head {
@@ -5168,7 +5193,8 @@ html.picti-ar .tutorial {
 }
 
 .explorer-footer {
-  margin-top: 16px;
+  margin: auto 0 0;
+  padding-top: 16px;
   color: var(--ink-2);
   font-size: 12px;
   text-align: center;

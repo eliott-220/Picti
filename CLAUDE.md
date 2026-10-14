@@ -2,6 +2,8 @@
 
 Mémoire de projet pour Claude. Lire aussi `README.md` (fonctionnalités, architecture, limites).
 
+**14/10/2026 — 0.24.3 codée et compilée localement**, suite de la frise 0.24.2 : appui sur la miniature d'une photo déjà capturée → même fiche que depuis le viseur ; Explorer au doigt haut / bas, barre et quatre carrés masqués pendant l'ouverture, croix seule, pied « picti 0.024.3 » en bas (version dynamique). Sélection de la frise conservée au retour de la fiche. 527 tests réussis, 1 ignoré ; build / lint / cap sync / compilation Xcode OK, 7 contrôles d'intégration en WebView iOS avec données fictives. Test tactile sur iPhone réel restant ; pas publiée. [Note de session](claude/picti/2026-10-14-fiche-frise-et-explorer.md).
+
 ## Le projet
 
 **PICTI** = application de **géocadrage** : ancrer une photo à la position GPS et à

@@ -227,6 +227,7 @@ export function ArSpotsLayer({
             index={focus.index}
             onChange={(i) => select(focus.key, focus.cards[i].photo)}
             isMine={isMine}
+            onPhotoOpen={inColor(focusTop.photo) || justCaptured.has(focusTop.photo.id) ? onOpen : undefined}
             action={
               // Photo d'un autre pas encore capturée, à moins de 5 m de son point de vue : on la
               // capture sur place (elle s'agrandit jusqu'à couvrir l'écran). Plus loin : « Chasser »

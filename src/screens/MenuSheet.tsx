@@ -3,13 +3,14 @@ import { IconButton, Sheet } from '../components/ui'
 import { APP_NUMBER } from '../data/appUpdate'
 import { useStore } from '../data/storeContext'
 import { navigate } from '../router'
+import type { CSSProperties } from 'react'
 
 /**
  * Menu (bouton 4 carrés au-dessus de la barre, sur le viseur seulement depuis 0.23.1) : feuille Explorer.
  * Grille 2 × 2 — À proximité, Rechercher, Mes chasses, Paramètres. Carte, Amis, Mes photos et Profil ont
  * leur bouton dans la barre.
  */
-export function MenuSheet({ onClose }: { onClose: () => void }) {
+export function MenuSheet({ onClose, style }: { onClose: () => void; style?: CSSProperties }) {
   const { photos, nearby, captures, isMine } = useStore()
   const captured = new Set(captures.map((c) => c.photoId))
   const toHunt = photos.filter((p) => nearby.has(p.id) && !isMine(p) && !captured.has(p.id)).length
@@ -33,7 +34,7 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
   ]
 
   return (
-    <Sheet onClose={onClose} label="Explorer" className="explorer" inPlace>
+    <Sheet onClose={onClose} label="Explorer" className="explorer" inPlace style={style}>
       <div className="explorer-head">
         <h2>Explorer</h2>
         <IconButton icon="close" label="Fermer" onClick={onClose} />
@@ -63,7 +64,7 @@ export function MenuSheet({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
-      <p className="explorer-footer">PICTI {APP_NUMBER}</p>
+      <p className="explorer-footer">picti {APP_NUMBER}</p>
     </Sheet>
   )
 }
