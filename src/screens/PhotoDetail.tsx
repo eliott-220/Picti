@@ -248,7 +248,7 @@ function PhotoDetailView({
                 ) : (
                   mine && (
                     <button type="button" className="btn" onClick={() => navigate(`/recaler/${photo.id}`)}>
-                      <Icon name="scan" /> Géocadrer sur place
+                      <Icon name="scan" /> Recaler
                     </button>
                   )
                 )}

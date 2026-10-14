@@ -619,23 +619,104 @@ html.picti-ar .camera-video {
   text-align: left;
 }
 
-.import-summary {
+/* Bilan de l'import (0.24.0) : une ligne par fichier — miniature, date, état, action. */
+.import-report {
   margin: -4px 0 20px;
-  padding: 12px 16px;
+}
+
+.import-report ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
   border-radius: var(--r-tile);
-  background: #ffe4e4;
+  background: var(--paper-2);
+}
+
+.import-line .tile-mini {
+  flex: none;
+  width: 44px;
+  border-radius: 10px;
+  /* Miniature = lien vers la fiche (les « mini » ne réagissent pas ailleurs). */
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.import-line-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink-2);
+}
+
+.import-line-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
   font-size: 15px;
 }
 
-.import-summary .link {
-  display: block;
-  margin-top: 6px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--red);
-  font-weight: 500;
-  text-decoration: underline;
+.import-line-text strong {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-line-text span {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* Pastille d'état : vert placée, orange à recaler, gris sans position, rouge illisible. */
+.import-line-text i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2e7d32;
+  transform: translateY(-1px);
+}
+
+.import-line.located i {
+  background: #ef6c00;
+}
+
+.import-line.none i {
+  background: #8a8a8a;
+}
+
+.import-line.failed i {
+  background: var(--red);
+}
+
+.import-line .btn.small {
+  flex: none;
+}
+
+.import-tip {
+  margin: 10px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.75;
 }
 
 .menu-head {
@@ -2340,6 +2421,44 @@ button.avatar-item {
 
 .map-marker.mine .tile-mini {
   border-color: var(--red);
+}
+
+/* Ma photo à recaler (0.24.0) : position sans direction, épingle en pointillés, vue par moi seul. */
+.map-marker.pending .tile-mini {
+  border: 3px dashed var(--red);
+  background-color: #fff;
+  opacity: 0.92;
+}
+
+.map-pending-dot {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px dashed var(--red);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.map-pending-label {
+  position: absolute;
+  left: 0;
+  top: 38px;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  pointer-events: none;
 }
 
 .map-count {

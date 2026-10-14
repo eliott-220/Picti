@@ -30,6 +30,8 @@ setWorkerUrl(mapWorkerUrl)
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 /** Au-delà de ce zoom, les photos d'un même endroit restent groupées. */
 const CLUSTER_MAX_ZOOM = 19
+/** À partir de ce zoom, mes photos « à recaler » ont leur vignette (avant : un point). */
+const PENDING_ZOOM = 12
 
 /**
  * Filtre de la carte : « monde » = toutes les photos que j'ai le droit de voir ; « amis » =
@@ -147,7 +149,7 @@ export default function WorldMap({
   }, [importing])
   // « Monde / Amis » : vrai sélecteur segmenté iOS en verre dans l'app iOS 26+.
   const scopeRef = useRef<HTMLDivElement>(null)
-  const { userId, friends } = useStore()
+  const { userId, friends, myPhotos } = useStore()
   const hasFriends = friends.some((f) => f.status === 'accepted')
   const [scope, setScope] = useState<MapScope>(savedScope)
   const nativeScope = useGlassButton(scopeRef, {
@@ -386,6 +388,15 @@ export default function WorldMap({
 
   const me = fix && map ? map.project([fix.lon, fix.lat]) : null
 
+  // Mes photos « à recaler » (0.24.0) : position connue (EXIF sans direction, ou posée au centre de la
+  // carte), pas encore géocadrées. Épingle en pointillés, vue par moi seul (elles ne sont pas dans
+  // `photos_in_bounds`, qui ne rend que les photos géocadrées).
+  const pending = useMemo(
+    () => myPhotos.filter((p) => !p.geoframe && p.hintPosition && !isHiddenPhoto(p, hidden)),
+    [myPhotos, hidden],
+  )
+  const near = (view?.zoom ?? 0) >= PENDING_ZOOM
+
   // Orientation de la carte (°) : relue à chaque image, comme la position des vignettes.
   const bearing = map?.getBearing() ?? 0
 
@@ -397,6 +408,41 @@ export default function WorldMap({
       {map &&
         createPortal(
           <div className="map-markers">
+            {/* Sous les photos géocadrées : de loin, un simple point en pointillés. */}
+            {pending.map((p) => {
+              const pt = map.project([p.hintPosition!.lon, p.hintPosition!.lat])
+              return (
+                <div
+                  key={`r${p.id}`}
+                  className="map-marker pending"
+                  data-lon={p.hintPosition!.lon}
+                  data-lat={p.hintPosition!.lat}
+                  style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}
+                >
+                  {near ? (
+                    <>
+                      <PhotoTile
+                        id={p.id}
+                        owner={p.owner}
+                        size="mini"
+                        onClick={() => navigate(`/photo/${p.id}`)}
+                        label="Ma photo à recaler sur place"
+                      />
+                      <span className="map-pending-label" aria-hidden="true">
+                        à recaler
+                      </span>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="map-pending-dot"
+                      aria-label="Ma photo à recaler sur place"
+                      onClick={() => navigate(`/photo/${p.id}`)}
+                    />
+                  )}
+                </div>
+              )
+            })}
             {features.map((f) => {
               const [lon, lat] = f.geometry.coordinates as [number, number]
               const pt = map.project([lon, lat])

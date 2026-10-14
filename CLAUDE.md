@@ -747,6 +747,29 @@ coins arrondis ; boutons ronds blancs flottants ; police ronde (Outfit).
   - Corrigé en route : la position du suivi visuel avant tout relevé GPS calé avait une précision infinie, et
     l'app la préférait au GPS (« Position imprécise (±Infinity m) » à la première photo) — `useViewfinder`.
 
+- **Import (0.24.0, partie 3, prompt `PROMPT-0.024.0-3.md`)** — toujours `<input type="file">` (sélecteur du
+  système), plus de plugin natif : **mesuré le 13/10** dans le simulateur iOS 26.3 (app et Safari, JPEG et HEIC),
+  le sélecteur **garde la position et la direction** par défaut (« Lieu inclus ») et le HEIC converti en JPEG
+  garde son EXIF ; seule l'option du sélecteur « … › Options › Lieu » désactivée les retire. iOS 15 à 18 pas
+  mesurés (pas de simulateur). Détail : note de session.
+  - **Nord** : tous les caps de PICTI sont **magnétiques** (boussole `webkitCompassHeading`, ARKit en
+    `worldAlignment = .gravity` calé sur la boussole). Cap EXIF en nord vrai (`GPSImgDirectionRef` = `T`,
+    l'iPhone) → `toAppNorth` (`src/geo/declination.ts`) : cap − déclinaison du lieu de la photo à la date du
+    jour (modèle **WMM2025**, paquet `magvar` 2.2.0, chargé à la demande ; ≈ +1,2° à La Rochelle). `M` ou sans
+    référence : gardé tel quel. Échec du calcul → 0.
+  - **Bilan en liste** (`src/data/importReport.ts`, testé ; `ImportSheet`) : une ligne par fichier, miniature
+    (→ fiche), date de prise de vue, pastille d'état : « Placée » (vert) ; « Position trouvée, à orienter sur
+    place · 209 m » (orange) et « Sans position » (gris) avec **« Recaler »** ; « Illisible · raison » (rouge :
+    format non pris en charge, plus de 50 Mo — refusés avant lecture —, image que le téléphone ne sait pas
+    lire). Titre : « 1 placée · 2 à recaler · 1 illisible ». Ligne « Sans position » → astuce « Options ›
+    Lieu ». Les lignes s'ajoutent d'un import à l'autre tant que la feuille est ouverte.
+  - **Carte** : mes photos **« à recaler »** (position connue, pas de géocadrage : `hintPosition` sans
+    `geoframe`, prises dans le store — `photos_in_bounds` ne rend que les géocadrées, donc vues par moi seul) :
+    vignette à bord rouge **en pointillés** + étiquette « à recaler » à partir du zoom 12 (`PENDING_ZOOM`),
+    simple point en pointillés en deçà ; sous les autres vignettes. Appui → fiche.
+  - Fiche : « Géocadrer sur place » devient **« Recaler »** ; « Prise le … · ajoutée à PICTI le … » existait déjà
+    (`shotDateText`).
+
 ## App native (Capacitor)
 
 Depuis 0.18.0 (prompt d'Eliott du 07/10) : coque **Capacitor 8** iOS + Android, **web embarqué**
@@ -1147,7 +1170,7 @@ souvent une app qui n'est qu'un site, règle 4.2). Détails pour Eliott : `READM
 - 0.017.1 : le déclencheur devient un carrousel à l'appui long : il grossit, les autres symboles apparaissent flous à gauche et à droite, suivent le doigt et viennent se placer dans le cercle rouge, nom du mode au-dessus pendant l'appui (plus de réglette séparée ni de toast).
 - 0.21.1 : sur l'accueil, glisser le doigt de droite à gauche ouvre le profil, qui arrive par la droite en suivant le doigt (pendant du retour par le bord gauche) ; partout (app iOS, Android, site).
 - 0.19.0 : vrais boutons Liquid Glass dans l'app iOS 26+ : viseur (rail, « + », Menu ; Reproduire), puis tous les boutons ronds (retour de chaque page, carte et sa boussole, profil, chasse, recalage), les croix des feuilles, les pastilles de choix (visibilité, filtres, tri) et « Monde / Amis » de la carte ; plugin Swift local ; retour en glissant depuis le bord gauche (app iOS). Sur le site aussi : symbole du mode (globe / amis / cadenas) sur toutes les vignettes de « Mes photos » au lieu du texte rouge, piles glissables dans « Mes photos » et le profil public, « Retour » qui reste juste après un retour du navigateur. En production le 08/10.
-- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 2 — socle avant testeurs : signaler (photo masquée pour moi aussitôt, pour tous à 3), bloquer dans les deux sens, supprimer son compte (Edge Function, tout ou rien), conditions d'utilisation et confidentialité (brouillon), plus aucune métadonnée envoyée (l'import envoyait l'original), avertissement de la première photo publique ; migration et fonctions prêtes, pas appliquées. Partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
+- 0.24.0 (en cours, branche `claude/version-0.24`) : partie 3 — import : le sélecteur d'iOS garde la position (mesuré), cap en nord vrai converti en magnétique (déclinaison WMM), bilan en liste (placée / à orienter sur place · distance / sans position / illisible + raison, « Recaler »), photos « à recaler » sur ma carte en pointillés. Partie 2 — socle avant testeurs : signaler (photo masquée pour moi aussitôt, pour tous à 3), bloquer dans les deux sens, supprimer son compte (Edge Function, tout ou rien), conditions d'utilisation et confidentialité (brouillon), plus aucune métadonnée envoyée (l'import envoyait l'original), avertissement de la première photo publique ; migration et fonctions prêtes, pas appliquées. Partie 1 — bulle Liquid Glass de l'onglet actif (glisse, s'étire, suit le doigt), changer de page d'un simple coup de doigt (enchaînable), zoom 0.22.1 fusionné et replacé au-dessus de la barre (effacé pendant le choix du mode et avec le menu), flèches de « À proximité » qui tournent avec le téléphone (à plat comme debout) et ne tremblent plus, migrations en attente vérifiées sans être appliquées.
 - 0.23.3 : bouton Réglages de Mon profil réparé (l'onglet restait par-dessus les Paramètres, et par-dessus toute page ouverte depuis un onglet) ; hors du viseur, plus de rond rouge : appareil photo seul, comme les autres pictogrammes, avec une petite animation dans les deux sens (au doigt aussi) ; pages qui se poussent entre elles (onglets et pages), sauf vers / depuis le viseur.
 - 0.23.2 : barre plus basse (hauteur d'Instagram) ; bouton rouge dans la pilule, de la taille des autres boutons ; appareil photo hors du viseur, symbole du mode sur le viseur.
 - 0.23.1 : barre à cinq boutons (Carte · Amis · bouton rouge · Mes photos · Profil), cinq écrans côte à côte dans cet ordre (glisser = écran voisin), pas de flèche retour sur eux ; pictogramme du profil au lieu de l'initiale ; onglet Amis avec les notifications au-dessus des amis (plus de cloche au viseur) ; onglet Mes photos ; Menu 4 carrés au-dessus de la barre, sur le viseur seulement ; pile des écrans : retour sans écran blanc.

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { EmptyState, IconButton, PhotoTile, Sheet } from '../components/ui'
+import { failureReason, importLine, lineStatus, refuseFile, reportTitle, type ImportLine } from '../data/importReport'
 import { importPhotoFile, type ImportResult } from '../data/pipeline'
 import { PremiumCard } from '../components/PremiumCard'
 import { VisibilityPill } from '../components/VisibilityPill'
@@ -11,11 +12,8 @@ import { isGeoframed, VISIBLE_BY } from '../data/types'
 import { distanceMeters, formatDistance, type GeoFix, type GeoPoint } from '../geo/geodesy'
 import { navigate } from '../router'
 
-interface Summary {
-  auto: number
-  pending: number
-  failed: number
-}
+/** Clé des lignes du bilan (uniques pendant la visite). */
+let lineCount = 0
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n > 1 ? 's' : ''}`
@@ -26,6 +24,8 @@ function plural(n: number, word: string) {
  * portent position et direction (smartphone) sont géocadrées aussitôt ; les autres attendent d'être
  * recalées sur le lieu de la prise de vue. `placeAt` (centre de la carte) : celles qui n'ont pas de
  * position du tout peuvent y être posées (position approchée, comme une photo GPS sans direction).
+ * Depuis 0.24.0, le bilan est une liste — une ligne par fichier : miniature, date de prise de vue, état
+ * (Placée → fiche ; position trouvée / sans position → Recaler ; illisible + raison).
  */
 export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => void; fix: GeoFix | null; placeAt?: GeoPoint | null }) {
   const { myPhotos, addPhoto, profile } = useStore()
@@ -34,16 +34,22 @@ export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => v
   const visibility = useShotVisibility()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
-  const [summary, setSummary] = useState<Summary | null>(null)
+  const [lines, setLines] = useState<ImportLine[]>([])
   // Photos lues sans aucune position : en attente de la réponse « les placer au centre de la carte ? ».
   const [unplaced, setUnplaced] = useState<ImportResult[]>([])
 
   async function onFiles(files: FileList | null) {
     if (!files?.length) return
     setBusy(true)
-    const s: Summary = { auto: 0, pending: 0, failed: 0 }
+    const done: ImportLine[] = []
     const waiting: ImportResult[] = []
     for (const file of Array.from(files)) {
+      const key = `l${++lineCount}`
+      const refused = refuseFile(file)
+      if (refused) {
+        done.push({ key, id: null, title: file.name, state: 'failed', position: null, reason: refused })
+        continue
+      }
       try {
         const r = await importPhotoFile(file)
         if (placeAt && !r.photo.hintPosition && !r.photo.geoframe) {
@@ -51,13 +57,12 @@ export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => v
           continue
         }
         await addPhoto(r.photo, r.images, { visibility })
-        if (r.completeness === 'complet') s.auto++
-        else s.pending++
-      } catch {
-        s.failed++
+        done.push(importLine(key, r.photo))
+      } catch (e) {
+        done.push({ key, id: null, title: file.name, state: 'failed', position: null, reason: failureReason(e) })
       }
     }
-    setSummary(s)
+    setLines((was) => [...was, ...done])
     setUnplaced(waiting)
     setBusy(false)
     if (input.current) input.current.value = ''
@@ -68,18 +73,18 @@ export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => v
     const list = unplaced
     setUnplaced([])
     setBusy(true)
-    let pending = 0
-    let failed = 0
+    const done: ImportLine[] = []
     for (const r of list) {
+      const key = `l${++lineCount}`
       try {
         const photo = at ? { ...r.photo, hintPosition: { lat: at.lat, lon: at.lon, alt: null } } : r.photo
         await addPhoto(photo, r.images, { visibility })
-        pending++
-      } catch {
-        failed++
+        done.push(importLine(key, photo))
+      } catch (e) {
+        done.push({ key, id: null, title: r.photo.title, state: 'failed', position: null, reason: failureReason(e) })
       }
     }
-    setSummary((was) => ({ auto: was?.auto ?? 0, pending: (was?.pending ?? 0) + pending, failed: (was?.failed ?? 0) + failed }))
+    setLines((was) => [...was, ...done])
     setBusy(false)
   }
 
@@ -141,17 +146,43 @@ export function ImportSheet({ onClose, fix, placeAt = null }: { onClose: () => v
         </div>
       )}
 
-      {summary && (
-        <p className="import-summary">
-          {summary.auto > 0 && <>{plural(summary.auto, 'photo géocadrée')} automatiquement. </>}
-          {summary.pending > 0 && <>{plural(summary.pending, 'photo')} à recaler sur place. </>}
-          {summary.failed > 0 && <>{plural(summary.failed, 'fichier')} illisible{summary.failed > 1 ? 's' : ''}.</>}
-          {summary.auto > 0 && (
-            <button type="button" className="link" onClick={() => navigate('/photos')}>
-              Voir mes photos géocadrées
-            </button>
+      {lines.length > 0 && (
+        <section className="import-report" aria-labelledby="bilan-import">
+          <h2 className="section-title" id="bilan-import">
+            {reportTitle(lines)}
+          </h2>
+          <ul>
+            {lines.map((l) => (
+              <li key={l.key} className={`import-line ${l.state}`}>
+                {l.id ? (
+                  <PhotoTile id={l.id} size="mini" label={l.title} onClick={() => navigate(`/photo/${l.id}`)} />
+                ) : (
+                  <span className="import-line-icon" aria-hidden="true">
+                    <Icon name="warning" size={22} />
+                  </span>
+                )}
+                <span className="import-line-text">
+                  <strong>{l.title}</strong>
+                  <span>
+                    <i aria-hidden="true" />
+                    {lineStatus(l, fix)}
+                  </span>
+                </span>
+                {l.id && (l.state === 'located' || l.state === 'none') && (
+                  <button type="button" className="btn small" onClick={() => navigate(`/recaler/${l.id}`)}>
+                    Recaler
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {lines.some((l) => l.state === 'none') && (
+            <p className="import-tip">
+              Une photo de ton iPhone arrive sans position ? Dans le choix des photos, « … » › Options : « Lieu » doit être
+              activé.
+            </p>
           )}
-        </p>
+        </section>
       )}
 
       <h2 className="section-title">Mes photos géolocalisées à proximité</h2>

@@ -1,5 +1,6 @@
 // Création des photos PICTI : géocadrage en direct et import (en différé).
 
+import { declinationAt, toAppNorth } from '../geo/declination'
 import { exifCompleteness, readExif, type ExifCompleteness } from '../geo/exif'
 import type { GeoFix } from '../geo/geodesy'
 import { DEFAULT_PHONE_FOCAL35 } from '../geo/optics'
@@ -88,6 +89,11 @@ export async function importPhotoFile(file: File): Promise<ImportResult> {
   const [exif, bitmap] = await Promise.all([readExif(file), decodeImage(file)])
   try {
     const completeness = exifCompleteness(exif)
+    // Direction de l'EXIF (nord vrai sur iPhone) ramenée au nord magnétique de la boussole de PICTI.
+    const heading =
+      exif.heading != null && exif.position
+        ? toAppNorth(exif.heading, exif.headingRef, await declinationAt(exif.position.lat, exif.position.lon).catch(() => 0))
+        : exif.heading
     const title = exif.takenAt ? formatDate(exif.takenAt) : file.name.replace(/\.[^.]+$/, '')
     const photo: PhotoDraft = {
       id: newId(),
@@ -105,7 +111,7 @@ export async function importPhotoFile(file: File): Promise<ImportResult> {
               position: exif.position!,
               // Précision notée par l'appareil (GPSHPositioningError), sinon inconnue.
               accuracy: exif.accuracy,
-              heading: exif.heading!,
+              heading: heading!,
               pitch: 0,
               roll: 0,
               headingSource: 'exif',
